@@ -1,0 +1,1655 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* NOTE: global body background/padding were removed — the site shell
+   (site.css + ThemeProvider) owns page-level styling now. The calculator
+   is styled entirely through the .calculator class below. */
+
+.calculator {
+  background: rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(20px);
+  border: 2px solid #ff6600;
+  border-radius: 15px;
+  padding: 15px;
+  box-shadow: 0 15px 30px rgba(255, 102, 0, 0.3);
+  max-width: 400px;
+  width: 100%;
+  transition: all 0.3s ease;
+}
+ 
+
+
+/* Theme Toggle Container */
+.theme-toggle-container {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.key.theme-toggle,
+.key.mode-toggle {
+  background: linear-gradient(145deg, #333333, #1a1a1a);
+  color: #ff6600;
+  border: 1px solid #ff6600;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.8em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 120px;
+}
+
+.key.theme-toggle:hover,
+.key.mode-toggle:hover {
+  background: linear-gradient(145deg, #404040, #2a2a2a);
+  color: #ff8533;
+  transform: translateY(-1px);
+}
+
+/* Black/White Theme */
+.calculator.black-white {
+  background: rgba(0, 0, 0, 0.95);
+  border: 2px solid #ffffff;
+  box-shadow: 0 15px 30px rgba(255, 255, 255, 0.2);
+}
+
+.calculator.black-white .calculator-display {
+  border: 1px solid #ffffff;
+  box-shadow: inset 0 2px 10px rgba(255, 255, 255, 0.1);
+}
+
+.calculator.black-white .expression {
+  color: #cccccc;
+}
+
+.calculator.black-white .display {
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+/* Black/White theme display scrollbar */
+.calculator.black-white .display {
+  scrollbar-color: rgba(255, 255, 255, 0.5) transparent;
+}
+
+.calculator.black-white .display::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.calculator.black-white .display::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.calculator.black-white .key.theme-toggle,
+.calculator.black-white .key.mode-toggle {
+  color: #ffffff;
+  border: 1px solid #ffffff;
+}
+
+.calculator.black-white .key.theme-toggle:hover,
+.calculator.black-white .key.mode-toggle:hover {
+  color: #cccccc;
+}
+
+.calculator.black-white .expression.editing {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.calculator.black-white .cursor {
+  color: #ffffff;
+}
+
+/* Black/White theme scrollbar */
+.calculator.black-white .expression {
+  scrollbar-color: rgba(255, 255, 255, 0.5) transparent;
+}
+
+.calculator.black-white .expression::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.calculator.black-white .expression::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+/* White/Black Theme */
+.calculator.white-black {
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid #000000;
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+}
+
+.calculator.white-black .calculator-display {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #000000;
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.calculator.white-black .expression {
+  color: #666666;
+}
+
+.calculator.white-black .display {
+  color: #000000;
+  text-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+}
+
+/* White/Black theme display scrollbar */
+.calculator.white-black .display {
+  scrollbar-color: rgba(0, 0, 0, 0.5) transparent;
+}
+
+.calculator.white-black .display::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.calculator.white-black .display::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.calculator.white-black .key.theme-toggle,
+.calculator.white-black .key.mode-toggle {
+  background: linear-gradient(145deg, #e0e0e0, #ffffff);
+  color: #000000;
+  border: 1px solid #000000;
+}
+
+.calculator.white-black .key.theme-toggle:hover,
+.calculator.white-black .key.mode-toggle:hover {
+  background: linear-gradient(145deg, #d0d0d0, #f0f0f0);
+  color: #333333;
+}
+
+.calculator.white-black .expression.editing {
+  background: rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.3);
+}
+
+.calculator.white-black .cursor {
+  color: #000000;
+}
+
+/* White/Black theme scrollbar */
+.calculator.white-black .expression {
+  scrollbar-color: rgba(0, 0, 0, 0.5) transparent;
+}
+
+.calculator.white-black .expression::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.calculator.white-black .expression::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.calculator-display {
+  background: rgba(0, 0, 0, 0.95);
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 15px;
+  box-shadow: inset 0 2px 10px rgba(255, 102, 0, 0.2);
+  border: 1px solid #ff6600;
+}
+
+.expression {
+  color: #cc5200;
+  font-size: 1em;
+  text-align: right;
+  font-weight: 300;
+  min-height: 20px;
+  margin-bottom: 8px;
+  opacity: 0.8;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  cursor: text;
+  transition: all 0.3s ease;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 102, 0, 0.5) transparent;
+}
+
+/* Webkit scrollbar styling for expression */
+.expression::-webkit-scrollbar {
+  height: 4px;
+}
+
+.expression::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.expression::-webkit-scrollbar-thumb {
+  background: rgba(255, 102, 0, 0.5);
+  border-radius: 2px;
+}
+
+.expression::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 102, 0, 0.7);
+}
+
+.expression.editing {
+  opacity: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: rgba(255, 102, 0, 0.1);
+  border-radius: 4px;
+  padding: 2px 4px;
+  border: 1px solid rgba(255, 102, 0, 0.3);
+  white-space: nowrap;
+  text-overflow: unset;
+}
+
+.cursor {
+  color: #ff6600;
+  font-weight: bold;
+  animation: blink 1s infinite;
+  display: inline;
+}
+
+@keyframes blink {
+
+  0%,
+  50% {
+    opacity: 1;
+  }
+
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.display {
+  color: #ff6600;
+  font-size: 2em;
+  text-align: right;
+  font-weight: 300;
+  letter-spacing: 1px;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  text-shadow: 0 0 10px rgba(255, 102, 0, 0.5);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 102, 0, 0.5) transparent;
+}
+
+/* Webkit scrollbar styling for display */
+.display::-webkit-scrollbar {
+  height: 4px;
+}
+
+.display::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.display::-webkit-scrollbar-thumb {
+  background: rgba(255, 102, 0, 0.5);
+  border-radius: 2px;
+}
+
+.display::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 102, 0, 0.7);
+}
+
+/* Scientific mode - 6 column grid */
+.calculator-keypad.scientific-mode {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+/* Normal mode - 4 column grid like standard calculator */
+.calculator-keypad.normal-mode {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+/* Zero button spans 2 columns in normal mode */
+.calculator-keypad.normal-mode .zero-wide {
+  grid-column: span 2;
+}
+
+/* Normal mode buttons are larger */
+.calculator-keypad.normal-mode .key {
+  height: 55px;
+  font-size: 1.1em;
+}
+
+.calculator-keypad.normal-mode .key.operator {
+  font-size: 1.3em;
+}
+
+.calculator-keypad.normal-mode .key.equals {
+  font-size: 1.3em;
+}
+
+.calculator-keypad.normal-mode .key.number {
+  font-size: 1.2em;
+}
+
+/* Legacy fallback */
+.calculator-keypad {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+.span-full {
+  grid-column: 1 / -1;
+}
+
+.key {
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  height: 45px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 102, 0, 0.2);
+}
+
+.key:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(255, 102, 0, 0.4);
+}
+
+.key:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(255, 102, 0, 0.3);
+}
+
+/* Keyboard focus styling */
+.key.focused {
+  outline: 3px solid #ff6600;
+  outline-offset: 2px;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(255, 102, 0, 0.6);
+  z-index: 10;
+  position: relative;
+}
+
+/* Black/White theme focus styling */
+.calculator.black-white .key.focused {
+  outline: 3px solid #ffffff;
+}
+
+/* White/Black theme focus styling */
+.calculator.white-black .key.focused {
+  outline: 3px solid #000000;
+}
+
+/* Accessibility helpers */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.accessibility-instructions {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* Keyboard Navigation Banner */
+.keyboard-navigation-banner {
+  background: rgba(255, 102, 0, 0.15);
+  border: 1px solid rgba(255, 102, 0, 0.3);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85em;
+  color: #ff6600;
+  animation: slideIn 0.3s ease;
+}
+
+/* Accessibility Help Banner */
+.accessibility-help-banner {
+  background: rgba(0, 150, 255, 0.15);
+  border: 1px solid rgba(0, 150, 255, 0.3);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85em;
+  color: #0096ff;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.keyboard-navigation-banner .help-text {
+  font-size: 0.8em;
+  opacity: 0.8;
+}
+
+.accessibility-help-banner .help-text {
+  font-size: 0.8em;
+  opacity: 0.9;
+  font-weight: 500;
+}
+
+/* Black/White theme banners */
+.calculator.black-white .keyboard-navigation-banner {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+
+.calculator.black-white .accessibility-help-banner {
+  background: rgba(135, 206, 250, 0.2);
+  border: 1px solid rgba(135, 206, 250, 0.4);
+  color: #87ceeb;
+}
+
+/* White/Black theme banners */
+.calculator.white-black .keyboard-navigation-banner {
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  color: #000000;
+}
+
+.calculator.white-black .accessibility-help-banner {
+  background: rgba(0, 100, 180, 0.15);
+  border: 1px solid rgba(0, 100, 180, 0.3);
+  color: #0064b4;
+}
+
+/* Number keys */
+.key.number {
+  background: linear-gradient(145deg, #333333, #1a1a1a);
+  color: #ffffff;
+  border: 1px solid #ff6600;
+}
+
+.key.number:hover {
+  background: linear-gradient(145deg, #404040, #2a2a2a);
+  box-shadow: 0 6px 20px rgba(255, 102, 0, 0.3);
+}
+
+/* Black/White theme number keys */
+.calculator.black-white .key.number {
+  border: 1px solid #ffffff;
+}
+
+.calculator.black-white .key.number:hover {
+  box-shadow: 0 6px 20px rgba(255, 255, 255, 0.2);
+}
+
+/* White/Black theme number keys */
+.calculator.white-black .key.number {
+  background: linear-gradient(145deg, #f0f0f0, #ffffff);
+  color: #000000;
+  border: 1px solid #000000;
+}
+
+.calculator.white-black .key.number:hover {
+  background: linear-gradient(145deg, #e0e0e0, #f5f5f5);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* Operator keys */
+.key.operator {
+  background: linear-gradient(145deg, #ff6600, #cc5200);
+  color: white;
+  border: 1px solid #ff8533;
+}
+
+.key.operator:hover {
+  background: linear-gradient(145deg, #ff7733, #b8450a);
+}
+
+/* Black/White theme operator keys */
+.calculator.black-white .key.operator {
+  background: linear-gradient(145deg, #666666, #333333);
+  color: white;
+  border: 1px solid #999999;
+}
+
+.calculator.black-white .key.operator:hover {
+  background: linear-gradient(145deg, #777777, #444444);
+}
+
+/* White/Black theme operator keys */
+.calculator.white-black .key.operator {
+  background: linear-gradient(145deg, #333333, #000000);
+  color: white;
+  border: 1px solid #666666;
+}
+
+.calculator.white-black .key.operator:hover {
+  background: linear-gradient(145deg, #444444, #111111);
+}
+
+/* Scientific function keys */
+.key.scientific {
+  background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+  color: #ff6600;
+  font-size: 0.75em;
+  border: 1px solid #404040;
+}
+
+.key.scientific:hover {
+  background: linear-gradient(145deg, #333333, #262626);
+  color: #ff8533;
+}
+
+/* Black/White theme scientific keys */
+.calculator.black-white .key.scientific {
+  color: #ffffff;
+  border: 1px solid #555555;
+}
+
+.calculator.black-white .key.scientific:hover {
+  color: #cccccc;
+}
+
+/* White/Black theme scientific keys */
+.calculator.white-black .key.scientific {
+  background: linear-gradient(145deg, #e0e0e0, #f0f0f0);
+  color: #000000;
+  border: 1px solid #999999;
+}
+
+.calculator.white-black .key.scientific:hover {
+  background: linear-gradient(145deg, #d0d0d0, #e5e5e5);
+  color: #333333;
+}
+
+/* Memory keys */
+.key.memory {
+  background: linear-gradient(145deg, #404040, #2a2a2a);
+  color: #ff6600;
+  font-size: 0.75em;
+  border: 1px solid #666666;
+}
+
+.key.memory:hover {
+  background: linear-gradient(145deg, #4d4d4d, #333333);
+  color: #ff8533;
+}
+
+/* Black/White theme memory keys */
+.calculator.black-white .key.memory {
+  color: #ffffff;
+  border: 1px solid #777777;
+}
+
+.calculator.black-white .key.memory:hover {
+  color: #cccccc;
+}
+
+/* White/Black theme memory keys */
+.calculator.white-black .key.memory {
+  background: linear-gradient(145deg, #d0d0d0, #e0e0e0);
+  color: #000000;
+  border: 1px solid #aaaaaa;
+}
+
+.calculator.white-black .key.memory:hover {
+  background: linear-gradient(145deg, #c0c0c0, #d5d5d5);
+  color: #333333;
+}
+
+/* Copy/Paste keys */
+.key.copy-paste {
+  background: linear-gradient(145deg, #006bb3, #004d80);
+  color: white;
+  font-size: 0.65em;
+  border: 1px solid #0088cc;
+  font-weight: 500;
+}
+
+.key.copy-paste:hover {
+  background: linear-gradient(145deg, #0088cc, #005599);
+  color: #ffffff;
+}
+
+/* Black/White theme copy/paste keys */
+.calculator.black-white .key.copy-paste {
+  background: linear-gradient(145deg, #4d4d4d, #333333);
+  color: #ffffff;
+  border: 1px solid #666666;
+}
+
+.calculator.black-white .key.copy-paste:hover {
+  background: linear-gradient(145deg, #5a5a5a, #404040);
+  color: #cccccc;
+}
+
+/* White/Black theme copy/paste keys */
+.calculator.white-black .key.copy-paste {
+  background: linear-gradient(145deg, #b3b3b3, #cccccc);
+  color: #000000;
+  border: 1px solid #808080;
+}
+
+.calculator.white-black .key.copy-paste:hover {
+  background: linear-gradient(145deg, #a0a0a0, #b8b8b8);
+  color: #333333;
+}
+
+/* Clear key */
+.key.clear {
+  background: linear-gradient(145deg, #ff3300, #cc2900);
+  color: white;
+  font-weight: bold;
+  border: 1px solid #ff5533;
+}
+
+.key.clear:hover {
+  background: linear-gradient(145deg, #ff4d26, #b82600);
+}
+
+/* Black/White theme clear key */
+.calculator.black-white .key.clear {
+  background: linear-gradient(145deg, #cc0000, #990000);
+  border: 1px solid #ff3333;
+}
+
+.calculator.black-white .key.clear:hover {
+  background: linear-gradient(145deg, #dd1111, #aa0000);
+}
+
+/* White/Black theme clear key */
+.calculator.white-black .key.clear {
+  background: linear-gradient(145deg, #ff3300, #cc2900);
+  border: 1px solid #ff5533;
+}
+
+.calculator.white-black .key.clear:hover {
+  background: linear-gradient(145deg, #ff4d26, #b82600);
+}
+
+/* Equals key */
+.key.equals {
+  background: linear-gradient(145deg, #ff6600, #cc5200);
+  color: white;
+  font-size: 1.1em;
+  font-weight: bold;
+  border: 1px solid #ff8533;
+}
+
+.key.equals:hover {
+  background: linear-gradient(145deg, #ff7733, #b8450a);
+}
+
+/* Black/White theme equals key */
+.calculator.black-white .key.equals {
+  background: linear-gradient(145deg, #666666, #333333);
+  border: 1px solid #999999;
+}
+
+.calculator.black-white .key.equals:hover {
+  background: linear-gradient(145deg, #777777, #444444);
+}
+
+/* White/Black theme equals key */
+.calculator.white-black .key.equals {
+  background: linear-gradient(145deg, #333333, #000000);
+  border: 1px solid #666666;
+}
+
+.calculator.white-black .key.equals:hover {
+  background: linear-gradient(145deg, #444444, #111111);
+}
+
+/* Decimal key */
+.key.decimal {
+  background: linear-gradient(145deg, #333333, #1a1a1a);
+  color: #ff6600;
+  font-size: 1.2em;
+  border: 1px solid #666666;
+}
+
+.key.decimal:hover {
+  background: linear-gradient(145deg, #404040, #2a2a2a);
+  color: #ff8533;
+}
+
+/* Black/White theme decimal key */
+.calculator.black-white .key.decimal {
+  color: #ffffff;
+  border: 1px solid #777777;
+}
+
+.calculator.black-white .key.decimal:hover {
+  color: #cccccc;
+}
+
+/* White/Black theme decimal key */
+.calculator.white-black .key.decimal {
+  background: linear-gradient(145deg, #f0f0f0, #ffffff);
+  color: #000000;
+  border: 1px solid #999999;
+}
+
+.calculator.white-black .key.decimal:hover {
+  background: linear-gradient(145deg, #e0e0e0, #f5f5f5);
+  color: #333333;
+}
+
+/* Placeholder/Empty buttons */
+.key.placeholder {
+  opacity: 0.2;
+  pointer-events: none;
+  background: transparent !important;
+  border: 1px dashed rgba(255, 102, 0, 0.1) !important;
+  color: rgba(255, 102, 0, 0.3) !important;
+  cursor: default;
+}
+
+.key.placeholder:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Superscript styling for mathematical notation */
+.key sup {
+  font-size: 0.6em;
+  vertical-align: super;
+  line-height: 0;
+  position: relative;
+  top: -0.3em;
+}
+
+/* Superscript styling for display expressions */
+.display sup {
+  font-size: 0.5em;
+  vertical-align: super;
+  line-height: 0;
+  position: relative;
+  top: -0.5em;
+}
+
+/* Placeholder styling for incomplete power expressions */
+.display sup:contains('□') {
+  opacity: 0.6;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+
+  0%,
+  50% {
+    opacity: 0.6;
+  }
+
+  51%,
+  100% {
+    opacity: 0.3;
+  }
+}
+
+/* Shortcut tooltip styling for operation keys */
+/*
+.key .key-shortcut {
+  display: none;
+  position: absolute;
+  bottom: 110%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #222;
+  color: #fff;
+  font-size: 0.75em;
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0.95;
+}
+.key.operator:hover .key-shortcut,
+.key.scientific:hover .key-shortcut,
+.key.equals:hover .key-shortcut {
+  display: block;
+}
+
+.key {
+  position: relative;
+}
+*/
+
+/* Responsive design */
+@media (max-height: 800px) {
+  .calculator {
+    padding: 10px;
+    max-width: 350px;
+  }
+
+  .calculator-display {
+    padding: 10px;
+    margin-bottom: 10px;
+  }
+
+  .expression {
+    font-size: 0.8em;
+    min-height: 15px;
+    margin-bottom: 5px;
+  }
+
+  .display {
+    font-size: 1.6em;
+    min-height: 30px;
+  }
+
+  .key {
+    height: 35px;
+    font-size: 0.8em;
+  }
+
+  .key.scientific,
+  .key.memory {
+    font-size: 0.65em;
+  }
+
+  .key.equals {
+    font-size: 0.9em;
+  }
+
+  .calculator-keypad {
+    gap: 6px;
+  }
+
+  /* Normal mode responsive */
+  .calculator-keypad.normal-mode .key {
+    height: 45px;
+    font-size: 1em;
+  }
+}
+
+@media (max-width: 600px) {
+  .calculator {
+    padding: 12px;
+    margin: 8px;
+    max-width: 320px;
+  }
+
+  .calculator-keypad {
+    gap: 6px;
+  }
+
+  .key {
+    height: 40px;
+    font-size: 0.8em;
+  }
+
+  .display {
+    font-size: 1.8em;
+  }
+
+  .key.scientific,
+  .key.memory {
+    font-size: 0.7em;
+  }
+
+  /* Normal mode responsive */
+  .calculator-keypad.normal-mode .key {
+    height: 50px;
+    font-size: 1em;
+  }
+}
+
+@media (max-width: 480px) {
+  .calculator {
+    max-width: 300px;
+    padding: 10px;
+  }
+
+  .calculator-keypad {
+    gap: 5px;
+  }
+
+  .key {
+    height: 35px;
+    font-size: 0.75em;
+  }
+
+  .key.scientific,
+  .key.memory {
+    font-size: 0.6em;
+  }
+
+  .display {
+    font-size: 1.6em;
+  }
+
+  /* Normal mode responsive */
+  .calculator-keypad.normal-mode .key {
+    height: 45px;
+    font-size: 0.95em;
+  }
+}
+
+/* ============================== */
+/* Graph Toggle & Embedded Panel  */
+/* ============================== */
+
+/* Container for the Show/Hide Graph button */
+.graph-toggle-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.key.graph-toggle {
+  background: linear-gradient(145deg, #333333, #1a1a1a);
+  color: #ff6600;
+  border: 1px solid #ff6600;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.85em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.key.graph-toggle:hover {
+  background: linear-gradient(145deg, #404040, #2a2a2a);
+  color: #ff8533;
+  transform: translateY(-1px);
+}
+
+.key.graph-toggle.active {
+  background: linear-gradient(145deg, #ff6600, #cc5200);
+  color: #ffffff;
+  border-color: #ff8533;
+}
+
+.key.graph-toggle.active:hover {
+  background: linear-gradient(145deg, #ff7733, #b8450a);
+  color: #ffffff;
+}
+
+/* Black/White theme graph toggle */
+.calculator.black-white .key.graph-toggle {
+  color: #ffffff;
+  border-color: #ffffff;
+}
+
+.calculator.black-white .key.graph-toggle:hover {
+  color: #cccccc;
+}
+
+.calculator.black-white .key.graph-toggle.active {
+  background: linear-gradient(145deg, #666666, #333333);
+  color: #ffffff;
+  border-color: #999999;
+}
+
+/* White/Black theme graph toggle */
+.calculator.white-black .key.graph-toggle {
+  background: linear-gradient(145deg, #e0e0e0, #ffffff);
+  color: #000000;
+  border-color: #000000;
+}
+
+.calculator.white-black .key.graph-toggle:hover {
+  background: linear-gradient(145deg, #d0d0d0, #f0f0f0);
+  color: #333333;
+}
+
+.calculator.white-black .key.graph-toggle.active {
+  background: linear-gradient(145deg, #333333, #000000);
+  color: #ffffff;
+  border-color: #666666;
+}
+
+/* Embedded graph panel wrapper */
+.embedded-graph-panel {
+  margin-bottom: 10px;
+  animation: graphSlideIn 0.3s ease;
+}
+
+@keyframes graphSlideIn {
+  from {
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+  }
+  to {
+    opacity: 1;
+    max-height: 1000px;
+    overflow: visible;
+  }
+}
+
+/* When graph is visible, allow scrolling for the combined tall view */
+.calculator.graph-visible {
+  max-height: 95vh;
+  overflow-y: auto;
+}
+
+/* ==================== */
+/* Graphing Mode Styles */
+/* ==================== */
+
+.graphing-mode {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.function-input-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.function-input-container label {
+  color: #ff6600;
+  font-size: 1.2em;
+  font-weight: bold;
+  min-width: 30px;
+}
+
+.function-input {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid #ff6600;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #ffffff;
+  font-size: 1em;
+  font-family: monospace;
+}
+
+.function-input:focus {
+  outline: none;
+  border-color: #ff8533;
+  box-shadow: 0 0 10px rgba(255, 102, 0, 0.3);
+}
+
+.function-input::placeholder {
+  color: #666;
+}
+
+.function-error {
+  color: #ff3300;
+  font-size: 0.85em;
+  padding: 5px 10px;
+  background: rgba(255, 51, 0, 0.1);
+  border-radius: 4px;
+}
+
+.graph-canvas {
+  border: 1px solid #ff6600;
+  border-radius: 8px;
+  display: block;
+  margin: 0 auto;
+  background: #1a1a1a;
+  /* Display width is CSS-controlled so the hi-DPI backing store can't feed
+     back into layout. height:auto keeps the aspect ratio from the attributes. */
+  width: 100%;
+  height: auto;
+}
+
+.graph-controls-container {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.graph-controls,
+.pan-controls {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.graph-btn {
+  background: linear-gradient(145deg, #333333, #1a1a1a);
+  color: #ff6600;
+  border: 1px solid #ff6600;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 1em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 40px;
+}
+
+.graph-btn:hover {
+  background: linear-gradient(145deg, #404040, #2a2a2a);
+  color: #ff8533;
+  transform: translateY(-1px);
+}
+
+.graph-btn:active {
+  transform: translateY(0);
+}
+
+.graph-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.graph-btn:disabled:hover {
+  background: linear-gradient(145deg, #333333, #1a1a1a);
+  color: #ff6600;
+  transform: none;
+}
+
+.graph-btn.reset-btn {
+  padding: 8px 12px;
+  font-size: 0.85em;
+}
+
+.function-hints {
+  text-align: center;
+  color: #888;
+  font-size: 0.8em;
+  padding: 5px;
+}
+
+/* Multiple Functions List */
+.functions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.function-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.color-picker {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background: transparent;
+}
+
+.color-picker::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+
+.color-picker::-webkit-color-swatch {
+  border-radius: 4px;
+  border: 1px solid #444;
+}
+
+.visibility-toggle {
+  background: transparent;
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 4px 6px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: all 0.2s ease;
+}
+
+.visibility-toggle.visible {
+  opacity: 1;
+}
+
+.visibility-toggle.hidden {
+  opacity: 0.5;
+}
+
+.function-label {
+  color: #ff6600;
+  font-size: 0.9em;
+  font-weight: bold;
+  min-width: 35px;
+}
+
+.function-input-row .function-input {
+  flex: 1;
+  padding: 8px 10px;
+  font-size: 0.9em;
+}
+
+.remove-func-btn {
+  background: #ff3300;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 0.8em;
+  transition: all 0.2s ease;
+}
+
+.remove-func-btn:hover {
+  background: #cc2900;
+}
+
+.add-func-btn {
+  background: linear-gradient(145deg, #333333, #1a1a1a);
+  color: #ff6600;
+  border: 1px dashed #ff6600;
+  border-radius: 8px;
+  padding: 8px;
+  cursor: pointer;
+  font-size: 0.85em;
+  transition: all 0.2s ease;
+}
+
+.add-func-btn:hover {
+  background: linear-gradient(145deg, #404040, #2a2a2a);
+  border-style: solid;
+}
+
+/* Analysis Toggles */
+.analysis-toggles {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 10px 0;
+  flex-wrap: wrap;
+}
+
+.analysis-btn {
+  background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+  color: #888;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.8em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.analysis-btn:hover {
+  color: #ff6600;
+  border-color: #ff6600;
+}
+
+.analysis-btn.active {
+  background: linear-gradient(145deg, #ff6600, #cc5200);
+  color: white;
+  border-color: #ff8533;
+}
+
+/* Trace Display */
+.trace-display {
+  background: rgba(255, 255, 0, 0.15);
+  border: 1px solid rgba(255, 255, 0, 0.5);
+  border-radius: 6px;
+  padding: 8px 12px;
+  text-align: center;
+  color: #ffff00;
+  font-family: monospace;
+  font-size: 0.9em;
+  margin: 8px 0;
+}
+
+/* Analysis Results */
+.analysis-results {
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 8px 0;
+  font-size: 0.85em;
+}
+
+.analysis-results strong {
+  color: #ff6600;
+  display: block;
+  margin-bottom: 5px;
+}
+
+.results-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.result-item {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.85em;
+  color: #ccc;
+  border-left: 3px solid #ff6600;
+}
+
+.result-item.intersection {
+  border-left-color: #ff0000;
+  color: #fff;
+}
+
+/* Table View */
+.table-view {
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 8px;
+  padding: 10px;
+  margin: 10px 0;
+}
+
+.table-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.table-header label {
+  color: #ff6600;
+  font-size: 0.9em;
+}
+
+.table-select {
+  flex: 1;
+  background: #1a1a1a;
+  color: #fff;
+  border: 1px solid #ff6600;
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-size: 0.85em;
+}
+
+.table-container {
+  max-height: 200px;
+  overflow-y: auto;
+  border-radius: 4px;
+}
+
+.values-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: monospace;
+  font-size: 0.85em;
+}
+
+.values-table th {
+  background: #333;
+  color: #ff6600;
+  padding: 6px 10px;
+  text-align: center;
+  position: sticky;
+  top: 0;
+}
+
+.values-table td {
+  padding: 4px 10px;
+  text-align: center;
+  color: #ccc;
+  border-bottom: 1px solid #333;
+}
+
+.values-table tr:hover td {
+  background: rgba(255, 102, 0, 0.1);
+}
+
+/* Table scrollbar */
+.table-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.table-container::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+  background: #ff6600;
+  border-radius: 3px;
+}
+
+/* Black/White theme graphing styles */
+.calculator.black-white .function-input-container label {
+  color: #ffffff;
+}
+
+.calculator.black-white .function-input {
+  border-color: #ffffff;
+}
+
+.calculator.black-white .function-input:focus {
+  border-color: #cccccc;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+.calculator.black-white .graph-canvas {
+  border-color: #ffffff;
+}
+
+.calculator.black-white .graph-btn {
+  color: #ffffff;
+  border-color: #ffffff;
+}
+
+.calculator.black-white .graph-btn:hover {
+  color: #cccccc;
+}
+
+/* White/Black theme graphing styles */
+.calculator.white-black .function-input-container label {
+  color: #000000;
+}
+
+.calculator.white-black .function-input {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: #000000;
+  color: #000000;
+}
+
+.calculator.white-black .function-input:focus {
+  border-color: #333;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+}
+
+.calculator.white-black .function-input::placeholder {
+  color: #999;
+}
+
+.calculator.white-black .graph-canvas {
+  border-color: #000000;
+}
+
+.calculator.white-black .graph-btn {
+  background: linear-gradient(145deg, #e0e0e0, #ffffff);
+  color: #000000;
+  border-color: #000000;
+}
+
+.calculator.white-black .graph-btn:hover {
+  background: linear-gradient(145deg, #f0f0f0, #ffffff);
+  color: #333;
+}
+
+.calculator.white-black .function-hints {
+  color: #666;
+}
+
+.calculator.white-black .function-error {
+  background: rgba(255, 51, 0, 0.15);
+}
+
+/* Black/White theme - new graphing elements */
+.calculator.black-white .function-label {
+  color: #ffffff;
+}
+
+.calculator.black-white .add-func-btn {
+  color: #ffffff;
+  border-color: #ffffff;
+}
+
+.calculator.black-white .analysis-btn {
+  border-color: #666;
+}
+
+.calculator.black-white .analysis-btn:hover {
+  color: #ffffff;
+  border-color: #ffffff;
+}
+
+.calculator.black-white .analysis-btn.active {
+  background: linear-gradient(145deg, #666666, #333333);
+}
+
+.calculator.black-white .trace-display {
+  background: rgba(255, 255, 0, 0.1);
+  border-color: rgba(255, 255, 0, 0.4);
+}
+
+.calculator.black-white .analysis-results strong {
+  color: #ffffff;
+}
+
+.calculator.black-white .table-header label {
+  color: #ffffff;
+}
+
+.calculator.black-white .table-select {
+  border-color: #ffffff;
+}
+
+.calculator.black-white .values-table th {
+  color: #ffffff;
+}
+
+/* White/Black theme - new graphing elements */
+.calculator.white-black .function-label {
+  color: #000000;
+}
+
+.calculator.white-black .add-func-btn {
+  background: linear-gradient(145deg, #e0e0e0, #ffffff);
+  color: #000000;
+  border-color: #000000;
+}
+
+.calculator.white-black .analysis-btn {
+  background: linear-gradient(145deg, #e0e0e0, #f5f5f5);
+  color: #666;
+  border-color: #999;
+}
+
+.calculator.white-black .analysis-btn:hover {
+  color: #000000;
+  border-color: #000000;
+}
+
+.calculator.white-black .analysis-btn.active {
+  background: linear-gradient(145deg, #333333, #000000);
+  color: white;
+}
+
+.calculator.white-black .trace-display {
+  background: rgba(200, 150, 0, 0.15);
+  color: #806000;
+  border-color: rgba(200, 150, 0, 0.5);
+}
+
+.calculator.white-black .analysis-results {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.calculator.white-black .analysis-results strong {
+  color: #000000;
+}
+
+.calculator.white-black .result-item {
+  background: rgba(0, 0, 0, 0.1);
+  color: #333;
+}
+
+.calculator.white-black .table-view {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.calculator.white-black .table-header label {
+  color: #000000;
+}
+
+.calculator.white-black .table-select {
+  background: #ffffff;
+  color: #000000;
+  border-color: #000000;
+}
+
+.calculator.white-black .values-table th {
+  background: #e0e0e0;
+  color: #000000;
+}
+
+.calculator.white-black .values-table td {
+  color: #333;
+  border-bottom-color: #ccc;
+}
+
+.calculator.white-black .values-table tr:hover td {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.calculator.white-black .table-container::-webkit-scrollbar-track {
+  background: #f0f0f0;
+}
+
+.calculator.white-black .table-container::-webkit-scrollbar-thumb {
+  background: #666;
+}
+
+/* Responsive graphing mode */
+@media (max-width: 480px) {
+  .graph-canvas {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .graph-btn {
+    padding: 6px 10px;
+    font-size: 0.9em;
+    min-width: 35px;
+  }
+
+  .function-input {
+    font-size: 0.9em;
+    padding: 8px 10px;
+  }
+}

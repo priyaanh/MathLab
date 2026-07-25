@@ -1,0 +1,51 @@
+{
+    "name": "Scientific Calculator",
+    "short_name": "SciCalc",
+    "description": "A comprehensive scientific calculator with full accessibility support",
+    "theme_color": "#ff6600",
+    "background_color": "#1a1a1a",
+    "display": "standalone",
+    "orientation": "portrait-primary",
+    "scope": "/",
+    "start_url": "/",
+    "icons": [
+        {
+            "src": "calculator-icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "vite.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
+        }
+    ],
+    "categories": [
+        "productivity",
+        "utilities",
+        "education"
+    ],
+    "screenshots": [
+        {
+            "src": "screenshot-wide.png",
+            "sizes": "1280x720",
+            "type": "image/png",
+            "form_factor": "wide"
+        },
+        {
+            "src": "screenshot-mobile.png",
+            "sizes": "750x1334",
+            "type": "image/png",
+            "form_factor": "narrow"
+        }
+    ],
+    "features": [
+        "Cross Platform",
+        "Fast",
+        "Simple"
+    ],
+    "lang": "en-US",
+    "dir": "ltr"
+}

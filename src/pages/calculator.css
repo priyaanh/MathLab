@@ -1,0 +1,240 @@
+/* ===========================================================================
+   Modern calculator skin. Scoped under `.calc` and driven entirely by the
+   site theme CSS variables, so the calculator matches whatever site theme is
+   active. Imported AFTER App.css to override the legacy orange styling.
+
+   Everything is expressed relative to a single scale factor `--k`, so the
+   Size control on the page can shrink/grow the whole calculator uniformly
+   (width, button heights, fonts and spacing all together).
+   =========================================================================== */
+
+.calc {
+    --k: 1;
+    width: 100%;
+    max-width: calc(460px * var(--k));
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: calc(26px * var(--k));
+    padding: calc(18px * var(--k));
+    box-shadow: var(--shadow);
+    transition: max-width 0.25s ease;
+}
+
+/* ---- Top bar (mode switch) -------------------------------------------- */
+.calc .calc-topbar {
+    display: flex;
+    justify-content: center;
+    margin-bottom: calc(14px * var(--k));
+}
+
+/* ---- Display ---------------------------------------------------------- */
+.calc .calculator-display {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: calc(18px * var(--k));
+    padding: calc(16px * var(--k)) calc(18px * var(--k));
+    margin-bottom: calc(16px * var(--k));
+    box-shadow: none;
+    min-height: calc(96px * var(--k));
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+.calc .expression {
+    color: var(--text-muted);
+    font-size: calc(0.95rem * var(--k));
+    font-weight: 400;
+    text-align: right;
+    min-height: calc(20px * var(--k));
+    margin-bottom: calc(6px * var(--k));
+    scrollbar-color: var(--accent) transparent;
+}
+
+.calc .expression.editing {
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    border-radius: 6px;
+}
+
+.calc .expression::-webkit-scrollbar-thumb,
+.calc .display::-webkit-scrollbar-thumb {
+    background: var(--accent);
+}
+
+.calc .cursor {
+    color: var(--accent);
+}
+
+.calc .display {
+    color: var(--text);
+    font-size: calc(2.6rem * var(--k));
+    font-weight: 300;
+    letter-spacing: 0.5px;
+    text-align: right;
+    text-shadow: none;
+    min-height: calc(48px * var(--k));
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---- Keypad grids ----------------------------------------------------- */
+.calc .calculator-keypad {
+    gap: calc(8px * var(--k));
+}
+
+.calc .calculator-keypad.normal-mode {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+.calc .calculator-keypad.scientific-mode {
+    /* 12-column grid lets every row align cleanly: most keys span 2
+       (6 per row), copy/paste span 3 (4 per row), equals spans all 12. */
+    grid-template-columns: repeat(12, 1fr);
+}
+
+.calc .calculator-keypad.scientific-mode .key {
+    grid-column: span 2;
+}
+
+.calc .calculator-keypad.scientific-mode .key.copy-paste {
+    grid-column: span 3;
+}
+
+.calc .calculator-keypad.scientific-mode .key.equals {
+    grid-column: span 12;
+}
+
+.calc .calculator-keypad.normal-mode .zero-wide {
+    grid-column: span 2;
+}
+
+/* ---- Buttons ---------------------------------------------------------- */
+.calc .key {
+    border: 1px solid transparent;
+    border-radius: calc(16px * var(--k));
+    background: var(--surface-2);
+    color: var(--text);
+    font-family: inherit;
+    font-size: calc(1rem * var(--k));
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: calc(52px * var(--k));
+    transition: filter 0.12s ease, transform 0.06s ease, background 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.calc .calculator-keypad.normal-mode .key {
+    height: calc(64px * var(--k));
+    font-size: calc(1.35rem * var(--k));
+    border-radius: calc(18px * var(--k));
+}
+
+.calc .key:hover {
+    filter: brightness(1.12);
+}
+
+.calc .key:active {
+    transform: scale(0.95);
+}
+
+.calc .key.focused {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* Numbers */
+.calc .key.number {
+    background: var(--surface-2);
+    color: var(--text);
+}
+
+/* Operators (÷ × − + xʸ avg) */
+.calc .key.operator {
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: calc(1.3rem * var(--k));
+}
+
+.calc .key.operator:hover {
+    filter: brightness(1.08);
+}
+
+/* Equals — the hero button */
+.calc .key.equals {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: var(--on-accent);
+    font-size: calc(1.4rem * var(--k));
+    font-weight: 800;
+    height: calc(58px * var(--k));
+}
+
+/* Scientific functions */
+.calc .key.scientific {
+    background: var(--surface);
+    color: var(--accent-2);
+    border-color: var(--border);
+    font-size: calc(0.95rem * var(--k));
+}
+
+/* Memory keys */
+.calc .key.memory {
+    background: var(--surface);
+    color: var(--text-muted);
+    border-color: var(--border);
+    font-size: calc(0.85rem * var(--k));
+    font-weight: 700;
+}
+
+/* Copy / paste keys */
+.calc .key.copy-paste {
+    background: var(--surface);
+    color: var(--text-muted);
+    border-color: var(--border);
+    font-size: calc(0.8rem * var(--k));
+}
+
+/* Clear */
+.calc .key.clear {
+    background: color-mix(in srgb, var(--danger) 18%, var(--surface));
+    color: var(--danger);
+    font-weight: 800;
+}
+
+.calc .key sup {
+    font-size: 0.65em;
+}
+
+/* ---- Graph toggle + embedded panel ------------------------------------ */
+.calc .graph-toggle-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: calc(12px * var(--k));
+}
+
+.calc .key.graph-toggle {
+    width: auto;
+    padding: 0 1.2rem;
+    height: calc(40px * var(--k));
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: calc(0.9rem * var(--k));
+}
+
+.calc .key.graph-toggle.active {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: var(--on-accent);
+    border-color: transparent;
+}
+
+.calc .embedded-graph-panel {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 10px;
+    margin-bottom: 14px;
+}
