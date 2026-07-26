@@ -32,7 +32,29 @@
       "Bash(brew install *)",
       "Bash(git init *)",
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(gh repo *)",
+      "Bash(git remote *)",
+      "Bash(git push *)",
+      "Bash(gh api *)",
+      "Bash(gh run *)",
+      "Bash(npx eslint *)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(node *)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(echo \"eslint-exit-$?\")",
+      "Bash(echo \"=== EXIT $? ===\")",
+      "Bash(grep -nE \"cssVar|useTheme|themeKey|#[0-9a-fA-F]{3,6}|fillStyle|strokeStyle|getComputedStyle|drawGrid|useEffect\" src/components/GraphingMode.jsx)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(grep -nE \"#[0-9a-fA-F]{3,6}\" src/pages/TrianglePage.jsx)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(echo \"ESLINT_EXIT=$?\")",
+      "Bash(npx esbuild *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173/)",
+      "Bash(curl -s \"http://localhost:5173/src/pages/HomePage.jsx\")",
+      "Bash(curl -s http://localhost:5173/sw.js)",
+      "Bash(pkill -f vite)",
+      "Bash(curl -s http://localhost:5173/src/pages/HomePage.jsx)"
     ]
   }
 }

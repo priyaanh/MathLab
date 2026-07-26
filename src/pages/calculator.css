@@ -238,3 +238,131 @@
     padding: 10px;
     margin-bottom: 14px;
 }
+
+/* ---- Extra scientific functions toolbar ------------------------------- */
+.calc .extra-functions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: calc(6px * var(--k));
+    justify-content: center;
+    margin-bottom: calc(10px * var(--k));
+}
+
+.calc .key.extra-fn {
+    width: auto;
+    height: calc(34px * var(--k));
+    padding: 0 calc(10px * var(--k));
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: calc(0.8rem * var(--k));
+    flex: 0 0 auto;
+}
+
+.calc .key.extra-fn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* ---- History panel ---------------------------------------------------- */
+.calc-page-wrap {
+    align-items: flex-start;
+    gap: 18px;
+    flex-wrap: wrap;
+}
+
+.history-panel {
+    width: 260px;
+    max-width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    max-height: 560px;
+}
+
+.history-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+}
+
+.history-clear {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 999px;
+    padding: 2px 10px;
+    font-size: 0.72rem;
+    cursor: pointer;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.history-clear:hover { border-color: var(--danger); color: var(--danger); }
+
+.history-empty {
+    padding: 18px 14px;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+.history-list {
+    list-style: none;
+    margin: 0;
+    padding: 4px;
+    overflow-y: auto;
+}
+
+.history-item {
+    display: flex;
+    flex-direction: column;
+    padding: 8px 10px;
+    border-radius: 10px;
+    gap: 2px;
+}
+
+.history-item:hover { background: var(--surface-2); }
+
+.history-expr,
+.history-result {
+    background: transparent;
+    border: none;
+    text-align: right;
+    cursor: pointer;
+    font-family: inherit;
+    padding: 0;
+    width: 100%;
+}
+
+.history-expr {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.history-expr:hover { color: var(--text); }
+
+.history-result {
+    color: var(--accent);
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.history-result:hover { text-decoration: underline; }

@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react'
-import { findZeros, findIntersections, generateTableData } from '../utils/graphUtils'
+import { findZeros, findIntersections, generateTableData, evaluateFunction } from '../utils/graphUtils'
 
 // Predefined colors for functions
 const FUNCTION_COLORS = [
@@ -153,6 +153,52 @@ export const useGraphing = () => {
         setYMax(yCenter + ySpan / 2)
     }, [xMin, xMax, yMin, yMax])
 
+    // Zoom toward a specific graph point (gx, gy) — used by wheel-zoom so the
+    // point under the cursor stays put. Omitting gx/gy zooms about the center.
+    const zoomAt = useCallback((factor, gx, gy) => {
+        const cx = gx == null ? (xMin + xMax) / 2 : gx
+        const cy = gy == null ? (yMin + yMax) / 2 : gy
+        const clamp = (span) => Math.min(MAX_SPAN, Math.max(MIN_SPAN, span))
+        const xSpan = clamp((xMax - xMin) / factor)
+        const ySpan = clamp((yMax - yMin) / factor)
+        const fx = (cx - xMin) / (xMax - xMin)
+        const fy = (cy - yMin) / (yMax - yMin)
+        setXMin(cx - fx * xSpan)
+        setXMax(cx + (1 - fx) * xSpan)
+        setYMin(cy - fy * ySpan)
+        setYMax(cy + (1 - fy) * ySpan)
+    }, [xMin, xMax, yMin, yMax])
+
+    // Fit the y-range to the visible curves over the current x-window (with a
+    // little headroom), so a flat or off-screen plot snaps back into frame.
+    const fitView = useCallback(() => {
+        const visible = functions.filter(f => f.visible && f.expression.trim())
+        let lo = Infinity
+        let hi = -Infinity
+        const N = 240
+        visible.forEach(f => {
+            for (let i = 0; i <= N; i++) {
+                const x = xMin + (i / N) * (xMax - xMin)
+                const y = evaluateFunction(f.expression, x)
+                if (Number.isFinite(y)) {
+                    if (y < lo) lo = y
+                    if (y > hi) hi = y
+                }
+            }
+        })
+        if (!Number.isFinite(lo) || !Number.isFinite(hi)) {
+            setYMin(-10)
+            setYMax(10)
+            return
+        }
+        if (hi - lo < 1e-6) { lo -= 1; hi += 1 }
+        const pad = (hi - lo) * 0.1
+        const span = Math.min(MAX_SPAN, Math.max(MIN_SPAN, (hi - lo) + 2 * pad))
+        const cy = (lo + hi) / 2
+        setYMin(cy - span / 2)
+        setYMax(cy + span / 2)
+    }, [functions, xMin, xMax])
+
     // Whether zooming further in/out would have any effect (for disabling
     // the buttons at the limits).
     const currentSpan = Math.max(xMax - xMin, yMax - yMin)
@@ -189,6 +235,8 @@ export const useGraphing = () => {
         setXMin, setXMax, setYMin, setYMax,
         resetViewport,
         zoom,
+        zoomAt,
+        fitView,
         canZoomIn,
         canZoomOut,
         pan,

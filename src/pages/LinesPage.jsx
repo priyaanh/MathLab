@@ -3,6 +3,8 @@ import { makeView, drawGrid, drawPoint, cssVar, prepareHiDPICanvas } from '../ut
 import { slope, distance, midpoint, lineEquation } from '../utils/geometry'
 import { evaluateFunction, validateFunction } from '../utils/graphUtils'
 import { useThemeContext } from '../theme/ThemeContext'
+import { usePlaneView, bindWheelZoom, useKeyboardPan } from '../hooks/usePlaneView'
+import PlaneControls from '../components/PlaneControls'
 
 const COLORS = ['#ff7a1a', '#22d3ee', '#a78bfa', '#4ade80', '#fb7185', '#fbbf24']
 const VIEW = { xMin: -10, xMax: 10, yMin: -10, yMax: 10 }
@@ -34,6 +36,8 @@ const Stat = ({ label, value, explain, small }) => (
 const LinesPage = () => {
     const { themeKey } = useThemeContext()
     const canvasRef = useRef(null)
+    const { view, pan, zoom, zoomAt, reset, fitTo, canZoomIn, canZoomOut } = usePlaneView(VIEW)
+    useKeyboardPan(canvasRef, view, { pan, zoomAt, reset })
 
     const [method, setMethod] = useState('points') // 'points' | 'slope' | 'equation'
     const [type, setType] = useState('line')        // 'line' | 'segment'
@@ -117,7 +121,7 @@ const LinesPage = () => {
         const canvas = canvasRef.current
         if (!canvas) return
         const ctx = prepareHiDPICanvas(canvas, W, H)
-        const v = makeView(W, H, VIEW)
+        const v = makeView(W, H, view)
         drawGrid(ctx, v)
 
         items.forEach(item => {
@@ -142,13 +146,36 @@ const LinesPage = () => {
                 } else {
                     const m = (y2 - y1) / (x2 - x1)
                     const b = y1 - m * x1
-                    ctx.moveTo(v.toX(VIEW.xMin), v.toY(m * VIEW.xMin + b))
-                    ctx.lineTo(v.toX(VIEW.xMax), v.toY(m * VIEW.xMax + b))
+                    ctx.moveTo(v.toX(view.xMin), v.toY(m * view.xMin + b))
+                    ctx.lineTo(v.toX(view.xMax), v.toY(m * view.xMax + b))
                 }
                 ctx.stroke()
             }
         })
-    }, [items, selectedId, themeKey])
+    }, [items, selectedId, themeKey, view])
+
+    // Wheel-zoom toward the cursor
+    useEffect(() => {
+        const canvas = canvasRef.current
+        if (!canvas) return
+        return bindWheelZoom(canvas, (e) => {
+            const rect = canvas.getBoundingClientRect()
+            const v = makeView(W, H, view)
+            const px = ((e.clientX - rect.left) / rect.width) * W
+            const py = ((e.clientY - rect.top) / rect.height) * H
+            return { gx: v.fromX(px), gy: v.fromY(py) }
+        }, zoomAt)
+    }, [view, zoomAt])
+
+    const handleFit = useCallback(() => {
+        const xs = [], ys = []
+        items.forEach(it => { xs.push(it.x1, it.x2); ys.push(it.y1, it.y2) })
+        if (!xs.length) { reset(); return }
+        fitTo(
+            { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) },
+            { width: W, height: H }
+        )
+    }, [items, fitTo, reset])
 
     return (
         <div className="page">
@@ -237,6 +264,15 @@ const LinesPage = () => {
                 <div className="canvas-frame">
                     <canvas ref={canvasRef} width={W} height={H} aria-label="Lines and segments plot" />
                 </div>
+                <PlaneControls
+                    onZoomIn={() => zoom(1.5)}
+                    onZoomOut={() => zoom(0.67)}
+                    onPan={pan}
+                    onFit={handleFit}
+                    onReset={reset}
+                    canZoomIn={canZoomIn}
+                    canZoomOut={canZoomOut}
+                />
             </div>
         </div>
     )

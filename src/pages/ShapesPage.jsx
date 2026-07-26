@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { makeView, drawGrid, drawPoint, prepareHiDPICanvas, cssVar } from '../utils/plane'
 import {
-    circleArea, circleCircumference,
+    circleArea, circleAreaPi, circleCircumference,
     polygonArea, polygonPerimeter, regularPolygonPoints
 } from '../utils/geometry'
 import { useThemeContext } from '../theme/ThemeContext'
 import { suggest } from '../utils/search'
+import { usePlaneView, bindWheelZoom, useKeyboardPan } from '../hooks/usePlaneView'
+import PlaneControls from '../components/PlaneControls'
 
 const COLORS = ['#ff7a1a', '#22d3ee', '#a78bfa', '#4ade80', '#fb7185', '#fbbf24']
 const VIEW = { xMin: -10, xMax: 10, yMin: -10, yMax: 10 }
@@ -84,6 +86,8 @@ const getHandles = (s) => {
 const ShapesPage = () => {
     const { themeKey } = useThemeContext()
     const canvasRef = useRef(null)
+    const { view, pan, zoom, zoomAt, reset, fitTo, canZoomIn, canZoomOut } = usePlaneView(VIEW)
+    useKeyboardPan(canvasRef, view, { pan, zoomAt, reset })
 
     const [kind, setKind] = useState('circle')
     const [form, setForm] = useState({ cx: 0, cy: 0, r: 4, w: 6, h: 4, polyName: 'pentagon' })
@@ -126,38 +130,11 @@ const ShapesPage = () => {
         setPolySuggestion('')
     }
 
-    // --- Transformations (act on the selected shape) --------------------
-    const [tx, setTx] = useState(2)
-    const [ty, setTy] = useState(0)
-    const [dilateK, setDilateK] = useState(2)
-
+    // Update the selected shape via a mapper — used by the canvas drag handles.
+    // (Explicit translate/dilate/reflect controls live on the Transformations page.)
     const updateSelected = useCallback((mapper) => {
         setShapes(prev => prev.map(s => (s.id === selectedId ? mapper(s) : s)))
     }, [selectedId])
-
-    // Apply a point-mapping transform to a shape's center and (if it has one)
-    // its editable vertex list, so polygons transform correctly too.
-    const mapPoints = (s, fn) => (s.points ? { points: s.points.map(fn) } : {})
-
-    const translate = () => updateSelected(s => ({
-        ...s, cx: s.cx + tx, cy: s.cy + ty,
-        ...mapPoints(s, p => ({ x: p.x + tx, y: p.y + ty }))
-    }))
-
-    const dilate = () => updateSelected(s => ({
-        ...s,
-        cx: s.cx * dilateK,
-        cy: s.cy * dilateK,
-        ...(s.r != null ? { r: Math.abs(s.r * dilateK) } : {}),
-        ...(s.w != null ? { w: Math.abs(s.w * dilateK) } : {}),
-        ...(s.h != null ? { h: Math.abs(s.h * dilateK) } : {}),
-        ...mapPoints(s, p => ({ x: p.x * dilateK, y: p.y * dilateK }))
-    }))
-
-    const reflect = (axis) => updateSelected(s => (axis === 'x'
-        ? { ...s, cy: -s.cy, ...mapPoints(s, p => ({ x: p.x, y: -p.y })) }
-        : { ...s, cx: -s.cx, ...mapPoints(s, p => ({ x: -p.x, y: p.y })) }
-    ))
 
     const selected = shapes.find(s => s.id === selectedId) || shapes[0]
 
@@ -192,9 +169,9 @@ const ShapesPage = () => {
         const rect = canvas.getBoundingClientRect()
         const px = ((e.clientX - rect.left) / rect.width) * W
         const py = ((e.clientY - rect.top) / rect.height) * H
-        const v = makeView(W, H, VIEW)
+        const v = makeView(W, H, view)
         return { px, py, gx: v.fromX(px), gy: v.fromY(py), v }
-    }, [])
+    }, [view])
 
     const handleMouseDown = useCallback((e) => {
         const { px, py, gx, gy, v } = pointerGraph(e)
@@ -225,12 +202,35 @@ const ShapesPage = () => {
 
     const endDrag = useCallback(() => { dragRef.current = null }, [])
 
+    // Fit the view to every shape's extents (circles by their bounding box,
+    // polygons/rectangles by their vertices).
+    const handleFit = useCallback(() => {
+        const xs = [], ys = []
+        shapes.forEach(s => {
+            if (s.kind === 'circle') {
+                xs.push(s.cx - s.r, s.cx + s.r)
+                ys.push(s.cy - s.r, s.cy + s.r)
+            } else {
+                shapePoints(s).forEach(p => { xs.push(p.x); ys.push(p.y) })
+            }
+        })
+        if (!xs.length) { reset(); return }
+        fitTo(
+            { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) },
+            { width: W, height: H }
+        )
+    }, [shapes, fitTo, reset])
+
     const removeShape = (id) => setShapes(prev => prev.filter(s => s.id !== id))
 
     const stats = useMemo(() => {
         if (!selected) return null
         if (selected.kind === 'circle') {
-            return { area: circleArea(selected.r), perimeter: circleCircumference(selected.r), extra: `radius ${selected.r}` }
+            return {
+                area: circleAreaPi(selected.r),
+                perimeter: circleCircumference(selected.r),
+                extra: `radius ${selected.r} · ≈ ${circleArea(selected.r)}`
+            }
         }
         const pts = shapePoints(selected)
         return { area: polygonArea(pts), perimeter: polygonPerimeter(pts), extra: `${pts.length} sides` }
@@ -247,7 +247,7 @@ const ShapesPage = () => {
         const canvas = canvasRef.current
         if (!canvas) return
         const ctx = prepareHiDPICanvas(canvas, W, H)
-        const v = makeView(W, H, VIEW)
+        const v = makeView(W, H, view)
         drawGrid(ctx, v)
 
         shapes.forEach(s => {
@@ -258,7 +258,7 @@ const ShapesPage = () => {
 
             if (s.kind === 'circle') {
                 // Radius in pixels (x-scale); assumes square-ish view.
-                const rPx = (s.r / (VIEW.xMax - VIEW.xMin)) * W
+                const rPx = (s.r / (view.xMax - view.xMin)) * W
                 ctx.beginPath()
                 ctx.arc(v.toX(s.cx), v.toY(s.cy), rPx, 0, 2 * Math.PI)
                 ctx.fill()
@@ -290,7 +290,20 @@ const ShapesPage = () => {
                 ctx.stroke()
             })
         }
-    }, [shapes, selectedId, selected, themeKey])
+    }, [shapes, selectedId, selected, themeKey, view])
+
+    // Wheel-zoom toward the cursor. Non-passive listener via bindWheelZoom.
+    useEffect(() => {
+        const canvas = canvasRef.current
+        if (!canvas) return
+        return bindWheelZoom(canvas, (e) => {
+            const rect = canvas.getBoundingClientRect()
+            const v = makeView(W, H, view)
+            const px = ((e.clientX - rect.left) / rect.width) * W
+            const py = ((e.clientY - rect.top) / rect.height) * H
+            return { gx: v.fromX(px), gy: v.fromY(py) }
+        }, zoomAt)
+    }, [view, zoomAt])
 
     return (
         <div className="page">
@@ -377,37 +390,6 @@ const ShapesPage = () => {
                             <div className="stat"><div className="label">Detail</div><div className="value" style={{ fontSize: '0.95rem' }}>{stats.extra}</div></div>
                         </div>
                     )}
-
-                    {selected && (
-                        <div className="transform-box">
-                            <h3>Transform selected shape</h3>
-
-                            <div className="transform-group">
-                                <span className="transform-label">Translate</span>
-                                <div className="row">
-                                    <label className="field">by x<input type="number" value={tx} onChange={(e) => setTx(parseFloat(e.target.value) || 0)} /></label>
-                                    <label className="field">by y<input type="number" value={ty} onChange={(e) => setTy(parseFloat(e.target.value) || 0)} /></label>
-                                    <button className="btn" onClick={translate}>Move</button>
-                                </div>
-                            </div>
-
-                            <div className="transform-group">
-                                <span className="transform-label">Dilate <em>(about origin)</em></span>
-                                <div className="row">
-                                    <label className="field">factor k<input type="number" step="0.1" value={dilateK} onChange={(e) => setDilateK(parseFloat(e.target.value) || 1)} /></label>
-                                    <button className="btn" onClick={dilate}>Scale</button>
-                                </div>
-                            </div>
-
-                            <div className="transform-group">
-                                <span className="transform-label">Reflect</span>
-                                <div className="row">
-                                    <button className="btn" onClick={() => reflect('x')}>Over x-axis</button>
-                                    <button className="btn" onClick={() => reflect('y')}>Over y-axis</button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
                 </div>
 
                 <div className="canvas-frame">
@@ -424,6 +406,16 @@ const ShapesPage = () => {
                     />
                     <p className="hint">Tip: drag the ringed handles on the selected shape to reshape it — no typing needed.</p>
                 </div>
+
+                <PlaneControls
+                    onZoomIn={() => zoom(1.5)}
+                    onZoomOut={() => zoom(0.67)}
+                    onPan={pan}
+                    onFit={handleFit}
+                    onReset={reset}
+                    canZoomIn={canZoomIn}
+                    canZoomOut={canZoomOut}
+                />
             </div>
         </div>
     )

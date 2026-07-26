@@ -14,8 +14,15 @@ export const useCalculatorOperations = (state, expressionState) => {
         expression, setExpression,
         currentExpression, setCurrentExpression,
         justCalculated, setJustCalculated,
-        angleMode
+        angleMode,
+        lastAnswer, setLastAnswer,
+        setHistory, HISTORY_LIMIT
     } = state
+
+    // Record a completed calculation at the front of the history list.
+    const recordHistory = useCallback((exprText, resultText) => {
+        setHistory(prev => [{ expr: exprText, result: resultText }, ...prev].slice(0, HISTORY_LIMIT || 100))
+    }, [setHistory, HISTORY_LIMIT])
 
     const {
         cursorPosition, setCursorPosition,
@@ -230,10 +237,12 @@ export const useCalculatorOperations = (state, expressionState) => {
         if (nextOperation === '=') {
             if (currentExpression && currentExpression.trim() !== '') {
                 try {
-                    const rawResult = evaluateExpression(currentExpression)
+                    const rawResult = evaluateExpression(currentExpression, { angleMode, ans: lastAnswer })
                     const result = formatResult(rawResult)
                     setDisplay(result)
                     setExpression(`${currentExpression} = ${result}`)
+                    recordHistory(currentExpression.trim(), result)
+                    setLastAnswer(rawResult)
                     setCurrentExpression('')
                     setJustCalculated(true)
                     setIsEditing(false)
@@ -288,6 +297,7 @@ export const useCalculatorOperations = (state, expressionState) => {
             setOperation(nextOperation)
         }
     }, [display, currentExpression, isEditing, justCalculated, previousValue, operation, waitingForOperand,
+        angleMode, lastAnswer, recordHistory, setLastAnswer,
         setDisplay, setExpression, setCurrentExpression, setJustCalculated, setIsEditing, setCursorPosition,
         setPreviousValue, setOperation, setWaitingForOperand, insertAtCursor])
 
@@ -317,6 +327,63 @@ export const useCalculatorOperations = (state, expressionState) => {
             case 'tan':
                 result = Math.tan(toRadians(value))
                 setExpression(`tan(${value}${unit}) = ${formatResult(result)}`)
+                break
+            case 'asin': {
+                if (value < -1 || value > 1) {
+                    setDisplay('Error')
+                    setExpression('sin⁻¹: domain error (|x| > 1)')
+                    return
+                }
+                const r = Math.asin(value)
+                result = angleMode === 'DEG' ? (r * 180) / Math.PI : r
+                setExpression(`sin⁻¹(${value}) = ${formatResult(result)}${unit}`)
+                break
+            }
+            case 'acos': {
+                if (value < -1 || value > 1) {
+                    setDisplay('Error')
+                    setExpression('cos⁻¹: domain error (|x| > 1)')
+                    return
+                }
+                const r = Math.acos(value)
+                result = angleMode === 'DEG' ? (r * 180) / Math.PI : r
+                setExpression(`cos⁻¹(${value}) = ${formatResult(result)}${unit}`)
+                break
+            }
+            case 'atan': {
+                const r = Math.atan(value)
+                result = angleMode === 'DEG' ? (r * 180) / Math.PI : r
+                setExpression(`tan⁻¹(${value}) = ${formatResult(result)}${unit}`)
+                break
+            }
+            case 'sinh':
+                result = Math.sinh(value)
+                setExpression(`sinh(${value}) = ${formatResult(result)}`)
+                break
+            case 'cosh':
+                result = Math.cosh(value)
+                setExpression(`cosh(${value}) = ${formatResult(result)}`)
+                break
+            case 'tanh':
+                result = Math.tanh(value)
+                setExpression(`tanh(${value}) = ${formatResult(result)}`)
+                break
+            case 'cbrt':
+                result = Math.cbrt(value)
+                setExpression(`∛(${value}) = ${formatResult(result)}`)
+                break
+            case 'exp':
+                result = Math.exp(value)
+                setExpression(`e^${value} = ${formatResult(result)}`)
+                break
+            case 'log2':
+                if (value <= 0) {
+                    setDisplay('Error')
+                    setExpression('log₂: domain error (x ≤ 0)')
+                    return
+                }
+                result = Math.log2(value)
+                setExpression(`log₂(${value}) = ${formatResult(result)}`)
                 break
             case 'log':
                 if (value <= 0) {
@@ -411,12 +478,36 @@ export const useCalculatorOperations = (state, expressionState) => {
         }
 
         setDisplay(formatResult(result))
+        setLastAnswer(result)
         setCurrentExpression('')
         setWaitingForOperand(true)
         setJustCalculated(true)
 
         scheduleExpressionClear()
-    }, [display, currentExpression, angleMode, scheduleExpressionClear, setDisplay, setExpression, setCurrentExpression, setWaitingForOperand, setJustCalculated])
+    }, [display, currentExpression, angleMode, scheduleExpressionClear, setLastAnswer, setDisplay, setExpression, setCurrentExpression, setWaitingForOperand, setJustCalculated])
+
+    // Insert the last answer ("Ans") as a token, usable inside a new expression.
+    const inputAns = useCallback(() => {
+        if (isEditing) {
+            insertAtCursor('Ans')
+            return
+        }
+        if (waitingForOperand || justCalculated || currentExpression === '') {
+            const needsSpaceBefore = currentExpression !== '' &&
+                !currentExpression.endsWith(' ') &&
+                !currentExpression.endsWith('(') &&
+                !/[+\-×÷^%]$/.test(currentExpression)
+            const base = justCalculated ? '' : currentExpression
+            const newExpr = needsSpaceBefore ? `${base} Ans` : `${base}Ans`
+            setCurrentExpression(newExpr)
+            setDisplay(String(formatResult(lastAnswer)))
+            setWaitingForOperand(false)
+            setJustCalculated(false)
+        } else {
+            setCurrentExpression(`${currentExpression}Ans`)
+            setDisplay(String(formatResult(lastAnswer)))
+        }
+    }, [isEditing, waitingForOperand, justCalculated, currentExpression, lastAnswer, insertAtCursor, setCurrentExpression, setDisplay, setWaitingForOperand, setJustCalculated])
 
     const memoryOperation = useCallback((op) => {
         const value = parseFloat(display)
@@ -446,6 +537,7 @@ export const useCalculatorOperations = (state, expressionState) => {
         inputDecimal,
         deleteLastCharacter,
         inputParentheses,
+        inputAns,
         performOperation,
         performScientificOperation,
         memoryOperation,

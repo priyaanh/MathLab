@@ -58,6 +58,15 @@ export const polygonPerimeter = (points) => {
 export const circleArea = (r) => round(Math.PI * r * r)
 export const circleCircumference = (r) => round(2 * Math.PI * r)
 
+// Exact area of a circle written in terms of π, e.g. r=4 → "16π".
+// r² is rounded to strip float noise; "1π" collapses to "π".
+export const circleAreaPi = (r) => {
+    const k = round(r * r)
+    if (k === 0) return '0'
+    if (k === 1) return 'π'
+    return `${k}π`
+}
+
 // Vertices of a regular n-gon centered at (cx, cy) with circumradius r.
 export const regularPolygonPoints = (cx, cy, r, n, rotation = -Math.PI / 2) => {
     const pts = []

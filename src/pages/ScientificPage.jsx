@@ -12,6 +12,7 @@ import Operators from '../components/Operators'
 import NumberPad from '../components/NumberPad'
 import CalculatorButton from '../components/CalculatorButton'
 import GraphingMode from '../components/GraphingMode'
+import HistoryPanel from '../components/HistoryPanel'
 
 // Hooks
 import {
@@ -54,7 +55,9 @@ function ScientificPage() {
     currentExpression,
     justCalculated,
     calculatorMode,
-    setCalculatorMode
+    setCalculatorMode,
+    history,
+    setHistory
   } = calculatorState
 
   const isScientific = calculatorMode === CALCULATOR_MODES.SCIENTIFIC
@@ -103,6 +106,43 @@ function ScientificPage() {
   const { equalsButtonProps } = usePerformanceOptimizations(isScientific, focusedButtonIndex, operations)
 
   useKeyboardHandling(calculatorState, expressionState, navigationState, operations, copyPasteOperations)
+
+  // Reuse a past history entry: a result becomes a fresh operand, an expression
+  // reloads for further editing.
+  const reuseResult = useCallback((result) => {
+    operations.setIsEditing(false)
+    operations.setCursorPosition(0)
+    operations.setJustCalculated(false)
+    operations.setCurrentExpression(String(result))
+    operations.setDisplay(String(result))
+  }, [operations])
+
+  const reuseExpression = useCallback((expr) => {
+    operations.setIsEditing(false)
+    operations.setCursorPosition(0)
+    operations.setJustCalculated(false)
+    operations.setExpression('')
+    operations.setCurrentExpression(String(expr))
+    operations.setDisplay(String(expr))
+  }, [operations])
+
+  const clearHistory = useCallback(() => setHistory([]), [setHistory])
+
+  // Extra scientific functions that live outside the fixed keypad grid (so the
+  // grid's keyboard-navigation indices stay intact).
+  const EXTRA_FUNCTIONS = [
+    { label: 'Ans', title: 'Insert last answer', run: () => operations.inputAns() },
+    { label: 'xʸ', title: 'Power (x to the y)', run: () => operations.performOperation('^') },
+    { label: 'sin⁻¹', title: 'Inverse sine', run: () => operations.performScientificOperation('asin') },
+    { label: 'cos⁻¹', title: 'Inverse cosine', run: () => operations.performScientificOperation('acos') },
+    { label: 'tan⁻¹', title: 'Inverse tangent', run: () => operations.performScientificOperation('atan') },
+    { label: 'sinh', title: 'Hyperbolic sine', run: () => operations.performScientificOperation('sinh') },
+    { label: 'cosh', title: 'Hyperbolic cosine', run: () => operations.performScientificOperation('cosh') },
+    { label: 'tanh', title: 'Hyperbolic tangent', run: () => operations.performScientificOperation('tanh') },
+    { label: '∛', title: 'Cube root', run: () => operations.performScientificOperation('cbrt') },
+    { label: 'eˣ', title: 'e to the power x', run: () => operations.performScientificOperation('exp') },
+    { label: 'log₂', title: 'Log base 2', run: () => operations.performScientificOperation('log2') }
+  ]
 
   const handleExpressionClick = useCallback((e) => {
     setIsEditing(true)
@@ -247,6 +287,20 @@ function ScientificPage() {
             </div>
           ) : (
             <>
+              <div className="extra-functions" role="group" aria-label="Additional scientific functions">
+                {EXTRA_FUNCTIONS.map((fn) => (
+                  <button
+                    key={fn.label}
+                    className="key extra-fn"
+                    onClick={fn.run}
+                    title={fn.title}
+                    aria-label={fn.title}
+                  >
+                    {fn.label}
+                  </button>
+                ))}
+              </div>
+
               <div className="graph-toggle-container">
                 <button className={`key graph-toggle${showGraph ? ' active' : ''}`} onClick={toggleGraph} title={showGraph ? 'Hide Graph' : 'Show Graph'} aria-label={showGraph ? 'Hide Graph' : 'Show Graph'}>
                   {showGraph ? 'Hide Graph' : 'Show Graph'}
@@ -277,6 +331,13 @@ function ScientificPage() {
             </>
           )}
         </div>
+
+        <HistoryPanel
+          history={history}
+          onReuseResult={reuseResult}
+          onReuseExpression={reuseExpression}
+          onClear={clearHistory}
+        />
       </div>
     </div>
   )

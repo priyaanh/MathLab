@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import { generatePlotPoints, validateFunction, getYAtX } from '../utils/graphUtils'
 import { prepareHiDPICanvas, cssVar } from '../utils/plane'
 import { useThemeContext } from '../theme/ThemeContext'
+import { useKeyboardPan } from '../hooks/usePlaneView'
 
 /**
  * Graphing mode component that renders multiple function graphs with analysis tools
@@ -18,6 +19,8 @@ const GraphingMode = React.memo(({
     // Viewport
     xMin, xMax, yMin, yMax,
     zoom,
+    zoomAt,
+    fitView,
     canZoomIn = true,
     canZoomOut = true,
     pan,
@@ -45,6 +48,9 @@ const GraphingMode = React.memo(({
 }) => {
     const canvasRef = useRef(null)
     const { themeKey } = useThemeContext()
+
+    // Arrow keys pan / +/- zoom / Home reset once the canvas is focused (click or Tab).
+    useKeyboardPan(canvasRef, { xMin, xMax, yMin, yMax }, { pan, zoomAt, reset: resetViewport })
 
     // Bumped whenever the canvas element changes size, so the draw effect
     // re-runs and re-samples the backing store at the new (crisp) resolution.
@@ -261,7 +267,8 @@ const GraphingMode = React.memo(({
                 ctx.arc(canvasX, canvasY, 6, 0, 2 * Math.PI)
                 ctx.fill()
 
-                ctx.fillStyle = '#fff'
+                // Inner dot punches a themed "hole" so the marker reads on any theme.
+                ctx.fillStyle = cssVar('--bg-2', '#1a1a1a')
                 ctx.beginPath()
                 ctx.arc(canvasX, canvasY, 3, 0, 2 * Math.PI)
                 ctx.fill()
@@ -274,12 +281,12 @@ const GraphingMode = React.memo(({
                 const canvasX = toCanvasX(int.x)
                 const canvasY = toCanvasY(int.y)
 
-                ctx.fillStyle = '#ffffff'
+                ctx.fillStyle = cssVar('--text', '#ffffff')
                 ctx.beginPath()
                 ctx.arc(canvasX, canvasY, 6, 0, 2 * Math.PI)
                 ctx.fill()
 
-                ctx.fillStyle = '#ff0000'
+                ctx.fillStyle = cssVar('--danger', '#ff3b30')
                 ctx.beginPath()
                 ctx.arc(canvasX, canvasY, 4, 0, 2 * Math.PI)
                 ctx.fill()
@@ -292,7 +299,7 @@ const GraphingMode = React.memo(({
             const canvasY = toCanvasY(tracePosition.y)
 
             // Crosshair
-            ctx.strokeStyle = '#ffff00'
+            ctx.strokeStyle = cssVar('--accent', '#ffcc00')
             ctx.lineWidth = 1
             ctx.setLineDash([3, 3])
             ctx.beginPath()
@@ -304,7 +311,7 @@ const GraphingMode = React.memo(({
             ctx.setLineDash([])
 
             // Point
-            ctx.fillStyle = '#ffff00'
+            ctx.fillStyle = cssVar('--accent', '#ffcc00')
             ctx.beginPath()
             ctx.arc(canvasX, canvasY, 5, 0, 2 * Math.PI)
             ctx.fill()
@@ -365,6 +372,22 @@ const GraphingMode = React.memo(({
             setTracePosition(null)
         }
     }, [traceEnabled, setTracePosition])
+
+    // Wheel-zoom toward the cursor. Attached as a non-passive listener so we can
+    // preventDefault (stop the page scrolling while zooming the plot).
+    useEffect(() => {
+        const canvas = canvasRef.current
+        if (!canvas || !zoomAt) return
+        const onWheel = (e) => {
+            e.preventDefault()
+            const rect = canvas.getBoundingClientRect()
+            const gx = xMin + ((e.clientX - rect.left) / rect.width) * (xMax - xMin)
+            const gy = yMax - ((e.clientY - rect.top) / rect.height) * (yMax - yMin)
+            zoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, gx, gy)
+        }
+        canvas.addEventListener('wheel', onWheel, { passive: false })
+        return () => canvas.removeEventListener('wheel', onWheel)
+    }, [xMin, xMax, yMin, yMax, zoomAt])
 
     return (
         <div className="graphing-mode">
@@ -537,6 +560,7 @@ const GraphingMode = React.memo(({
                 <div className="graph-controls">
                     <button onClick={() => zoom(1.5)} disabled={!canZoomIn} title={canZoomIn ? 'Zoom In' : 'Maximum zoom reached'} className="graph-btn">+</button>
                     <button onClick={() => zoom(0.67)} disabled={!canZoomOut} title={canZoomOut ? 'Zoom Out' : 'Minimum zoom reached'} className="graph-btn">-</button>
+                    {fitView && <button onClick={fitView} title="Fit curves to view" className="graph-btn reset-btn">Fit</button>}
                     <button onClick={resetViewport} title="Reset View" className="graph-btn reset-btn">Reset</button>
                 </div>
 
