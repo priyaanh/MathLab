@@ -1,10 +1,10 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { buildVocab, suggest } from '../utils/search'
 
 const TOOLS = [
     { to: '/scientific', icon: '🧮', title: 'Scientific Calculator', desc: 'Trig, logs, memory, powers and full expression editing with keyboard support.', keywords: 'calculator arithmetic trig sin cos tan log memory powers factorial' },
-    { to: '/exercises', icon: '🎯', title: 'Exercises', desc: 'Khan-style practice from early math to college — fresh problems, instant checks, mastery streaks.', keywords: 'exercises practice problems quiz drill test mastery skills learn khan grade school algebra calculus' },
+    { to: '/exercises', icon: '🎯', title: 'Exercises', desc: 'Guided practice from early math to college — fresh problems, instant checks, mastery streaks.', keywords: 'exercises practice problems quiz drill test mastery skills learn grade school algebra calculus' },
     { to: '/graph', icon: '📈', title: 'Function Grapher', desc: 'Plot y = f(x): multiple curves, zeros, intersections, trace and value tables.', keywords: 'graph plot function curve zeros roots intersection trace table' },
     { to: '/lines', icon: '📏', title: 'Lines & Segments', desc: 'Plot lines and segments from equations or points. See slope, length, midpoint.', keywords: 'line segment slope intercept midpoint length distance equation' },
     { to: '/shapes', icon: '⬡', title: 'Shapes', desc: 'Draw circles and polygons. Instantly compute area and perimeter.', keywords: 'shape circle rectangle polygon area perimeter geometry' },
@@ -24,16 +24,74 @@ const TOOLS = [
 
 const VOCAB = buildVocab(TOOLS.map(t => `${t.title} ${t.desc} ${t.keywords}`))
 
+// Users can drag the tool cards into any order; the choice is remembered.
+const TOOL_ORDER_KEY = 'mathlab-tool-order'
+
+const loadToolOrder = () => {
+    try {
+        const saved = JSON.parse(localStorage.getItem(TOOL_ORDER_KEY) || 'null')
+        if (!Array.isArray(saved)) return TOOLS
+        const byTo = new Map(TOOLS.map(t => [t.to, t]))
+        const ordered = saved.map(to => byTo.get(to)).filter(Boolean)
+        const seen = new Set(saved)
+        for (const t of TOOLS) if (!seen.has(t.to)) ordered.push(t)   // append new tools
+        return ordered.length ? ordered : TOOLS
+    } catch {
+        return TOOLS
+    }
+}
+
+const saveToolOrder = (tools) => {
+    try { localStorage.setItem(TOOL_ORDER_KEY, JSON.stringify(tools.map(t => t.to))) } catch { /* ignore */ }
+}
+
 const HomePage = () => {
     const [query, setQuery] = useState('')
+    const [tools, setTools] = useState(loadToolOrder)
+    const [dragging, setDragging] = useState(null)
+    const fromRef = useRef(null)
+
+    const q = query.trim().toLowerCase()
+    const canReorder = q === ''
 
     const filtered = useMemo(() => {
-        const q = query.trim().toLowerCase()
-        if (!q) return TOOLS
-        return TOOLS.filter(t =>
+        if (!q) return tools
+        return tools.filter(t =>
             (t.title + ' ' + t.desc + ' ' + t.keywords).toLowerCase().includes(q)
         )
-    }, [query])
+    }, [q, tools])
+
+    // --- drag-to-reorder (only when not filtering) ---------------------
+    const onDragStart = (i) => (e) => {
+        fromRef.current = i
+        setDragging(i)
+        e.dataTransfer.effectAllowed = 'move'
+        e.dataTransfer.setData('text/plain', tools[i].to)
+    }
+
+    const onDragEnter = (i) => () => {
+        const from = fromRef.current
+        if (from === null || from === i) return
+        setTools(prev => {
+            const next = [...prev]
+            const [moved] = next.splice(from, 1)
+            next.splice(i, 0, moved)
+            return next
+        })
+        fromRef.current = i
+        setDragging(i)
+    }
+
+    const onDragEnd = () => {
+        fromRef.current = null
+        setDragging(null)
+        setTools(prev => { saveToolOrder(prev); return prev })
+    }
+
+    const resetOrder = () => {
+        setTools(TOOLS)
+        saveToolOrder(TOOLS)
+    }
 
     const suggestion = useMemo(
         () => (filtered.length === 0 ? suggest(query, VOCAB) : null),
@@ -66,18 +124,37 @@ const HomePage = () => {
                         <button className="search-clear" onClick={() => setQuery('')} aria-label="Clear search">×</button>
                     )}
                 </div>
+                {canReorder && (
+                    <div className="tool-reorder-hint">
+                        <span>Drag the cards to arrange your tools</span>
+                        <button type="button" className="did-you-mean" onClick={resetOrder}>↺ Reset order</button>
+                    </div>
+                )}
             </div>
 
             {filtered.length > 0 ? (
                 <section className="card-grid">
-                    {filtered.map(tool => (
-                        <Link key={tool.to} to={tool.to} className="tool-card">
-                            <span className="icon">{tool.icon}</span>
-                            <h3>{tool.title}</h3>
-                            <p>{tool.desc}</p>
-                            <span className="go">Open →</span>
-                        </Link>
-                    ))}
+                    {filtered.map(tool => {
+                        const i = tools.indexOf(tool)
+                        return (
+                            <Link
+                                key={tool.to}
+                                to={tool.to}
+                                className={`tool-card${dragging === i ? ' dragging' : ''}`}
+                                draggable={canReorder}
+                                onDragStart={canReorder ? onDragStart(i) : undefined}
+                                onDragEnter={canReorder ? onDragEnter(i) : undefined}
+                                onDragOver={canReorder ? (e) => e.preventDefault() : undefined}
+                                onDragEnd={canReorder ? onDragEnd : undefined}
+                                onDrop={canReorder ? (e) => e.preventDefault() : undefined}
+                            >
+                                <span className="icon">{tool.icon}</span>
+                                <h3>{tool.title}</h3>
+                                <p>{tool.desc}</p>
+                                <span className="go">Open →</span>
+                            </Link>
+                        )
+                    })}
                 </section>
             ) : (
                 <p className="no-results">
