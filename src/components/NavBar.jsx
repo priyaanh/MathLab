@@ -1,5 +1,5 @@
-import { NavLink, useNavigate } from 'react-router-dom'
-import { useState, useRef } from 'react'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
 import { useThemeContext } from '../theme/ThemeContext'
 
 // Default order. Users can drag links to reorder; their choice is remembered.
@@ -46,16 +46,34 @@ const saveOrder = (links) => {
 const NavBar = () => {
     const { theme, cycleTheme } = useThemeContext()
     const navigate = useNavigate()
+    const location = useLocation()
 
     const [links, setLinks] = useState(loadOrder)
+    const [open, setOpen] = useState(false)
     const [dragging, setDragging] = useState(null)
     const fromRef = useRef(null)
+    const menuRef = useRef(null)
+
+    // Close the menu on outside click or Escape.
+    useEffect(() => {
+        if (!open) return
+        const onDown = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setOpen(false) }
+        const onKey = (e) => { if (e.key === 'Escape') setOpen(false) }
+        document.addEventListener('mousedown', onDown)
+        document.addEventListener('keydown', onKey)
+        return () => {
+            document.removeEventListener('mousedown', onDown)
+            document.removeEventListener('keydown', onKey)
+        }
+    }, [open])
+
+    const current = links.find(l => l.to === location.pathname)
+    const currentLabel = current ? current.label : 'Menu'
 
     const onDragStart = (i) => (e) => {
         fromRef.current = i
         setDragging(i)
         e.dataTransfer.effectAllowed = 'move'
-        // Firefox requires data to be set for the drag to begin.
         e.dataTransfer.setData('text/plain', links[i].to)
     }
 
@@ -91,30 +109,51 @@ const NavBar = () => {
                 <span>MathLab</span>
             </NavLink>
 
-            <div className="nav-links" role="list">
-                {links.map((link, i) => (
-                    <NavLink
-                        key={link.to}
-                        to={link.to}
-                        role="listitem"
-                        draggable
-                        onDragStart={onDragStart(i)}
-                        onDragEnter={onDragEnter(i)}
-                        onDragOver={(e) => e.preventDefault()}
-                        onDragEnd={onDragEnd}
-                        onDrop={(e) => e.preventDefault()}
-                        title="Drag to reorder"
-                        className={({ isActive }) =>
-                            `${isActive ? 'active' : ''}${dragging === i ? ' dragging' : ''}`
-                        }
-                    >
-                        {link.label}
-                    </NavLink>
-                ))}
+            <div className="nav-menu" ref={menuRef}>
+                <button
+                    type="button"
+                    className={`nav-menu-btn${open ? ' open' : ''}`}
+                    onClick={() => setOpen(o => !o)}
+                    aria-haspopup="true"
+                    aria-expanded={open}
+                >
+                    <span className="nav-menu-icon" aria-hidden="true">☰</span>
+                    <span className="nav-menu-label">{currentLabel}</span>
+                    <span className="nav-menu-caret" aria-hidden="true">▾</span>
+                </button>
+
+                {open && (
+                    <div className="nav-dropdown" role="menu">
+                        <div className="nav-dropdown-head">
+                            <span>Pages</span>
+                            <button type="button" className="nav-reset" onClick={resetOrder} title="Reset order">↺ Reset</button>
+                        </div>
+                        {links.map((link, i) => (
+                            <NavLink
+                                key={link.to}
+                                to={link.to}
+                                role="menuitem"
+                                draggable
+                                onClick={() => setOpen(false)}
+                                onDragStart={onDragStart(i)}
+                                onDragEnter={onDragEnter(i)}
+                                onDragOver={(e) => e.preventDefault()}
+                                onDragEnd={onDragEnd}
+                                onDrop={(e) => e.preventDefault()}
+                                title="Drag to reorder"
+                                className={({ isActive }) =>
+                                    `nav-dropdown-item${isActive ? ' active' : ''}${dragging === i ? ' dragging' : ''}`
+                                }
+                            >
+                                <span className="nav-grip" aria-hidden="true">⋮⋮</span>
+                                {link.label}
+                            </NavLink>
+                        ))}
+                    </div>
+                )}
             </div>
 
             <div className="theme-quick">
-                <button onClick={resetOrder} title="Reset tab order" aria-label="Reset tab order">↺</button>
                 <button onClick={cycleTheme} title="Quick-switch theme">
                     <span className="theme-dot" />
                     {theme.name}
