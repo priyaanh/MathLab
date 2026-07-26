@@ -62,6 +62,46 @@ const ordinal = (n) => {
 const DEG2RAD = Math.PI / 180
 
 const skills = [
+    {
+        id: 'alg2-parabola-vertex',
+        title: 'Vertex of a parabola',
+        desc: 'Find the vertex (h, k) of a quadratic in standard form.',
+        generate() {
+            const h = randInt(-5, 5)
+            const b = -2 * h
+            const c = randInt(-6, 6)
+            const k = c - h * h
+            const bx = b === 0 ? '' : (b > 0 ? `+${b}x` : `${b}x`)
+            const cc = c === 0 ? '' : (c > 0 ? `+${c}` : `${c}`)
+            const answer = `(${h},${k})`
+            return {
+                prompt: `Find the vertex of  y = x^2${bx}${cc}.`,
+                answer,
+                type: 'text',
+                accepted: [`${h},${k}`],
+                explanation: `h = −b/2a = ${h}; k = ${k}. Vertex (${h}, ${k}).`,
+            }
+        },
+    },
+
+    {
+        id: 'alg2-complex-modulus',
+        title: 'Modulus of a complex number',
+        desc: 'Find the modulus |a + bi| using a Pythagorean triple.',
+        generate() {
+            const triples = [[3, 4, 5], [6, 8, 10], [5, 12, 13], [8, 15, 17], [9, 12, 15], [7, 24, 25]]
+            const [a0, b0, c] = choice(triples)
+            const a = choice([1, -1]) * a0
+            const b = choice([1, -1]) * b0
+            return {
+                prompt: `Find the modulus:  |${a} ${b >= 0 ? '+' : '−'} ${Math.abs(b)}i|`,
+                answer: c,
+                type: 'integer',
+                explanation: `|a+bi| = √(a²+b²) = √(${a * a}+${b * b}) = √${a * a + b * b} = ${c}.`,
+            }
+        },
+    },
+
     // 1 -----------------------------------------------------------------------
     {
         id: 'alg2-quadratic-formula',

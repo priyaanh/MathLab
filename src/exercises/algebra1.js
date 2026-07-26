@@ -34,6 +34,51 @@ const factorTerm = (r) => (r > 0 ? `(x+${r})` : `(x${r})`)
 
 const skills = [
     {
+        id: 'alg1-parallel-perpendicular',
+        title: 'Parallel & perpendicular slopes',
+        desc: 'Give the slope of a line parallel or perpendicular to a given line.',
+        generate() {
+            const m = randNonZero(-5, 5)
+            if (choice([true, false])) {
+                return {
+                    prompt: `A line has slope ${m}. What is the slope of any line parallel to it?`,
+                    answer: m,
+                    type: 'numeric',
+                    tolerance: 0.02,
+                    explanation: `Parallel lines share the same slope: ${m}.`,
+                }
+            }
+            const answer = -1 / m
+            return {
+                prompt: `A line has slope ${m}. What is the slope of any line perpendicular to it?`,
+                answer,
+                type: 'numeric',
+                tolerance: 0.02,
+                explanation: `Perpendicular slope is the negative reciprocal: −1/(${m}) = ${formatFraction(-1, m)}.`,
+            }
+        },
+    },
+
+    {
+        id: 'alg1-simplify-radical',
+        title: 'Simplify a square root',
+        desc: 'Write a square root in simplest radical form.',
+        generate() {
+            const outside = randInt(2, 6)
+            const inside = choice([2, 3, 5, 6, 7, 10])
+            const n = outside * outside * inside
+            const answer = `${outside}√${inside}`
+            return {
+                prompt: `Simplify:  √${n}`,
+                answer,
+                type: 'text',
+                accepted: [`${outside}sqrt${inside}`],
+                explanation: `√${n} = √(${outside * outside}·${inside}) = ${outside}√${inside}.`,
+            }
+        },
+    },
+
+    {
         id: 'alg1-solve-linear',
         title: 'Solve multi-step linear equations',
         desc: 'Solve a two-sided linear equation with an integer or simple-fraction solution.',

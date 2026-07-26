@@ -47,6 +47,45 @@ const exprVariants = (s) => [s, supVariant(s), starVariant(s), starVariant(supVa
 
 const skills = [
     {
+        id: 'calc-second-derivative',
+        title: 'Second derivative at a point',
+        desc: 'Differentiate a cubic twice and evaluate.',
+        generate() {
+            const a = randNonZero(-3, 3)
+            const b = randNonZero(-4, 4)
+            const c = randInt(-5, 5)
+            const x0 = randInt(-3, 3)
+            const answer = 6 * a * x0 + 2 * b
+            const poly = `${a}x^3${b > 0 ? `+${b}` : `${b}`}x^2${c ? (c > 0 ? `+${c}x` : `${c}x`) : ''}`
+            return {
+                prompt: `If f(x) = ${poly}, find f''(${x0}).`,
+                answer,
+                type: 'integer',
+                explanation: `f'(x) = ${3 * a}x² + ${2 * b}x + ${c}; f''(x) = ${6 * a}x + ${2 * b}; f''(${x0}) = ${answer}.`,
+            }
+        },
+    },
+
+    {
+        id: 'calc-product-rule-point',
+        title: 'Product rule at a point',
+        desc: 'Differentiate a product of two linear factors and evaluate.',
+        generate() {
+            const a = randNonZero(-5, 5)
+            const b = randNonZero(-5, 5)
+            const x0 = randInt(-4, 4)
+            const answer = 2 * x0 + a + b
+            const t = (r) => (r > 0 ? `(x+${r})` : `(x${r})`)
+            return {
+                prompt: `Let f(x) = ${t(a)}${t(b)}. Find f'(${x0}).`,
+                answer,
+                type: 'integer',
+                explanation: `f'(x) = ${t(b)} + ${t(a)} = 2x + ${a + b}; f'(${x0}) = ${answer}.`,
+            }
+        },
+    },
+
+    {
         id: 'calc-limit-substitution',
         title: 'Evaluate a limit (direct substitution)',
         desc: 'Evaluate the limit of a continuous polynomial by plugging in.',

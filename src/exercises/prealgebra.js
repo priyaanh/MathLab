@@ -53,6 +53,42 @@ const primeFactors = (n) => {
 
 const skills = [
     {
+        id: 'pre-proportion',
+        title: 'Solve a proportion',
+        desc: 'Find the unknown value that makes two ratios equal.',
+        generate() {
+            const k = randInt(2, 6)
+            const a = randInt(2, 9)
+            const b = randInt(2, 9)
+            const c = b * k
+            const answer = a * k
+            return {
+                prompt: `Solve for x:  ${a}/${b} = x/${c}`,
+                answer,
+                type: 'integer',
+                explanation: `${c} ÷ ${b} = ${k}, so x = ${a} × ${k} = ${answer}.`,
+            }
+        },
+    },
+
+    {
+        id: 'pre-absolute-value',
+        title: 'Absolute value',
+        desc: 'Evaluate an expression involving absolute value.',
+        generate() {
+            const a = randNonZero(-12, 12)
+            const b = randNonZero(-12, 12)
+            const answer = Math.abs(a - b)
+            return {
+                prompt: `Evaluate:  |${a} − (${b})|`,
+                answer,
+                type: 'integer',
+                explanation: `${a} − (${b}) = ${a - b}, and |${a - b}| = ${answer}.`,
+            }
+        },
+    },
+
+    {
         id: 'pre-integer-operations',
         title: 'Integer operations with negatives',
         desc: 'Add, subtract, or multiply positive and negative integers.',

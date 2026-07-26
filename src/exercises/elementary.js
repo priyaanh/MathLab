@@ -317,6 +317,44 @@ const factors = {
 }
 
 export default [
+    {
+        id: 'elem-add-subtract-decimals',
+        title: 'Add & subtract decimals',
+        desc: 'Add or subtract two decimal numbers to the hundredths.',
+        generate() {
+            const a = randInt(10, 500) / 100
+            const b = randInt(10, 500) / 100
+            const add = choice([true, false])
+            const [x, y] = add ? [a, b] : (a >= b ? [a, b] : [b, a])
+            const answer = round(add ? x + y : x - y, 2)
+            return {
+                prompt: `${add ? 'Add' : 'Subtract'}:  ${x.toFixed(2)} ${add ? '+' : '−'} ${y.toFixed(2)}`,
+                answer,
+                type: 'numeric',
+                tolerance: 0.005,
+                explanation: `${x.toFixed(2)} ${add ? '+' : '−'} ${y.toFixed(2)} = ${answer}.`,
+            }
+        },
+    },
+
+    {
+        id: 'elem-fraction-of-number',
+        title: 'Fraction of a number',
+        desc: 'Find a simple fraction of a whole number.',
+        generate() {
+            const d = choice([2, 3, 4, 5, 6])
+            const n = randInt(1, d - 1)
+            const whole = d * randInt(2, 9)
+            const answer = (whole / d) * n
+            return {
+                prompt: `What is ${n}/${d} of ${whole}?`,
+                answer,
+                type: 'integer',
+                explanation: `${whole} ÷ ${d} = ${whole / d}, then × ${n} = ${answer}.`,
+            }
+        },
+    },
+
     multiplicationFacts,
     divisionFacts,
     multiDigitMultiplication,

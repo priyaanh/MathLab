@@ -9,6 +9,40 @@ import { randInt, choice, mcFrom } from './helpers'
 
 const skills = [
     {
+        id: 'early-ten-more-less',
+        title: '10 more or 10 less',
+        desc: 'Find the number that is 10 more or 10 less.',
+        generate() {
+            const n = randInt(10, 89)
+            const more = choice([true, false])
+            const answer = more ? n + 10 : n - 10
+            return {
+                prompt: `What is 10 ${more ? 'more than' : 'less than'} ${n}?`,
+                answer,
+                type: 'integer',
+                explanation: `${n} ${more ? '+' : '−'} 10 = ${answer}.`,
+            }
+        },
+    },
+
+    {
+        id: 'early-missing-addend',
+        title: 'Missing addend',
+        desc: 'Find the missing number in an addition sentence within 20.',
+        generate() {
+            const a = randInt(1, 10)
+            const sum = a + randInt(1, 10)
+            const answer = sum - a
+            return {
+                prompt: `Fill in the blank:  ${a} + ___ = ${sum}`,
+                answer,
+                type: 'integer',
+                explanation: `${sum} − ${a} = ${answer}.`,
+            }
+        },
+    },
+
+    {
         id: 'early-number-after-before',
         title: 'Number after / before',
         desc: 'Find the number that comes just after or just before a given number.',

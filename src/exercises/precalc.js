@@ -331,6 +331,55 @@ const polar = {
 }
 
 export default [
+    {
+        id: 'pcalc-average-rate-of-change',
+        title: 'Average rate of change',
+        desc: 'Compute the average rate of change of a function over an interval.',
+        generate() {
+            const k = randInt(-4, 4)
+            const p = randInt(-4, 3)
+            const q = p + randInt(1, 4)
+            const f = (x) => x * x + k * x
+            const answer = round((f(q) - f(p)) / (q - p), 2)
+            const kx = k === 0 ? '' : (k > 0 ? `+${k}x` : `${k}x`)
+            return {
+                prompt: `Find the average rate of change of f(x) = x^2${kx} on [${p}, ${q}].`,
+                answer,
+                type: 'numeric',
+                tolerance: 0.02,
+                explanation: `(f(${q}) − f(${p})) / (${q} − ${p}) = (${f(q)} − ${f(p)}) / ${q - p} = ${answer}.`,
+            }
+        },
+    },
+
+    {
+        id: 'pcalc-summation',
+        title: 'Evaluate a summation',
+        desc: 'Evaluate a finite sum written in sigma notation.',
+        generate() {
+            const n = randInt(3, 8)
+            if (choice(['linear', 'squares']) === 'squares') {
+                const answer = (n * (n + 1) * (2 * n + 1)) / 6
+                return {
+                    prompt: `Evaluate:  Σ (i=1 to ${n}) of i^2`,
+                    answer,
+                    type: 'integer',
+                    explanation: `Σi² = n(n+1)(2n+1)/6 = ${answer}.`,
+                }
+            }
+            const a = randInt(1, 4)
+            const b = randInt(0, 5)
+            const answer = a * ((n * (n + 1)) / 2) + b * n
+            const inner = `${a === 1 ? '' : a}i${b ? `+${b}` : ''}`
+            return {
+                prompt: `Evaluate:  Σ (i=1 to ${n}) of ${inner}`,
+                answer,
+                type: 'integer',
+                explanation: `${a}·Σi + ${b}·${n} = ${a}·${(n * (n + 1)) / 2} + ${b * n} = ${answer}.`,
+            }
+        },
+    },
+
     composition,
     inverse,
     endBehavior,

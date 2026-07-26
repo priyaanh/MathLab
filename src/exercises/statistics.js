@@ -332,6 +332,43 @@ const zScoreSkill = {
 }
 
 export default [
+    {
+        id: 'stat-variance',
+        title: 'Population variance',
+        desc: 'Compute the population variance of a small data set.',
+        generate() {
+            const n = choice([4, 5])
+            const data = Array.from({ length: n }, () => randInt(1, 10))
+            const mean = data.reduce((s, x) => s + x, 0) / n
+            const answer = round(data.reduce((s, x) => s + (x - mean) ** 2, 0) / n, 2)
+            return {
+                prompt: `Find the population variance of:  ${data.join(', ')}`,
+                answer,
+                type: 'numeric',
+                tolerance: 0.02,
+                explanation: `Mean = ${round(mean, 2)}. Variance = mean of squared deviations = ${answer}.`,
+            }
+        },
+    },
+
+    {
+        id: 'stat-two-dice-sum',
+        title: 'Probability of a dice sum',
+        desc: 'Find the probability that two fair dice show a given sum.',
+        generate() {
+            const target = randInt(2, 12)
+            const ways = 6 - Math.abs(7 - target)
+            const answer = round(ways / 36, 4)
+            return {
+                prompt: `Two fair dice are rolled. What is P(sum = ${target})? Give a decimal (4 dp).`,
+                answer,
+                type: 'numeric',
+                tolerance: 0.005,
+                explanation: `${ways} of 36 outcomes give ${target}, so P = ${ways}/36 ≈ ${answer}.`,
+            }
+        },
+    },
+
     meanSkill,
     medianSkill,
     modeSkill,

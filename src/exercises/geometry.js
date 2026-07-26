@@ -11,6 +11,51 @@ const PI = Math.PI
 
 const skills = [
     {
+        id: 'geo-special-right-triangle',
+        title: 'Special right triangles',
+        desc: 'Use 45-45-90 and 30-60-90 ratios to find a missing side.',
+        generate() {
+            if (choice([true, false])) {
+                const leg = randInt(2, 9)
+                const answer = round(leg * Math.SQRT2, 2)
+                return {
+                    prompt: `In a 45°-45°-90° triangle each leg is ${leg}. Find the hypotenuse (2 dp).`,
+                    answer,
+                    type: 'numeric',
+                    tolerance: 0.02,
+                    explanation: `hypotenuse = leg·√2 = ${leg}·√2 ≈ ${answer}.`,
+                }
+            }
+            const short = randInt(2, 9)
+            const answer = round(short * Math.sqrt(3), 2)
+            return {
+                prompt: `In a 30°-60°-90° triangle the short leg is ${short}. Find the long leg (2 dp).`,
+                answer,
+                type: 'numeric',
+                tolerance: 0.02,
+                explanation: `long leg = short·√3 = ${short}·√3 ≈ ${answer}.`,
+            }
+        },
+    },
+
+    {
+        id: 'geo-volume-sphere',
+        title: 'Volume of a sphere',
+        desc: 'Compute the volume of a sphere from its radius.',
+        generate() {
+            const r = randInt(1, 8)
+            const answer = round((4 / 3) * Math.PI * r ** 3, 2)
+            return {
+                prompt: `Find the volume of a sphere with radius ${r}. Use π ≈ 3.14159 (2 dp).`,
+                answer,
+                type: 'numeric',
+                tolerance: 0.05,
+                explanation: `V = (4/3)πr³ = (4/3)π(${r})³ ≈ ${answer}.`,
+            }
+        },
+    },
+
+    {
         id: 'geo-angle-relationships',
         title: 'Angle relationships',
         desc: 'Find a missing angle using complementary, supplementary, or vertical angles.',
