@@ -5,7 +5,7 @@
  * All generators are self-consistent: the checker accepts String(problem.answer).
  */
 
-import { randInt, choice, round } from './helpers'
+import { randInt, choice, round } from './helpers.js'
 
 const PI = Math.PI
 

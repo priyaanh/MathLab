@@ -12,7 +12,7 @@ import {
     formatFraction,
     round,
     mcFrom,
-} from './helpers'
+} from './helpers.js'
 
 // 1. Multiplication facts (up to 12x12).
 const multiplicationFacts = {

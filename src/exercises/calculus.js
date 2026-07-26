@@ -10,7 +10,7 @@
  * simple canonical form plus `accepted` variants.
  */
 
-import { randInt, randNonZero, choice, round } from './helpers'
+import { randInt, randNonZero, choice, round } from './helpers.js'
 
 // --- small formatting helpers ----------------------------------------------
 

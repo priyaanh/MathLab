@@ -15,7 +15,7 @@ import {
     round,
     withSign,
     mcFrom,
-} from './helpers'
+} from './helpers.js'
 
 // Render a signed integer using the minus glyph for negatives, e.g. -4 -> "−4".
 const fmt = (n) => (n < 0 ? `−${Math.abs(n)}` : `${n}`)

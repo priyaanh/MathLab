@@ -6,7 +6,7 @@
  * Prompts are plain text: powers use "^", fractions use "a/b".
  */
 
-import { randInt, randNonZero, choice, reduceFraction, formatFraction } from './helpers'
+import { randInt, randNonZero, choice, reduceFraction, formatFraction } from './helpers.js'
 
 // --- small formatting helpers (module-local, not exported) -----------------
 

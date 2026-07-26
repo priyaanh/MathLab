@@ -9,7 +9,7 @@
  * "to the power k", roots as "sqrt(...)", and multiplication as "*".
  */
 
-import { randInt, randNonZero, choice, round, mcFrom } from './helpers'
+import { randInt, randNonZero, choice, round, mcFrom } from './helpers.js'
 
 const DEG = Math.PI / 180
 

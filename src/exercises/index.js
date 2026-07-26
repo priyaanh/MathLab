@@ -2,17 +2,17 @@
  * Aggregates every grade-band generator module into an ordered topic catalog
  * and a flat skill lookup. Each band module default-exports an array of skills.
  */
-import earlyMath from './earlyMath'
-import elementary from './elementary'
-import prealgebra from './prealgebra'
-import algebra1 from './algebra1'
-import geometry from './geometry'
-import algebra2 from './algebra2'
-import precalc from './precalc'
-import calculus from './calculus'
-import statistics from './statistics'
+import earlyMath from './earlyMath.js'
+import elementary from './elementary.js'
+import prealgebra from './prealgebra.js'
+import algebra1 from './algebra1.js'
+import geometry from './geometry.js'
+import algebra2 from './algebra2.js'
+import precalc from './precalc.js'
+import calculus from './calculus.js'
+import statistics from './statistics.js'
 
-export { checkAnswer } from './helpers'
+export { checkAnswer } from './helpers.js'
 
 // Ordered from earliest grades to college.
 export const TOPICS = [

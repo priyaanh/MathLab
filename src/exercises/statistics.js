@@ -20,7 +20,7 @@ import {
     formatFraction,
     reduceFraction,
     round,
-} from './helpers'
+} from './helpers.js'
 
 // Small factorial for n <= 8 (well within Number precision).
 const factorial = (n) => {

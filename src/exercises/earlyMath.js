@@ -5,7 +5,7 @@
  * All generators are self-consistent: the checker accepts String(problem.answer).
  */
 
-import { randInt, choice, mcFrom } from './helpers'
+import { randInt, choice, mcFrom } from './helpers.js'
 
 const skills = [
     {

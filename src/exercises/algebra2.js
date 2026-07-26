@@ -6,7 +6,7 @@
  * Prompts are plain text and may use ^ √ π ×.
  */
 
-import { randInt, randNonZero, choice, gcd, formatFraction, round } from './helpers'
+import { randInt, randNonZero, choice, gcd, formatFraction, round } from './helpers.js'
 
 // ---- small local formatting helpers ---------------------------------------
 
