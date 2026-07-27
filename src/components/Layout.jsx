@@ -48,12 +48,15 @@ const Layout = () => {
 
     return (
         <div className="site">
+            <a className="skip-link" href="#main">Skip to content</a>
             <NavBar />
-            <ErrorBoundary resetKey={pathname}>
-                <Suspense fallback={<PageLoading />}>
-                    <Outlet />
-                </Suspense>
-            </ErrorBoundary>
+            <main id="main">
+                <ErrorBoundary resetKey={pathname}>
+                    <Suspense fallback={<PageLoading />}>
+                        <Outlet />
+                    </Suspense>
+                </ErrorBoundary>
+            </main>
             <footer className="footer">
                 MathLab · built with React · a stylish home for calculators &amp; graphing tools
             </footer>

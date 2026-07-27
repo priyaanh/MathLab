@@ -1723,3 +1723,35 @@ a.topic-card {
 .error-screen h1 { margin: 0.3rem 0 0; font-size: 1.4rem; }
 .error-screen p { margin: 0; color: var(--text-muted); max-width: 44ch; }
 .error-actions { display: flex; gap: 0.7rem; flex-wrap: wrap; justify-content: center; margin-top: 0.8rem; }
+
+/* ---- Accessibility: skip link, main landmark, focus rings ------------- */
+main#main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 300;
+    padding: 0.6rem 1rem;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-weight: 700;
+    border-radius: 0 0 10px 0;
+}
+.skip-link:focus { left: 0; }
+
+/* Visible focus ring for keyboard users on every interactive element. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 6px;
+}

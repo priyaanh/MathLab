@@ -1,18 +1,38 @@
 # 🧮 MathLab
 
-A stylish, multi-page React math site with switchable themes. Pages:
+A stylish, multi-page React math site with switchable themes. Tools:
 
-- **Home** — landing page linking to every tool.
+- **Home** (`#/`) — landing page; search and drag-to-reorder the tool cards.
+- **Exercises** (`#/exercises`) — 118+ auto-generated practice problems from early math to college, with instant checks and mastery streaks.
 - **Scientific Calculator** (`#/scientific`) — full expression editing, memory, DEG/RAD trig, keyboard accessibility.
 - **Function Grapher** (`#/graph`) — plot y = f(x), zeros, intersections, trace, value tables.
-- **Lines & Segments** (`#/lines`) — plot from two points or slope-intercept; slope, length, midpoint.
-- **Shapes** (`#/shapes`) — circles, rectangles, regular polygons with area & perimeter.
+- **Equation Solver** (`#/solve`) — linear, quadratic, 2×2 systems (exact steps) plus square roots and any higher power (numeric roots).
+- **Derivative Calculator** (`#/derivative`) — symbolic differentiation, rules used, tangent line.
+- **Lines & Segments** (`#/lines`) — slope, length, midpoint, equation.
+- **Shapes** (`#/shapes`) — circles (area in π form), rectangles, polygons; drag handles to reshape.
+- **Transformations** (`#/transformations`) — translate, dilate, rotate, reflect.
 - **Inequalities** (`#/inequalities`) — shade regions like `y < 2x + 1` and see overlaps.
-- **Themes** (`#/themes`) — six looks (dark, light, high-contrast); choice is saved.
+- **Triangle Solver** (`#/triangle`), **Unit Converter** (`#/units`), **Base Converter** (`#/bases`), **Statistics** (`#/statistics`), **Matrix Calculator** (`#/matrix`), **Constants Library** (`#/constants`).
+- **Profile** (`#/profile`) — practice stats and progress backup (export/import); reachable via the 👤 nav icon.
+- **Guide** (`#/guide`) — what every tool does. **Themes** (`#/themes`) — six looks; choice is saved.
+
+Every graph supports **drag / pinch to pan and zoom**, wheel-zoom, and arrow-key panning once focused. An **on-screen keypad** pops up on math fields for keyboard-free input.
 
 Routing uses `HashRouter` so deep links work on static hosts like GitHub Pages.
+Pages are code-split (lazy-loaded) so first paint ships only the shell + home.
 Themes are CSS-variable maps in `src/theme/themes.js` — add an object there and it
 shows up everywhere automatically.
+
+## Development
+
+```bash
+npm install
+npm run dev      # local dev server
+npm test         # math + solver + exercise self-consistency suite (node)
+npm run build    # production build
+```
+
+Tests run in CI before every GitHub Pages deploy (`.github/workflows/deploy.yml`).
 
 ## Scientific Calculator features
 
