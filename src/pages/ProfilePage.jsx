@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ALL_SKILLS, TOPICS, TOTAL_SKILLS } from '../exercises'
 
 /**
@@ -18,17 +19,39 @@ import { ALL_SKILLS, TOPICS, TOTAL_SKILLS } from '../exercises'
 const PROFILE_KEY = 'mathlab-profile'
 const PROGRESS_KEY = 'mathlab-exercise-progress'
 const MASTERY_STREAK = 5
+// How many "practice next" skills to surface on the plan.
+const PLAN_SIZE = 6
+
+// Each grade maps to the exercise topics that fit it, most-relevant first. A
+// little overlap with the year below builds in review. `topics` are TOPIC ids
+// from ../exercises; keep them in sync if topic ids ever change.
+const GRADES = [
+    { id: 'k2', label: 'Kindergarten – Grade 2', topics: ['early'] },
+    { id: '3-5', label: 'Grades 3–5 (Elementary)', topics: ['elementary', 'early'] },
+    { id: '6-8', label: 'Grades 6–8 (Middle school)', topics: ['prealgebra', 'elementary'] },
+    { id: '9', label: 'Grade 9 — Algebra 1', topics: ['algebra1', 'prealgebra'] },
+    { id: '10', label: 'Grade 10 — Geometry', topics: ['geometry', 'algebra1'] },
+    { id: '11', label: 'Grade 11 — Algebra 2 & Trig', topics: ['algebra2', 'geometry'] },
+    { id: '12', label: 'Grade 12 — Precalculus', topics: ['precalc', 'algebra2'] },
+    { id: 'college', label: 'College / AP', topics: ['calculus', 'statistics', 'precalc'] }
+]
 
 // Keys we back up. We deliberately never export an API key.
 const BACKUP_PREFIX = 'mathlab-'
 const BACKUP_EXCLUDE = new Set(['mathlab-anthropic-key'])
 
-const loadProfile = () => {
-    try { return JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}') } catch { return {} }
+// Always hand back a plain object. Stored data can be malformed — e.g. the
+// literal string "null", an array, or a primitive (a bad import can write
+// these) — and JSON.parse would then yield null/array/number, crashing the
+// page on `profile.name` / `Object.entries(progress)`.
+const loadObject = (key) => {
+    try {
+        const parsed = JSON.parse(localStorage.getItem(key) || '{}')
+        return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
+    } catch { return {} }
 }
-const loadProgress = () => {
-    try { return JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}') } catch { return {} }
-}
+const loadProfile = () => loadObject(PROFILE_KEY)
+const loadProgress = () => loadObject(PROGRESS_KEY)
 
 const collectBackup = () => {
     const data = {}
@@ -46,12 +69,40 @@ const ProfilePage = () => {
     const [progress, setProgress] = useState(loadProgress)
     const [flash, setFlash] = useState('')
     const fileRef = useRef(null)
+    const navigate = useNavigate()
 
-    const setName = (name) => {
-        const next = { ...profile, name }
+    // Persist a single profile field, keeping the rest intact.
+    const patchProfile = (patch) => {
+        const next = { ...profile, ...patch }
         setProfile(next)
         try { localStorage.setItem(PROFILE_KEY, JSON.stringify(next)) } catch { /* ignore */ }
     }
+    const setName = (name) => patchProfile({ name })
+    const setGrade = (grade) => patchProfile({ grade })
+
+    const grade = useMemo(() => GRADES.find(g => g.id === profile.grade) || null, [profile.grade])
+
+    // A personalized plan: grade-appropriate skills ranked by what needs work.
+    // New skills come first, then in-progress, then mastered — and within each,
+    // topics stay in the grade's most-relevant-first order.
+    const plan = useMemo(() => {
+        if (!grade) return null
+        const topics = grade.topics
+            .map(id => TOPICS.find(t => t.id === id))
+            .filter(Boolean)
+        const ranked = []
+        topics.forEach((topic, ti) => {
+            topic.skills.forEach(skill => {
+                const p = progress[skill.id]
+                const rank = p?.mastered ? 2 : p?.attempts ? 1 : 0
+                ranked.push({ skill, topic, rank, order: ti })
+            })
+        })
+        ranked.sort((a, b) => a.rank - b.rank || a.order - b.order)
+        const total = ranked.length
+        const mastered = ranked.filter(r => r.rank === 2).length
+        return { topics, next: ranked.slice(0, PLAN_SIZE), total, mastered }
+    }, [grade, progress])
 
     const stats = useMemo(() => {
         const entries = Object.entries(progress)
@@ -146,6 +197,17 @@ const ProfilePage = () => {
                         Shown at the top of this page. Stored only on this device.
                     </p>
 
+                    <label className="field" style={{ marginTop: '1.1rem' }}>
+                        What grade are you in?
+                        <select value={profile.grade || ''} onChange={(e) => setGrade(e.target.value)}>
+                            <option value="">Select your grade…</option>
+                            {GRADES.map(g => <option key={g.id} value={g.id}>{g.label}</option>)}
+                        </select>
+                    </label>
+                    <p className="hint" style={{ marginTop: '0.6rem' }}>
+                        Builds a practice plan tuned to your grade below.
+                    </p>
+
                     <h2 style={{ marginTop: '1.4rem' }}>Keep your progress safe</h2>
                     <div className="profile-actions">
                         <button className="btn primary" onClick={exportBackup}>⬇ Export backup</button>
@@ -196,6 +258,56 @@ const ProfilePage = () => {
                         </div>
                     )}
                 </div>
+            </div>
+
+            <div className="panel plan-panel">
+                <div className="plan-head">
+                    <h2>Your practice plan</h2>
+                    {grade && <span className="plan-grade">{grade.label}</span>}
+                </div>
+
+                {!grade ? (
+                    <p className="hint">
+                        Pick your grade under <strong>You</strong> and we'll build a personalized set of
+                        skills to practice — matched to your level and ordered by what needs work.
+                    </p>
+                ) : (
+                    <>
+                        <p className="hint" style={{ marginBottom: '1rem' }}>
+                            {plan.mastered} of {plan.total} skills mastered for {grade.label.split('—')[0].trim()}.
+                            Start with these — new skills first, then ones still in progress.
+                        </p>
+
+                        <div className="plan-next">
+                            {plan.next.map(({ skill, topic, rank }) => (
+                                <button
+                                    key={skill.id}
+                                    className="plan-skill"
+                                    onClick={() => navigate(`/exercises/${skill.id}`)}
+                                >
+                                    <div className="plan-skill-top">
+                                        <span className="plan-skill-topic">{topic.icon} {topic.label}</span>
+                                        <span className={`plan-tag r${rank}`}>
+                                            {rank === 2 ? '✓ Mastered' : rank === 1 ? 'In progress' : 'New'}
+                                        </span>
+                                    </div>
+                                    <h3>{skill.title}</h3>
+                                    <p>{skill.desc}</p>
+                                    <span className="plan-skill-go">Practice →</span>
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="plan-topics">
+                            <span className="hint">Or explore a whole area:</span>
+                            {plan.topics.map(t => (
+                                <button key={t.id} className="btn ghost" onClick={() => navigate('/exercises')}>
+                                    {t.icon} {t.label}
+                                </button>
+                            ))}
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     )

@@ -46,9 +46,15 @@ const MathKeypad = () => {
     const [pos, setPos] = useState({ top: 0, left: 0 })
     const panelRef = useRef(null)
     const hideTimer = useRef(null)
+    // Once the user drags the panel we stop auto-snapping it to the field, so a
+    // scroll/resize can't yank it back over the question they moved it off of.
+    const draggedRef = useRef(false)
+    const dragState = useRef(null)
+    const targetRef = useRef(null)
+    targetRef.current = target
 
     const reposition = useCallback((el) => {
-        if (!el) return
+        if (!el || draggedRef.current) return
         const r = el.getBoundingClientRect()
         const panelW = panelRef.current?.offsetWidth || 300
         const panelH = panelRef.current?.offsetHeight || 240
@@ -65,6 +71,8 @@ const MathKeypad = () => {
             const el = e.target
             if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') && el.dataset.keypad) {
                 clearTimeout(hideTimer.current)
+                // A fresh field earns a fresh auto-position.
+                if (el !== targetRef.current) draggedRef.current = false
                 setTarget(el)
                 const v = el.dataset.keypad
                 setVariant(v === 'number' || v === 'data' ? v : 'full')
@@ -130,6 +138,32 @@ const MathKeypad = () => {
         requestAnimationFrame(() => { el.focus(); try { el.setSelectionRange(start, start) } catch { /* ignore */ } })
     }
 
+    // Drag the panel by its header. Buttons inside the header (the close ✕)
+    // opt out so a click there still hides the keypad instead of dragging.
+    const startDrag = (e) => {
+        if (e.target.closest('button')) return
+        e.preventDefault()
+        const panelW = panelRef.current?.offsetWidth || 300
+        const panelH = panelRef.current?.offsetHeight || 240
+        dragState.current = { dx: e.clientX - pos.left, dy: e.clientY - pos.top, panelW, panelH }
+        draggedRef.current = true
+
+        const onMove = (ev) => {
+            const d = dragState.current
+            if (!d) return
+            const left = Math.min(Math.max(8, ev.clientX - d.dx), window.innerWidth - d.panelW - 8)
+            const top = Math.min(Math.max(8, ev.clientY - d.dy), window.innerHeight - d.panelH - 8)
+            setPos({ top, left })
+        }
+        const onUp = () => {
+            dragState.current = null
+            window.removeEventListener('pointermove', onMove)
+            window.removeEventListener('pointerup', onUp)
+        }
+        window.addEventListener('pointermove', onMove)
+        window.addEventListener('pointerup', onUp)
+    }
+
     if (!target) return null
 
     // A button that inserts without stealing focus from the input.
@@ -152,8 +186,8 @@ const MathKeypad = () => {
             role="group"
             aria-label="On-screen keypad"
         >
-            <div className="mk-head">
-                <span>Keypad</span>
+            <div className="mk-head" onPointerDown={startDrag}>
+                <span>⠿ Keypad</span>
                 <button type="button" className="mk-close" onMouseDown={(e) => e.preventDefault()} onClick={() => setTarget(null)} aria-label="Hide keypad">×</button>
             </div>
 
