@@ -31,6 +31,10 @@ const ExercisesPage = lazy(() => import('./pages/ExercisesPage'))
 const QuizPage = lazy(() => import('./pages/QuizPage'))
 const PersonalizedPage = lazy(() => import('./pages/PersonalizedPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
+const FractionsPage = lazy(() => import('./pages/FractionsPage'))
+const SequencesPage = lazy(() => import('./pages/SequencesPage'))
+const NumberTheoryPage = lazy(() => import('./pages/NumberTheoryPage'))
+const ProbabilityPage = lazy(() => import('./pages/ProbabilityPage'))
 
 /**
  * MathLab — a multi-page math site.
@@ -58,6 +62,10 @@ function App() {
             <Route path="units" element={<UnitsPage />} />
             <Route path="bases" element={<BasePage />} />
             <Route path="constants" element={<ConstantsPage />} />
+            <Route path="fractions" element={<FractionsPage />} />
+            <Route path="sequences" element={<SequencesPage />} />
+            <Route path="numbertheory" element={<NumberTheoryPage />} />
+            <Route path="probability" element={<ProbabilityPage />} />
             <Route path="statistics" element={<StatsPage />} />
             <Route path="distribution" element={<DistributionPage />} />
             <Route path="solve" element={<SolverPage />} />

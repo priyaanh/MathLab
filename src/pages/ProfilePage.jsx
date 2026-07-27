@@ -1,6 +1,8 @@
 import { useState, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ALL_SKILLS, TOPICS, TOTAL_SKILLS, GRADES } from '../exercises'
+import { evaluateAchievements } from '../utils/achievements'
+import { loadActivity, currentStreak, longestStreak, recentDays, setGoal as persistGoal } from '../utils/activity'
 
 /**
  * Profile — a local identity + a safety net for progress.
@@ -53,6 +55,7 @@ const collectBackup = () => {
 const ProfilePage = () => {
     const [profile, setProfile] = useState(loadProfile)
     const [progress, setProgress] = useState(loadProgress)
+    const [activity, setActivity] = useState(loadActivity)
     const [flash, setFlash] = useState('')
     const fileRef = useRef(null)
     const navigate = useNavigate()
@@ -109,6 +112,13 @@ const ProfilePage = () => {
         return { practiced: entries.length, mastered, attempts, correct, best, accuracy, byTopic }
     }, [progress])
 
+    const dayStreak = useMemo(() => currentStreak(activity.days), [activity])
+    const bestDayStreak = useMemo(() => longestStreak(activity.days), [activity])
+    const calendar = useMemo(() => recentDays(activity.days, 35), [activity])
+    const achievements = useMemo(() => evaluateAchievements(progress, dayStreak), [progress, dayStreak])
+    const earnedCount = achievements.filter(a => a.earned).length
+    const changeGoal = (g) => setActivity(persistGoal(g))
+
     const flashMsg = (m) => { setFlash(m); setTimeout(() => setFlash(''), 2500) }
 
     const exportBackup = () => {
@@ -140,6 +150,7 @@ const ProfilePage = () => {
                 })
                 setProfile(loadProfile())
                 setProgress(loadProgress())
+                setActivity(loadActivity())
                 flashMsg('Backup restored ✓ — reloading…')
                 setTimeout(() => window.location.reload(), 800)
             } catch {
@@ -223,6 +234,13 @@ const ProfilePage = () => {
                         <div className="stat"><div className="label">Correct</div><div className="value">{stats.correct}</div></div>
                     </div>
 
+                    <button className="btn primary" style={{ marginTop: '1.1rem', width: '100%' }} onClick={() => navigate('/practice')}>
+                        ∞ Start unlimited practice
+                    </button>
+                    <p className="hint" style={{ marginTop: '0.5rem' }}>
+                        Endless, adaptive practice tuned to your grade — keeps serving the skills you haven't mastered yet.
+                    </p>
+
                     <h2 style={{ marginTop: '1.4rem' }}>By topic</h2>
                     {stats.practiced === 0 ? (
                         <p className="hint">No practice yet. Head to <strong>Exercises</strong> to get started — mastering a skill takes {MASTERY_STREAK} correct in a row.</p>
@@ -264,12 +282,6 @@ const ProfilePage = () => {
                             Start with these — new skills first, then ones still in progress.
                         </p>
 
-                        <div className="profile-actions" style={{ marginBottom: '1.2rem' }}>
-                            <button className="btn primary" onClick={() => navigate('/practice')}>
-                                ∞ Start unlimited practice
-                            </button>
-                        </div>
-
                         <div className="plan-next">
                             {plan.next.map(({ skill, topic, rank }) => (
                                 <button
@@ -300,6 +312,56 @@ const ProfilePage = () => {
                         </div>
                     </>
                 )}
+            </div>
+
+            <div className="panel">
+                <div className="plan-head">
+                    <h2>Streak &amp; daily goal</h2>
+                    <span className="plan-grade">🔥 {dayStreak}-day streak</span>
+                </div>
+
+                <div className="streak-row">
+                    <div className="streak-stat"><div className="value">🔥 {dayStreak}</div><div className="label">current streak</div></div>
+                    <div className="streak-stat"><div className="value">🏅 {bestDayStreak}</div><div className="label">longest streak</div></div>
+                    <label className="field streak-goal">
+                        Daily goal (problems)
+                        <input
+                            type="number" min="1" max="200"
+                            value={activity.goal}
+                            onChange={(e) => changeGoal(Number(e.target.value))}
+                        />
+                    </label>
+                </div>
+
+                <div className="cal-strip" role="img" aria-label="Practice over the last 5 weeks">
+                    {calendar.map(d => {
+                        const lvl = d.count === 0 ? 0 : d.count >= activity.goal ? 3 : d.count >= Math.ceil(activity.goal / 2) ? 2 : 1
+                        return <span key={d.key} className={`cal-cell lvl${lvl}`} title={`${d.key}: ${d.count} answered`} />
+                    })}
+                </div>
+                <p className="hint" style={{ marginTop: '0.6rem' }}>Last 5 weeks — brighter days mean more practice. Practice any day to keep your streak alive.</p>
+            </div>
+
+            <div className="panel">
+                <div className="plan-head">
+                    <h2>Achievements</h2>
+                    <span className="plan-grade">{earnedCount}/{achievements.length} unlocked</span>
+                </div>
+                <div className="badge-grid">
+                    {achievements.map(a => (
+                        <div key={a.id} className={`badge ${a.earned ? `earned ${a.tier}` : 'locked'}`}>
+                            <span className="badge-icon">{a.icon}</span>
+                            <div className="badge-body">
+                                <div className="badge-title">{a.title}</div>
+                                <div className="badge-desc">{a.desc}</div>
+                                {!a.earned && a.progress.need > 1 && (
+                                    <div className="badge-bar"><div style={{ width: `${(a.progress.have / a.progress.need) * 100}%` }} /></div>
+                                )}
+                            </div>
+                            {a.earned && <span className="badge-check">✓</span>}
+                        </div>
+                    ))}
+                </div>
             </div>
         </div>
     )

@@ -1691,6 +1691,23 @@ a.topic-card {
 }
 
 /* ---- Personalized Practice page --------------------------------------- */
+/* Left-align the whole session and let the page use the full width, so the
+   on-screen keypad has room to open to the right of the card (it otherwise
+   falls back below the card on narrower screens). */
+.pp-page { max-width: none; }
+/* Nudge the session a little in from the left, but keep it clear of the right
+   so the keypad still opens beside the card (shrinks to 0 on narrow screens). */
+.pp-page .ex-session { margin-left: min(6vw, 4rem); margin-right: 0; }
+
+.pp-titlerow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.6rem 1rem;
+}
+.pp-titlerow h1 { margin: 0; }
+
 .pp-grade-switch {
     display: flex;
     align-items: center;
@@ -1730,6 +1747,98 @@ a.topic-card {
     font: inherit;
     cursor: pointer;
     text-decoration: underline;
+}
+
+/* ---- Home dashboard --------------------------------------------------- */
+.home-dash {
+    max-width: 1100px;
+    margin: 0 auto 1.5rem;
+    padding: 1.4rem 1.6rem;
+    border-radius: 20px;
+    background:
+        radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%),
+        var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1rem 2rem;
+    align-items: center;
+}
+.home-dash-main { display: flex; flex-direction: column; gap: 0.9rem; }
+.home-dash-greet h2 { margin: 0; font-size: 1.5rem; }
+.home-dash-greet p { margin: 0.2rem 0 0; color: var(--text-muted); }
+.home-dash-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+
+.home-dash-stats { display: flex; align-items: center; gap: 1.6rem; }
+.home-dash-goal { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; }
+.home-dash-goal-lbl { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.goal-ring-num { fill: var(--text); font-size: 1.15rem; font-weight: 800; }
+.goal-ring-den { fill: var(--text-muted); font-size: 0.62rem; }
+.home-dash-metric { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; }
+.home-dash-metric-num { font-size: 1.35rem; font-weight: 800; }
+.home-dash-metric-lbl { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+.home-dash-recos { grid-column: 1 / -1; display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; padding-top: 0.4rem; border-top: 1px solid var(--border); }
+.home-dash-recos-lbl { font-size: 0.85rem; color: var(--text-muted); }
+.home-dash-chip {
+    font-size: 0.85rem; font-weight: 600;
+    padding: 0.35rem 0.75rem; border-radius: 999px;
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+    text-decoration: none; transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.home-dash-chip:hover { border-color: var(--accent); transform: translateY(-1px); }
+
+@media (max-width: 720px) {
+    .home-dash { grid-template-columns: 1fr; }
+    .home-dash-stats { justify-content: space-between; gap: 1rem; }
+}
+
+/* ---- Streak, daily goal & calendar ------------------------------------ */
+.streak-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 1.4rem; margin-bottom: 1.1rem; }
+.streak-stat .value { font-size: 1.5rem; font-weight: 800; }
+.streak-stat .label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.streak-goal { margin-left: auto; max-width: 180px; }
+.streak-goal input { max-width: 120px; }
+
+.cal-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; max-width: 320px; }
+.cal-cell { aspect-ratio: 1; border-radius: 5px; background: var(--surface-2); border: 1px solid var(--border); }
+.cal-cell.lvl1 { background: color-mix(in srgb, var(--accent) 30%, var(--surface-2)); }
+.cal-cell.lvl2 { background: color-mix(in srgb, var(--accent) 60%, var(--surface-2)); }
+.cal-cell.lvl3 { background: var(--accent); border-color: var(--accent); }
+
+/* ---- Achievement badges ----------------------------------------------- */
+.badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.8rem; }
+.badge {
+    position: relative;
+    display: flex; align-items: center; gap: 0.8rem;
+    padding: 0.85rem; border-radius: 14px;
+    background: var(--bg-2); border: 1px solid var(--border);
+}
+.badge.locked { opacity: 0.55; filter: grayscale(0.6); }
+.badge.earned.bronze { border-color: #cd7f32; }
+.badge.earned.silver { border-color: #b8c0cc; }
+.badge.earned.gold { border-color: #f5c451; box-shadow: 0 0 0 1px color-mix(in srgb, #f5c451 40%, transparent); }
+.badge-icon { font-size: 1.7rem; line-height: 1; flex-shrink: 0; }
+.badge-body { flex: 1; min-width: 0; }
+.badge-title { font-weight: 700; font-size: 0.95rem; }
+.badge-desc { font-size: 0.8rem; color: var(--text-muted); }
+.badge-bar { height: 5px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin-top: 0.4rem; }
+.badge-bar > div { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); border-radius: 999px; }
+.badge-check { position: absolute; top: 0.5rem; right: 0.6rem; color: var(--success); font-weight: 800; }
+
+/* ---- Polish: gentle page + card entrances ----------------------------- */
+@keyframes mathlab-rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+}
+.page > .page-head,
+.home-dash,
+.card-grid { animation: mathlab-rise 0.35s ease both; }
+.tool-card .icon { transition: transform 0.18s ease; display: inline-block; }
+.tool-card:hover .icon { transform: scale(1.15) rotate(-4deg); }
+@media (prefers-reduced-motion: reduce) {
+    .page > .page-head, .home-dash, .card-grid, .tool-card .icon { animation: none; transition: none; }
 }
 
 /* ---- On-screen math keypad -------------------------------------------- */

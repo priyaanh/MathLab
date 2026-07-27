@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { recordActivity } from '../utils/activity'
 
 /**
  * Shared practice plumbing used by the Exercises catalog and the Personalized
@@ -46,6 +47,8 @@ export const useProgress = () => {
     }, [progress])
 
     const record = useCallback((skillId, correct) => {
+        // Log a daily-activity tick for every answer (feeds streak + goal ring).
+        recordActivity(1)
         setProgress(prev => {
             const p = prev[skillId] || { attempts: 0, correct: 0, streak: 0, best: 0, mastered: false }
             const streak = correct ? p.streak + 1 : 0

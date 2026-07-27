@@ -141,20 +141,18 @@ const PersonalizedPage = () => {
     const allMastered = skills.length > 0 && masteredForGrade === skills.length
 
     return (
-        <div className="page">
+        <div className="page pp-page">
             <div className="ex-session">
                 <div className="ex-session-head">
                     <button className="btn ghost" onClick={() => navigate('/profile')}>← Profile</button>
-                    <div className="ex-session-title">
-                        <span className="ex-topic-tag">∞ Personalized · {grade.label}</span>
-                        <h1>{skill ? skill.title : 'Practice'}</h1>
+                    <div className="pp-titlerow">
+                        <h1>Personalized Practice</h1>
+                        <label className="pp-grade-switch">
+                            <select value={gradeId} onChange={(e) => changeGrade(e.target.value)} aria-label="Change grade">
+                                {GRADES.map(g => <option key={g.id} value={g.id}>{g.label}</option>)}
+                            </select>
+                        </label>
                     </div>
-                    <label className="pp-grade-switch">
-                        <span className="hint">Grade</span>
-                        <select value={gradeId} onChange={(e) => changeGrade(e.target.value)} aria-label="Change grade">
-                            {GRADES.map(g => <option key={g.id} value={g.id}>{g.label}</option>)}
-                        </select>
-                    </label>
                 </div>
 
                 <div className="ex-scorebar">

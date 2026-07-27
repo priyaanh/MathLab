@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { buildVocab, suggest } from '../utils/search'
+import HomeDashboard from '../components/HomeDashboard'
 
 const TOOLS = [
     { to: '/scientific', icon: '🧮', title: 'Scientific Calculator', desc: 'Trig, logs, memory, powers and full expression editing with keyboard support.', keywords: 'calculator arithmetic trig sin cos tan log memory powers factorial' },
@@ -14,6 +15,10 @@ const TOOLS = [
     { to: '/solve', icon: '🟰', title: 'Equation Solver', desc: 'Solve linear, quadratic and 2×2 systems with full step-by-step working.', keywords: 'solve equation linear quadratic system roots discriminant steps algebra' },
     { to: '/derivative', icon: '∂', title: 'Derivative Calculator', desc: 'Differentiate f(x) symbolically, see the rules used, and view the tangent line.', keywords: 'derivative differentiate calculus slope tangent rate of change power product quotient chain rule' },
     { to: '/complex', icon: '𝑖', title: 'Complex Numbers', desc: 'Add, multiply and divide a + bi; get modulus, argument, polar form and an Argand diagram.', keywords: 'complex number imaginary i argand modulus argument polar conjugate real' },
+    { to: '/fractions', icon: '½', title: 'Fractions', desc: 'Add, subtract, multiply and divide fractions with steps, mixed numbers and decimals.', keywords: 'fraction fractions add subtract multiply divide simplify reduce mixed number decimal numerator denominator' },
+    { to: '/sequences', icon: '∑', title: 'Sequences & Series', desc: 'Arithmetic and geometric sequences: nth term, partial and infinite sums, term lists.', keywords: 'sequence series arithmetic geometric nth term sum partial infinite common difference ratio progression' },
+    { to: '/numbertheory', icon: '#️⃣', title: 'Number Theory', desc: 'Prime factorization, divisors, GCD & LCM, prime sieve and perfect-square checks.', keywords: 'number theory prime factorization factors divisors gcd lcm greatest common divisor least common multiple sieve composite' },
+    { to: '/probability', icon: '🎲', title: 'Probability', desc: 'Factorials, permutations, combinations, simple probability and binomial distributions.', keywords: 'probability combinatorics permutation combination factorial nPr nCr binomial chance odds counting' },
     { to: '/triangle', icon: '△', title: 'Triangle Solver', desc: 'Solve any triangle from sides/angles — law of sines & cosines, area, drawn to scale.', keywords: 'triangle solver trigonometry law of sines cosines angle side area perimeter SSS SAS ASA' },
     { to: '/units', icon: '📐', title: 'Unit Converter', desc: 'Convert length, mass, temperature, area, volume, speed, time, data and angle.', keywords: 'unit convert conversion length mass temperature area volume speed time data angle metric imperial' },
     { to: '/statistics', icon: '📊', title: 'Statistics', desc: 'Paste data for mean, median, mode, quartiles, std dev and a histogram.', keywords: 'statistics mean median mode range variance standard deviation quartile histogram data' },
@@ -112,6 +117,8 @@ const HomePage = () => {
                     <Link to="/guide" className="btn ghost">See the math roadmap</Link>
                 </div>
             </header>
+
+            <HomeDashboard />
 
             <div className="tool-search">
                 <div className="tool-search-box">
