@@ -86,6 +86,19 @@ const SECTIONS = [
     },
     {
         group: 'Calculate & solve',
+        icon: '𝑖',
+        title: 'Complex Numbers',
+        to: '/complex',
+        what: 'Arithmetic on complex numbers a + bi, with modulus, argument, polar form, conjugate and an Argand diagram.',
+        how: [
+            'Type each number as a + bi — e.g. 3+4i, -2-i, 5, or 2i — and pick + − × ÷.',
+            'See the result in both rectangular (a + bi) and polar (r ∠ θ°) form.',
+            'For each number you get its modulus |z|, argument, polar form and conjugate.',
+            'The Argand diagram draws z₁, z₂ and the result as vectors from the origin — pan, zoom and save it as a PNG.'
+        ]
+    },
+    {
+        group: 'Calculate & solve',
         icon: '△',
         title: 'Triangle Solver',
         to: '/triangle',

@@ -1851,3 +1851,58 @@ textarea:focus-visible,
 .quiz-review-a .no { color: var(--danger); }
 .quiz-review-a .ok { color: var(--success); }
 .quiz-review-exp { margin-top: 0.4rem; font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; }
+
+/* ---- Complex number calculator ---------------------------------------- */
+.cx-ops {
+    display: flex;
+    gap: 0.4rem;
+    margin: 0.7rem 0;
+    justify-content: center;
+}
+.cx-ops button {
+    width: 44px;
+    height: 40px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 1.15rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+.cx-ops button:hover { border-color: var(--accent); }
+.cx-ops button.active {
+    border-color: transparent;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: var(--on-accent);
+}
+
+.cx-result {
+    margin-top: 1rem;
+    padding: 0.9rem 1rem;
+    border-radius: 12px;
+    border: 1px solid var(--success);
+    background: var(--surface-2);
+}
+.cx-result-label { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+.cx-result-value { font-size: 1.5rem; font-weight: 800; color: var(--success); margin-top: 0.2rem; }
+.cx-result-polar { color: var(--text-muted); font-size: 0.9rem; }
+
+.cx-details { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.9rem; }
+.cx-detail {
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-2);
+}
+.cx-detail-head { display: flex; align-items: center; gap: 0.4rem; font-size: 0.95rem; }
+.cx-detail-rows {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    margin-top: 0.3rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}

@@ -10,6 +10,7 @@ const LINKS = [
     { to: '/graph', label: 'Grapher' },
     { to: '/solve', label: 'Solver' },
     { to: '/derivative', label: 'Derivatives' },
+    { to: '/complex', label: 'Complex' },
     { to: '/lines', label: 'Lines' },
     { to: '/shapes', label: 'Shapes' },
     { to: '/triangle', label: 'Triangle' },
