@@ -1678,3 +1678,31 @@ a.topic-card {
 .mk-key.num { font-variant-numeric: tabular-nums; }
 .mk-key.wide { grid-column: 1 / -1; }
 .mk-key.ghost { visibility: hidden; cursor: default; }
+
+/* ---- Route lazy-load fallback ----------------------------------------- */
+.page-loading {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.8rem;
+    min-height: 50vh;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.page-spinner {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    animation: page-spin 0.7s linear infinite;
+}
+
+@keyframes page-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+    .page-spinner { animation-duration: 2s; }
+}

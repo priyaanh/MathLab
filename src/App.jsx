@@ -1,27 +1,32 @@
+import { lazy } from 'react'
 import { HashRouter, Routes, Route } from 'react-router-dom'
 import { ThemeProvider } from './theme/ThemeContext'
 import Layout from './components/Layout'
-import HomePage from './pages/HomePage'
-import ScientificPage from './pages/ScientificPage'
-import GraphPage from './pages/GraphPage'
-import LinesPage from './pages/LinesPage'
-import ShapesPage from './pages/ShapesPage'
-import InequalitiesPage from './pages/InequalitiesPage'
-import ThemesPage from './pages/ThemesPage'
-import TransformPage from './pages/TransformPage'
-import GuidePage from './pages/GuidePage'
-import LevelPage from './pages/LevelPage'
-import UnitsPage from './pages/UnitsPage'
-import BasePage from './pages/BasePage'
-import ConstantsPage from './pages/ConstantsPage'
-import StatsPage from './pages/StatsPage'
-import SolverPage from './pages/SolverPage'
-import MatrixPage from './pages/MatrixPage'
-import DerivativePage from './pages/DerivativePage'
-import TrianglePage from './pages/TrianglePage'
-import ExercisesPage from './pages/ExercisesPage'
-import ProfilePage from './pages/ProfilePage'
 import './styles/site.css'
+
+// Home loads eagerly (it's the landing page); every other tool is a lazy chunk
+// so the first paint ships only the shell + home instead of the whole site.
+import HomePage from './pages/HomePage'
+
+const ScientificPage = lazy(() => import('./pages/ScientificPage'))
+const GraphPage = lazy(() => import('./pages/GraphPage'))
+const LinesPage = lazy(() => import('./pages/LinesPage'))
+const ShapesPage = lazy(() => import('./pages/ShapesPage'))
+const InequalitiesPage = lazy(() => import('./pages/InequalitiesPage'))
+const ThemesPage = lazy(() => import('./pages/ThemesPage'))
+const TransformPage = lazy(() => import('./pages/TransformPage'))
+const GuidePage = lazy(() => import('./pages/GuidePage'))
+const LevelPage = lazy(() => import('./pages/LevelPage'))
+const UnitsPage = lazy(() => import('./pages/UnitsPage'))
+const BasePage = lazy(() => import('./pages/BasePage'))
+const ConstantsPage = lazy(() => import('./pages/ConstantsPage'))
+const StatsPage = lazy(() => import('./pages/StatsPage'))
+const SolverPage = lazy(() => import('./pages/SolverPage'))
+const MatrixPage = lazy(() => import('./pages/MatrixPage'))
+const DerivativePage = lazy(() => import('./pages/DerivativePage'))
+const TrianglePage = lazy(() => import('./pages/TrianglePage'))
+const ExercisesPage = lazy(() => import('./pages/ExercisesPage'))
+const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 
 /**
  * MathLab — a multi-page math site.
