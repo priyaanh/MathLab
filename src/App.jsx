@@ -29,6 +29,7 @@ const ComplexPage = lazy(() => import('./pages/ComplexPage'))
 const TrianglePage = lazy(() => import('./pages/TrianglePage'))
 const ExercisesPage = lazy(() => import('./pages/ExercisesPage'))
 const QuizPage = lazy(() => import('./pages/QuizPage'))
+const PersonalizedPage = lazy(() => import('./pages/PersonalizedPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 
 /**
@@ -46,6 +47,7 @@ function App() {
             <Route path="exercises" element={<ExercisesPage />} />
             <Route path="exercises/:skillId" element={<ExercisesPage />} />
             <Route path="quiz" element={<QuizPage />} />
+            <Route path="practice" element={<PersonalizedPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="scientific" element={<ScientificPage />} />
             <Route path="graph" element={<GraphPage />} />

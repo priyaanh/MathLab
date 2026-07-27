@@ -55,15 +55,30 @@ const MathKeypad = () => {
 
     const reposition = useCallback((el) => {
         if (!el || draggedRef.current) return
+        // Anchor to the whole question card, not just the input, so the panel
+        // opens beside the card and level with its top — in the open margin.
+        const card = el.closest('.panel, .ex-card, .ex-session') || el
+        const c = card.getBoundingClientRect()
         const r = el.getBoundingClientRect()
         const panelW = panelRef.current?.offsetWidth || 300
         const panelH = panelRef.current?.offsetHeight || 240
-        const gap = 6
-        let top = r.bottom + gap
-        // Flip above the field if it would overflow the bottom of the viewport.
-        if (top + panelH > window.innerHeight - 8) top = Math.max(8, r.top - panelH - gap)
-        const left = Math.min(Math.max(8, r.left), window.innerWidth - panelW - 8)
-        setPos({ top, left })
+        const gap = 12
+        const clampTop = (t) => Math.min(Math.max(8, t), window.innerHeight - panelH - 8)
+        const clampLeft = (l) => Math.min(Math.max(8, l), window.innerWidth - panelW - 8)
+
+        // Prefer the open space to the right of the card, then its left; fall
+        // back to below / above the input only on narrow layouts where neither
+        // side fits.
+        if (c.right + gap + panelW <= window.innerWidth - 8) {
+            setPos({ top: clampTop(c.top), left: c.right + gap })
+        } else if (c.left - gap - panelW >= 8) {
+            setPos({ top: clampTop(c.top), left: c.left - gap - panelW })
+        } else {
+            let top = r.bottom + gap
+            // Flip above the field if it would overflow the bottom of the viewport.
+            if (top + panelH > window.innerHeight - 8) top = Math.max(8, r.top - panelH - gap)
+            setPos({ top, left: clampLeft(r.left) })
+        }
     }, [])
 
     useEffect(() => {

@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ALL_SKILLS, TOPICS, TOTAL_SKILLS } from '../exercises'
+import { ALL_SKILLS, TOPICS, TOTAL_SKILLS, GRADES } from '../exercises'
 
 /**
  * Profile — a local identity + a safety net for progress.
@@ -21,20 +21,6 @@ const PROGRESS_KEY = 'mathlab-exercise-progress'
 const MASTERY_STREAK = 5
 // How many "practice next" skills to surface on the plan.
 const PLAN_SIZE = 6
-
-// Each grade maps to the exercise topics that fit it, most-relevant first. A
-// little overlap with the year below builds in review. `topics` are TOPIC ids
-// from ../exercises; keep them in sync if topic ids ever change.
-const GRADES = [
-    { id: 'k2', label: 'Kindergarten – Grade 2', topics: ['early'] },
-    { id: '3-5', label: 'Grades 3–5 (Elementary)', topics: ['elementary', 'early'] },
-    { id: '6-8', label: 'Grades 6–8 (Middle school)', topics: ['prealgebra', 'elementary'] },
-    { id: '9', label: 'Grade 9 — Algebra 1', topics: ['algebra1', 'prealgebra'] },
-    { id: '10', label: 'Grade 10 — Geometry', topics: ['geometry', 'algebra1'] },
-    { id: '11', label: 'Grade 11 — Algebra 2 & Trig', topics: ['algebra2', 'geometry'] },
-    { id: '12', label: 'Grade 12 — Precalculus', topics: ['precalc', 'algebra2'] },
-    { id: 'college', label: 'College / AP', topics: ['calculus', 'statistics', 'precalc'] }
-]
 
 // Keys we back up. We deliberately never export an API key.
 const BACKUP_PREFIX = 'mathlab-'
@@ -277,6 +263,12 @@ const ProfilePage = () => {
                             {plan.mastered} of {plan.total} skills mastered for {grade.label.split('—')[0].trim()}.
                             Start with these — new skills first, then ones still in progress.
                         </p>
+
+                        <div className="profile-actions" style={{ marginBottom: '1.2rem' }}>
+                            <button className="btn primary" onClick={() => navigate('/practice')}>
+                                ∞ Start unlimited practice
+                            </button>
+                        </div>
 
                         <div className="plan-next">
                             {plan.next.map(({ skill, topic, rank }) => (

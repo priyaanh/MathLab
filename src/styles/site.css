@@ -1690,6 +1690,48 @@ a.topic-card {
     gap: 0.6rem;
 }
 
+/* ---- Personalized Practice page --------------------------------------- */
+.pp-grade-switch {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+}
+.pp-grade-switch select {
+    padding: 0.35rem 0.5rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-2);
+    color: var(--text);
+}
+
+.pp-skill-line {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+}
+
+.pp-banner {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.7rem 0.9rem;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    color: var(--text);
+}
+
+.linklike {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--accent);
+    font: inherit;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
 /* ---- On-screen math keypad -------------------------------------------- */
 .math-keypad {
     position: fixed;

@@ -1,72 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { TOPICS, ALL_SKILLS, TOTAL_SKILLS, checkAnswer } from '../exercises'
-
-const PROGRESS_KEY = 'mathlab-exercise-progress'
-const MASTERY_STREAK = 5 // correct-in-a-row to "master" a skill
-
-// Render "x^2" style exponents as real superscripts; everything else verbatim.
-const renderMath = (text) => {
-    if (text == null) return null
-    const parts = []
-    const re = /\^(-?\d+|\([^)]*\)|[a-zA-Z])/g
-    let last = 0
-    let m
-    let key = 0
-    while ((m = re.exec(text)) !== null) {
-        if (m.index > last) parts.push(text.slice(last, m.index))
-        parts.push(<sup key={key++}>{m[1].replace(/[()]/g, '')}</sup>)
-        last = m.index + m[0].length
-    }
-    if (last < text.length) parts.push(text.slice(last))
-    return parts
-}
-
-// --- persisted progress ----------------------------------------------------
-const loadProgress = () => {
-    try {
-        const raw = localStorage.getItem(PROGRESS_KEY)
-        return raw ? JSON.parse(raw) : {}
-    } catch {
-        return {}
-    }
-}
-
-const useProgress = () => {
-    const [progress, setProgress] = useState(loadProgress)
-
-    useEffect(() => {
-        try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress)) } catch { /* ignore */ }
-    }, [progress])
-
-    const record = useCallback((skillId, correct) => {
-        setProgress(prev => {
-            const p = prev[skillId] || { attempts: 0, correct: 0, streak: 0, best: 0, mastered: false }
-            const streak = correct ? p.streak + 1 : 0
-            const best = Math.max(p.best, streak)
-            return {
-                ...prev,
-                [skillId]: {
-                    attempts: p.attempts + 1,
-                    correct: p.correct + (correct ? 1 : 0),
-                    streak,
-                    best,
-                    mastered: p.mastered || best >= MASTERY_STREAK
-                }
-            }
-        })
-    }, [])
-
-    const reset = useCallback((skillId) => {
-        setProgress(prev => {
-            const next = { ...prev }
-            delete next[skillId]
-            return next
-        })
-    }, [])
-
-    return { progress, record, reset }
-}
+import { renderMath, useProgress, MASTERY_STREAK } from '../exercises/practice.jsx'
 
 // --- one practice session --------------------------------------------------
 const PracticeSession = ({ skill, stat, onRecord, onResetSkill, onBack }) => {

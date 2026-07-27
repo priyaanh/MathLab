@@ -8,6 +8,7 @@ import ErrorBoundary from './ErrorBoundary'
 const TITLES = {
     '/': 'MathLab — your all-in-one math lab',
     '/exercises': 'Exercises · MathLab',
+    '/practice': 'Personalized Practice · MathLab',
     '/profile': 'Profile · MathLab',
     '/scientific': 'Scientific Calculator · MathLab',
     '/graph': 'Function Grapher · MathLab',
