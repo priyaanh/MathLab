@@ -53,7 +53,7 @@ const TransformPage = () => {
     const canvasRef = useRef(null)
     const { view, pan, zoom, zoomAt, reset, fitTo, canZoomIn, canZoomOut } = usePlaneView(VIEW)
     useKeyboardPan(canvasRef, view, { pan, zoomAt, reset })
-    useDragPan(canvasRef, view, pan, W, H)
+    useDragPan(canvasRef, view, pan, W, H, { zoomAt })
 
     const [preset, setPreset] = useState('triangle')
     const [steps, setSteps] = useState([])

@@ -24,7 +24,7 @@ const InequalitiesPage = () => {
     const canvasRef = useRef(null)
     const { view, pan, zoom, zoomAt, reset, canZoomIn, canZoomOut } = usePlaneView(VIEW)
     useKeyboardPan(canvasRef, view, { pan, zoomAt, reset })
-    useDragPan(canvasRef, view, pan, W, H)
+    useDragPan(canvasRef, view, pan, W, H, { zoomAt })
 
     const [items, setItems] = useState([
         { id: ++uid, op: '<', expr: '2x + 1', color: COLORS[0] }

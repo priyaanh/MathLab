@@ -72,7 +72,7 @@ const DerivativePage = () => {
     const canvasRef = useRef(null)
     const { view, pan, zoom, zoomAt, reset, fitTo, canZoomIn, canZoomOut } = usePlaneView(VIEW)
     useKeyboardPan(canvasRef, view, { pan, zoomAt, reset })
-    useDragPan(canvasRef, view, pan, W, H)
+    useDragPan(canvasRef, view, pan, W, H, { zoomAt })
 
     const [input, setInput] = useState('x^2*cos(x)')
     const [at, setAt] = useState('1')

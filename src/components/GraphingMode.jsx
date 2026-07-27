@@ -444,11 +444,11 @@ const GraphingMode = React.memo(({
                 height={CANVAS_HEIGHT}
                 className="graph-canvas"
                 aria-label="Function graph — drag to pan"
-                style={{ cursor: traceEnabled ? 'crosshair' : 'grab', borderColor: 'var(--border)' }}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={endDrag}
-                onMouseLeave={handleMouseLeave}
+                style={{ cursor: traceEnabled ? 'crosshair' : 'grab', borderColor: 'var(--border)', touchAction: 'none' }}
+                onPointerDown={handleMouseDown}
+                onPointerMove={handleMouseMove}
+                onPointerUp={endDrag}
+                onPointerLeave={handleMouseLeave}
             />
 
             {/* Trace display */}

@@ -419,11 +419,11 @@ const ShapesPage = () => {
                         width={W}
                         height={H}
                         aria-label="Shapes plot — drag the handles to reshape"
-                        style={{ cursor: 'crosshair' }}
-                        onMouseDown={handleMouseDown}
-                        onMouseMove={handleMouseMove}
-                        onMouseUp={endDrag}
-                        onMouseLeave={endDrag}
+                        style={{ cursor: 'crosshair', touchAction: 'none' }}
+                        onPointerDown={handleMouseDown}
+                        onPointerMove={handleMouseMove}
+                        onPointerUp={endDrag}
+                        onPointerLeave={endDrag}
                     />
                     <p className="hint">Tip: drag the ringed handles to reshape the selected shape. Drag empty space to pan, scroll to zoom.</p>
                 </div>

@@ -2,6 +2,7 @@ import { Suspense, useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import NavBar from './NavBar'
 import MathKeypad from './MathKeypad'
+import ErrorBoundary from './ErrorBoundary'
 
 // Per-route document titles — better browser tabs, history entries and SEO.
 const TITLES = {
@@ -48,9 +49,11 @@ const Layout = () => {
     return (
         <div className="site">
             <NavBar />
-            <Suspense fallback={<PageLoading />}>
-                <Outlet />
-            </Suspense>
+            <ErrorBoundary resetKey={pathname}>
+                <Suspense fallback={<PageLoading />}>
+                    <Outlet />
+                </Suspense>
+            </ErrorBoundary>
             <footer className="footer">
                 MathLab · built with React · a stylish home for calculators &amp; graphing tools
             </footer>

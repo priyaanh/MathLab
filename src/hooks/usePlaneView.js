@@ -126,54 +126,78 @@ export const useKeyboardPan = (canvasRef, view, { pan, zoomAt, reset } = {}) => 
  * @param {number} H           logical canvas height
  * @param {object} opts        { idleCursor = 'grab' }
  */
-export const useDragPan = (canvasRef, view, pan, W, H, { idleCursor = 'grab' } = {}) => {
-    // Keep the latest view in a ref so the listeners (attached once) always read
-    // the current span, and keep the drag state in a ref so it survives the
-    // re-renders that panning itself triggers.
-    const viewRef = useRef(view)
-    viewRef.current = view
-    const drag = useRef({ active: false, x: 0, y: 0 })
+export const useDragPan = (canvasRef, view, pan, W, H, { idleCursor = 'grab', zoomAt } = {}) => {
+    // Refs so the once-attached listeners always read the current view/zoomAt,
+    // and so drag/pinch state survives the re-renders panning triggers.
+    const viewRef = useRef(view); viewRef.current = view
+    const zoomRef = useRef(zoomAt); zoomRef.current = zoomAt
+    const st = useRef({ pointers: new Map(), lastDist: 0 })
 
     useEffect(() => {
         const canvas = canvasRef.current
         if (!canvas || !pan) return
         canvas.style.cursor = idleCursor
-        const st = drag.current
+        const prevTouch = canvas.style.touchAction
+        canvas.style.touchAction = 'none' // let us handle touch gestures, not the browser
+        const S = st.current
+
+        const two = () => [...S.pointers.values()]
+        const dist = () => { const p = two(); return Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) }
 
         const onDown = (e) => {
-            if (e.button !== 0) return
-            st.active = true
-            st.x = e.clientX
-            st.y = e.clientY
-            canvas.style.cursor = 'grabbing'
+            if (e.pointerType === 'mouse' && e.button !== 0) return
+            canvas.setPointerCapture?.(e.pointerId)
+            S.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+            if (S.pointers.size === 1) canvas.style.cursor = 'grabbing'
+            if (S.pointers.size === 2) S.lastDist = dist()
             e.preventDefault()
         }
         const onMove = (e) => {
-            if (!st.active) return
-            const rect = canvas.getBoundingClientRect()
-            const dxPx = ((e.clientX - st.x) / rect.width) * W
-            const dyPx = ((e.clientY - st.y) / rect.height) * H
-            st.x = e.clientX
-            st.y = e.clientY
+            if (!S.pointers.has(e.pointerId)) return
+            const prev = S.pointers.get(e.pointerId)
+            S.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
             const v = viewRef.current
-            // Drag content with the cursor: view moves opposite on x, same sense
-            // on y (screen y grows downward, graph y upward).
+            const rect = canvas.getBoundingClientRect()
+
+            if (S.pointers.size >= 2 && zoomRef.current) {
+                // Pinch: zoom about the midpoint of the two touches.
+                const d = dist()
+                if (S.lastDist > 0 && d > 0) {
+                    const p = two()
+                    const mx = ((p[0].x + p[1].x) / 2 - rect.left) / rect.width * W
+                    const my = ((p[0].y + p[1].y) / 2 - rect.top) / rect.height * H
+                    const gx = v.xMin + (mx / W) * (v.xMax - v.xMin)
+                    const gy = v.yMax - (my / H) * (v.yMax - v.yMin)
+                    zoomRef.current(d / S.lastDist, gx, gy)
+                }
+                S.lastDist = d
+                return
+            }
+            // Single pointer: pan, dragging content with the cursor.
+            const dxPx = ((e.clientX - prev.x) / rect.width) * W
+            const dyPx = ((e.clientY - prev.y) / rect.height) * H
             pan(-(dxPx / W) * (v.xMax - v.xMin), (dyPx / H) * (v.yMax - v.yMin))
         }
-        const onUp = () => {
-            if (!st.active) return
-            st.active = false
-            canvas.style.cursor = idleCursor
+        const onUp = (e) => {
+            S.pointers.delete(e.pointerId)
+            canvas.releasePointerCapture?.(e.pointerId)
+            if (S.pointers.size < 2) S.lastDist = 0
+            if (S.pointers.size === 0) canvas.style.cursor = idleCursor
         }
 
-        canvas.addEventListener('mousedown', onDown)
-        window.addEventListener('mousemove', onMove)
-        window.addEventListener('mouseup', onUp)
+        canvas.addEventListener('pointerdown', onDown)
+        canvas.addEventListener('pointermove', onMove)
+        canvas.addEventListener('pointerup', onUp)
+        canvas.addEventListener('pointercancel', onUp)
         return () => {
-            canvas.removeEventListener('mousedown', onDown)
-            window.removeEventListener('mousemove', onMove)
-            window.removeEventListener('mouseup', onUp)
+            canvas.removeEventListener('pointerdown', onDown)
+            canvas.removeEventListener('pointermove', onMove)
+            canvas.removeEventListener('pointerup', onUp)
+            canvas.removeEventListener('pointercancel', onUp)
             canvas.style.cursor = ''
+            canvas.style.touchAction = prevTouch
+            S.pointers.clear()
+            S.lastDist = 0
         }
     }, [canvasRef, pan, W, H, idleCursor])
 }
