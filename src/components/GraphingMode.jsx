@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import { generatePlotPoints, validateFunction, getYAtX } from '../utils/graphUtils'
-import { prepareHiDPICanvas, cssVar } from '../utils/plane'
+import { prepareHiDPICanvas, cssVar, exportCanvasPng } from '../utils/plane'
 import { useThemeContext } from '../theme/ThemeContext'
 import { useKeyboardPan } from '../hooks/usePlaneView'
 
@@ -563,6 +563,7 @@ const GraphingMode = React.memo(({
                     <button onClick={() => zoom(0.67)} disabled={!canZoomOut} title={canZoomOut ? 'Zoom Out' : 'Minimum zoom reached'} className="graph-btn">-</button>
                     {fitView && <button onClick={fitView} title="Fit curves to view" className="graph-btn reset-btn">Fit</button>}
                     <button onClick={resetViewport} title="Reset View" className="graph-btn reset-btn">Reset</button>
+                    <button onClick={() => exportCanvasPng(canvasRef.current, 'mathlab-graph.png')} title="Save as PNG image" aria-label="Save as PNG image" className="graph-btn reset-btn">⬇ PNG</button>
                 </div>
 
                 <div className="pan-controls">

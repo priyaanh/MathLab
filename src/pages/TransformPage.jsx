@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
-import { makeView, drawGrid, drawPoint, prepareHiDPICanvas, cssVar } from '../utils/plane'
+import { makeView, drawGrid, drawPoint, prepareHiDPICanvas, cssVar , exportCanvasPng } from '../utils/plane'
 import { usePlaneView, bindWheelZoom, useKeyboardPan, useDragPan } from '../hooks/usePlaneView'
 import PlaneControls from '../components/PlaneControls'
 import { useThemeContext } from '../theme/ThemeContext'
@@ -205,7 +205,7 @@ const TransformPage = () => {
                 <div className="canvas-frame">
                     <canvas ref={canvasRef} width={W} height={H} aria-label="Shape transformation plot" style={{ aspectRatio: `${W} / ${H}` }} />
                 </div>
-                <PlaneControls onZoomIn={() => zoom(1.5)} onZoomOut={() => zoom(0.67)} onPan={pan} onFit={handleFit} onReset={reset} canZoomIn={canZoomIn} canZoomOut={canZoomOut} />
+                <PlaneControls onZoomIn={() => zoom(1.5)} onZoomOut={() => zoom(0.67)} onPan={pan} onFit={handleFit} onReset={reset} canZoomIn={canZoomIn} canZoomOut={canZoomOut} onSavePng={() => exportCanvasPng(canvasRef.current, 'mathlab-transform.png')} />
             </div>
         </div>
     )

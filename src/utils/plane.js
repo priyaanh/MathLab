@@ -12,6 +12,26 @@ export const cssVar = (name, fallback) => {
 }
 
 /**
+ * Download a plot canvas as a PNG. The plot is drawn on a transparent backing
+ * store, so composite it onto the theme background first — otherwise the export
+ * is transparent (shows as white/checkerboard in image viewers).
+ */
+export const exportCanvasPng = (canvas, filename = 'mathlab-graph.png') => {
+    if (!canvas) return
+    const out = document.createElement('canvas')
+    out.width = canvas.width
+    out.height = canvas.height
+    const ctx = out.getContext('2d')
+    ctx.fillStyle = cssVar('--bg-2', '#0f1420')
+    ctx.fillRect(0, 0, out.width, out.height)
+    ctx.drawImage(canvas, 0, 0)
+    const a = document.createElement('a')
+    a.href = out.toDataURL('image/png')
+    a.download = filename
+    a.click()
+}
+
+/**
  * Size a canvas's backing store to its real on-screen size × devicePixelRatio,
  * then scale the drawing context so code can keep drawing in a fixed "logical"
  * coordinate space (0..logicalW, 0..logicalH). This is what keeps grid lines and

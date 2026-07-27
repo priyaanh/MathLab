@@ -14,7 +14,8 @@ const PlaneControls = React.memo(({
     canZoomIn = true,
     canZoomOut = true,
     panStep = 2,
-    showFit = true
+    showFit = true,
+    onSavePng
 }) => {
     return (
         <div className="plane-controls" role="group" aria-label="Graph pan and zoom controls">
@@ -37,6 +38,9 @@ const PlaneControls = React.memo(({
                     <button className="plane-btn wide" onClick={onFit} title="Fit content to view" aria-label="Fit to view">Fit</button>
                 )}
                 <button className="plane-btn wide" onClick={onReset} title="Reset view" aria-label="Reset view">Reset</button>
+                {onSavePng && (
+                    <button className="plane-btn wide" onClick={onSavePng} title="Save as PNG image" aria-label="Save as PNG image">⬇ PNG</button>
+                )}
             </div>
 
             <p className="plane-hint">Drag to pan · scroll to zoom · click + arrow keys to move</p>

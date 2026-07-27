@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { makeView, drawGrid, prepareHiDPICanvas } from '../utils/plane'
+import { makeView, drawGrid, prepareHiDPICanvas , exportCanvasPng } from '../utils/plane'
 import { getYAtX } from '../utils/graphUtils'
 import { useThemeContext } from '../theme/ThemeContext'
 import { usePlaneView, bindWheelZoom, useKeyboardPan, useDragPan } from '../hooks/usePlaneView'
@@ -163,7 +163,7 @@ const InequalitiesPage = () => {
                 <div className="canvas-frame">
                     <canvas ref={canvasRef} width={W} height={H} aria-label="Inequality regions plot" />
                 </div>
-                <PlaneControls onZoomIn={() => zoom(1.5)} onZoomOut={() => zoom(0.67)} onPan={pan} onReset={reset} canZoomIn={canZoomIn} canZoomOut={canZoomOut} showFit={false} />
+                <PlaneControls onZoomIn={() => zoom(1.5)} onZoomOut={() => zoom(0.67)} onPan={pan} onReset={reset} canZoomIn={canZoomIn} canZoomOut={canZoomOut} showFit={false} onSavePng={() => exportCanvasPng(canvasRef.current, 'mathlab-inequalities.png')} />
             </div>
         </div>
     )

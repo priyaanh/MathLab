@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
-import { makeView, drawGrid, drawPoint, prepareHiDPICanvas, cssVar } from '../utils/plane'
+import { makeView, drawGrid, drawPoint, prepareHiDPICanvas, cssVar , exportCanvasPng } from '../utils/plane'
 import {
     circleArea, circleAreaPi, circleCircumference,
     polygonArea, polygonPerimeter, regularPolygonPoints
@@ -436,6 +436,7 @@ const ShapesPage = () => {
                     onReset={reset}
                     canZoomIn={canZoomIn}
                     canZoomOut={canZoomOut}
+                    onSavePng={() => exportCanvasPng(canvasRef.current, 'mathlab-shapes.png')}
                 />
             </div>
         </div>

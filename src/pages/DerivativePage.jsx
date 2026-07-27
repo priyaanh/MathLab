@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
-import { makeView, drawGrid, drawPoint, prepareHiDPICanvas, cssVar } from '../utils/plane'
+import { makeView, drawGrid, drawPoint, prepareHiDPICanvas, cssVar , exportCanvasPng } from '../utils/plane'
 import { useThemeContext } from '../theme/ThemeContext'
 import { usePlaneView, bindWheelZoom, useKeyboardPan, useDragPan } from '../hooks/usePlaneView'
 import PlaneControls from '../components/PlaneControls'
@@ -244,6 +244,7 @@ const DerivativePage = () => {
                         onReset={reset}
                         canZoomIn={canZoomIn}
                         canZoomOut={canZoomOut}
+                        onSavePng={() => exportCanvasPng(canvasRef.current, 'mathlab-derivative.png')}
                     />
                     <div className="graph-legend" style={{ marginTop: '0.6rem' }}>
                         <span className="legend-item"><span className="legend-swatch" style={{ background: 'var(--accent)' }} /> f(x)</span>

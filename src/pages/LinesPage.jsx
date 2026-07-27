@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
-import { makeView, drawGrid, drawPoint, cssVar, prepareHiDPICanvas } from '../utils/plane'
+import { makeView, drawGrid, drawPoint, cssVar, prepareHiDPICanvas , exportCanvasPng } from '../utils/plane'
 import { slope, distance, midpoint, lineEquation } from '../utils/geometry'
 import { evaluateFunction, validateFunction } from '../utils/graphUtils'
 import { useThemeContext } from '../theme/ThemeContext'
@@ -274,6 +274,7 @@ const LinesPage = () => {
                     onReset={reset}
                     canZoomIn={canZoomIn}
                     canZoomOut={canZoomOut}
+                    onSavePng={() => exportCanvasPng(canvasRef.current, 'mathlab-lines.png')}
                 />
             </div>
         </div>
