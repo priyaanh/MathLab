@@ -123,6 +123,19 @@ const SECTIONS = [
     },
     {
         group: 'Calculate & solve',
+        icon: '🔔',
+        title: 'Distribution Plotter',
+        to: '/distribution',
+        what: 'Plot Normal, Binomial and Poisson distributions, read their mean and spread, and query a probability.',
+        how: [
+            'Pick a distribution and set its parameters (μ/σ, n/p, or λ).',
+            'The chart shows the bell curve (Normal) or the probability bars (Binomial, Poisson).',
+            'Read the mean, variance and standard deviation; enter a query to get P(X ≤ x) — the shaded tail — or P(X = k).',
+            'Save the chart as a PNG.'
+        ]
+    },
+    {
+        group: 'Calculate & solve',
         icon: '▦',
         title: 'Matrix Calculator',
         to: '/matrix',

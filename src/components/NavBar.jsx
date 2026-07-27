@@ -18,6 +18,7 @@ const LINKS = [
     { to: '/inequalities', label: 'Inequalities' },
     { to: '/units', label: 'Units' },
     { to: '/statistics', label: 'Stats' },
+    { to: '/distribution', label: 'Distributions' },
     { to: '/matrix', label: 'Matrix' },
     { to: '/bases', label: 'Bases' },
     { to: '/constants', label: 'Constants' },

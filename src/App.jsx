@@ -21,6 +21,7 @@ const UnitsPage = lazy(() => import('./pages/UnitsPage'))
 const BasePage = lazy(() => import('./pages/BasePage'))
 const ConstantsPage = lazy(() => import('./pages/ConstantsPage'))
 const StatsPage = lazy(() => import('./pages/StatsPage'))
+const DistributionPage = lazy(() => import('./pages/DistributionPage'))
 const SolverPage = lazy(() => import('./pages/SolverPage'))
 const MatrixPage = lazy(() => import('./pages/MatrixPage'))
 const DerivativePage = lazy(() => import('./pages/DerivativePage'))
@@ -56,6 +57,7 @@ function App() {
             <Route path="bases" element={<BasePage />} />
             <Route path="constants" element={<ConstantsPage />} />
             <Route path="statistics" element={<StatsPage />} />
+            <Route path="distribution" element={<DistributionPage />} />
             <Route path="solve" element={<SolverPage />} />
             <Route path="derivative" element={<DerivativePage />} />
             <Route path="complex" element={<ComplexPage />} />
