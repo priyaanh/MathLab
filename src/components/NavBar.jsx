@@ -154,13 +154,6 @@ const NavBar = () => {
             </div>
 
             <div className="theme-quick">
-                <button onClick={cycleTheme} title="Quick-switch theme">
-                    <span className="theme-dot" />
-                    {theme.name}
-                </button>
-                <button onClick={() => navigate('/themes')} title="All themes" aria-label="Open themes page">
-                    🎨
-                </button>
                 <NavLink
                     to="/profile"
                     className={({ isActive }) => `nav-icon-btn${isActive ? ' active' : ''}`}
@@ -169,6 +162,13 @@ const NavBar = () => {
                 >
                     👤
                 </NavLink>
+                <button onClick={cycleTheme} title="Quick-switch theme">
+                    <span className="theme-dot" />
+                    {theme.name}
+                </button>
+                <button onClick={() => navigate('/themes')} title="All themes" aria-label="Open themes page">
+                    🎨
+                </button>
             </div>
         </nav>
     )
