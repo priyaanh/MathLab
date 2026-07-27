@@ -131,6 +131,7 @@ const InequalitiesPage = () => {
                                 <input
                                     type="text"
                                     className="ineq-expr"
+                                    data-keypad="full"
                                     value={item.expr}
                                     onChange={(e) => updateItem(item.id, { expr: e.target.value })}
                                     placeholder="f(x), e.g. 2x + 1"

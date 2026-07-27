@@ -201,6 +201,7 @@ const LinesPage = () => {
                                 Equation
                                 <input
                                     type="text"
+                                    data-keypad="full"
                                     value={eqText}
                                     onChange={(e) => setEqText(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && addItem()}

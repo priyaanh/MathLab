@@ -90,6 +90,7 @@ const SolverPage = () => {
                             </div>
                             <input
                                 className="eq-input"
+                                data-keypad="full"
                                 type="text"
                                 value={eq}
                                 onChange={(e) => setEq(e.target.value)}
@@ -109,6 +110,7 @@ const SolverPage = () => {
                             <div className="hint">Type two linear equations in <code>x</code> and <code>y</code>.</div>
                             <input
                                 className="eq-input"
+                                data-keypad="full"
                                 type="text"
                                 value={eq1}
                                 onChange={(e) => setEq1(e.target.value)}
@@ -119,6 +121,7 @@ const SolverPage = () => {
                             />
                             <input
                                 className="eq-input"
+                                data-keypad="full"
                                 type="text"
                                 value={eq2}
                                 onChange={(e) => setEq2(e.target.value)}

@@ -178,6 +178,7 @@ const PracticeSession = ({ skill, stat, onRecord, onResetSkill, onBack }) => {
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             placeholder="Your answer"
+                            data-keypad="full"
                             aria-label="Your answer"
                             autoComplete="off"
                             spellCheck="false"

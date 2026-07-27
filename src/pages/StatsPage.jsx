@@ -250,6 +250,7 @@ function StatsPage() {
             Numbers
             <textarea
               value={text}
+              data-keypad="data"
               onChange={(e) => setText(e.target.value)}
               rows={10}
               placeholder="e.g. 12, 15, 15, 18, 21"

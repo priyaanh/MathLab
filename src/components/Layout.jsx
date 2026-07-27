@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom'
 import NavBar from './NavBar'
+import MathKeypad from './MathKeypad'
 
 const Layout = () => (
     <div className="site">
@@ -8,6 +9,7 @@ const Layout = () => (
         <footer className="footer">
             MathLab · built with React · a stylish home for calculators &amp; graphing tools
         </footer>
+        <MathKeypad />
     </div>
 )
 

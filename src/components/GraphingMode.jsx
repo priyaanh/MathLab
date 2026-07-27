@@ -415,6 +415,7 @@ const GraphingMode = React.memo(({
                             value={func.expression}
                             onChange={(e) => updateFunctionExpression(func.id, e.target.value)}
                             placeholder="sin(x), x^2, etc."
+                            data-keypad="full"
                             className="function-input"
                             aria-label={`Function ${index + 1} expression`}
                         />

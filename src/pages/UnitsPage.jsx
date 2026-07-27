@@ -101,6 +101,7 @@ const UnitsPage = () => {
                         <input
                             type="number"
                             inputMode="decimal"
+                            data-keypad="number"
                             value={value}
                             onChange={(e) => setValue(e.target.value)}
                             placeholder="Enter a number"

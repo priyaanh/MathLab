@@ -27,7 +27,8 @@ const SECTIONS = [
         how: [
             'The top bar is a pull-down menu — open it to jump to any tool; it shows the page you\'re currently on.',
             'Drag to rearrange: reorder the menu tabs and the home-page tool cards into whatever order suits you — your layout is remembered.',
-            'On any graph, click the canvas and use the arrow keys to pan, + / − to zoom, and Home to reset the view.',
+            'On any graph, drag to pan and scroll to zoom — or click the canvas and use the arrow keys to pan, + / − to zoom, and Home to reset.',
+            'No keyboard? Focus any math or number field and an on-screen keypad pops up so you can tap in digits, x, symbols like √ and ^, and functions.',
             'Your theme, layout and exercise progress are saved in your browser; the Profile page lets you back them up.'
         ]
     },

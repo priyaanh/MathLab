@@ -158,6 +158,7 @@ const DerivativePage = () => {
                         <input
                             type="text"
                             value={input}
+                            data-keypad="full"
                             onChange={(e) => setInput(e.target.value)}
                             placeholder="e.g. x^2*cos(x), sin(x^2), e^x"
                             aria-label="Function to differentiate"
@@ -209,6 +210,7 @@ const DerivativePage = () => {
                                 <input
                                     type="number"
                                     value={at}
+                                    data-keypad="number"
                                     onChange={(e) => setAt(e.target.value)}
                                     step="0.5"
                                     aria-label="Point at which to evaluate"

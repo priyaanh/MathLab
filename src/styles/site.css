@@ -1610,3 +1610,71 @@ a.topic-card {
     background: linear-gradient(90deg, var(--accent), var(--accent-2));
     transition: width 0.3s ease;
 }
+
+/* ---- On-screen math keypad -------------------------------------------- */
+.math-keypad {
+    position: fixed;
+    z-index: 200;
+    width: 300px;
+    max-width: calc(100vw - 16px);
+    padding: 0.55rem;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+    user-select: none;
+}
+
+.mk-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    padding: 0 0.2rem 0.45rem;
+}
+
+.mk-close {
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 0.3rem;
+    border-radius: 6px;
+}
+.mk-close:hover { color: var(--text); background: var(--surface-2); }
+
+.mk-row {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 0.35rem;
+    margin-bottom: 0.35rem;
+}
+.mk-row:last-child { margin-bottom: 0; }
+
+.mk-key {
+    padding: 0.6rem 0;
+    border-radius: 9px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.06s, border-color 0.15s, background 0.15s;
+}
+.mk-key:hover { border-color: var(--accent); }
+.mk-key:active { transform: scale(0.94); }
+
+.mk-key.fn { font-size: 0.85rem; background: var(--surface-2); }
+.mk-key.var { color: var(--accent); }
+.mk-key.op { color: var(--text-muted); }
+.mk-key.num { font-variant-numeric: tabular-nums; }
+.mk-key.wide { grid-column: 1 / -1; }
+.mk-key.ghost { visibility: hidden; cursor: default; }
