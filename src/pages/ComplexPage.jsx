@@ -3,6 +3,7 @@ import { makeView, drawGrid, prepareHiDPICanvas, cssVar, exportCanvasPng } from 
 import { usePlaneView, bindWheelZoom, useKeyboardPan, useDragPan } from '../hooks/usePlaneView'
 import { useThemeContext } from '../theme/ThemeContext'
 import PlaneControls from '../components/PlaneControls'
+import { parseComplex, OPS, cFormat as fmtComplex, cModulus as modulus, cArgDeg as argDeg } from '../utils/complex'
 
 /**
  * Complex Number Calculator — arithmetic on a + bi, modulus / argument / polar
@@ -15,55 +16,6 @@ const H = 440
 const VIEW = { xMin: -8, xMax: 8, yMin: -6, yMax: 6 }
 
 const fmt = (n) => (!Number.isFinite(n) ? '—' : String(parseFloat(n.toPrecision(6))))
-
-// Parse "3+4i", "-2-i", "4i", "5", "i" → { re, im }. Throws on bad input.
-const parseComplex = (input) => {
-    let s = String(input).replace(/\s+/g, '').replace(/−/g, '-').toLowerCase()
-    if (s === '') throw new Error('Enter a complex number like 3 + 4i.')
-    if (s[0] !== '+' && s[0] !== '-') s = '+' + s
-    let re = 0, im = 0
-    const terms = s.match(/[+-][^+-]*/g) || []
-    for (const t of terms) {
-        const sign = t[0] === '-' ? -1 : 1
-        const body = t.slice(1)
-        if (body === '') continue
-        if (body.endsWith('i')) {
-            const num = body.slice(0, -1)
-            const coef = num === '' ? 1 : parseFloat(num)
-            if (Number.isNaN(coef)) throw new Error(`Couldn't read "${t}".`)
-            im += sign * coef
-        } else {
-            const coef = parseFloat(body)
-            if (Number.isNaN(coef)) throw new Error(`Couldn't read "${t}".`)
-            re += sign * coef
-        }
-    }
-    return { re, im }
-}
-
-const OPS = {
-    '+': (a, b) => ({ re: a.re + b.re, im: a.im + b.im }),
-    '−': (a, b) => ({ re: a.re - b.re, im: a.im - b.im }),
-    '×': (a, b) => ({ re: a.re * b.re - a.im * b.im, im: a.re * b.im + a.im * b.re }),
-    '÷': (a, b) => {
-        const d = b.re * b.re + b.im * b.im
-        if (d === 0) throw new Error('Cannot divide by 0.')
-        return { re: (a.re * b.re + a.im * b.im) / d, im: (a.im * b.re - a.re * b.im) / d }
-    }
-}
-
-const fmtComplex = (z) => {
-    if (!z) return '—'
-    const { re, im } = z
-    if (im === 0) return fmt(re)
-    const mag = Math.abs(im)
-    const bi = mag === 1 ? 'i' : `${fmt(mag)}i`
-    if (re === 0) return `${im < 0 ? '−' : ''}${bi}`
-    return `${fmt(re)} ${im < 0 ? '−' : '+'} ${bi}`
-}
-
-const modulus = (z) => Math.hypot(z.re, z.im)
-const argDeg = (z) => (Math.atan2(z.im, z.re) * 180) / Math.PI
 
 const Detail = ({ label, z, color }) => (
     <div className="cx-detail">

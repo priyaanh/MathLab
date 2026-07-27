@@ -14,6 +14,8 @@ import { ALL_SKILLS, TOTAL_SKILLS, checkAnswer } from '../src/exercises/index.js
 import { circleArea, circleAreaPi, distance, polygonArea } from '../src/utils/geometry.js'
 import { differentiate, evalAst } from '../src/utils/calculus.js'
 import { parseEquation, solveLinear, solveQuadratic, solveSystem, solveGeneral } from '../src/utils/equation.js'
+import { parseComplex, cMul, cDiv, cModulus, cFormat } from '../src/utils/complex.js'
+import { normalCdf, binomPmf, binomCdf, poissonPmf, poissonCdf } from '../src/utils/distributions.js'
 
 let passed = 0
 let failed = 0
@@ -119,6 +121,30 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
     ok('solver: quartic roots {-2,2}',
         quartic.length === 2 && near(quartic[0], -2, 1e-3) && near(quartic[1], 2, 1e-3),
         JSON.stringify(quartic))
+}
+
+// --- 5. complex numbers ---------------------------------------------------
+{
+    ok('complex: parse "-2-i"', (() => { const z = parseComplex('-2-i'); return z.re === -2 && z.im === -1 })())
+    ok('complex: parse "2i"', (() => { const z = parseComplex('2i'); return z.re === 0 && z.im === 2 })())
+    const prod = cMul(parseComplex('3+4i'), parseComplex('1-2i')) // 11 - 2i
+    ok('complex: (3+4i)(1-2i) = 11-2i', near(prod.re, 11) && near(prod.im, -2), cFormat(prod))
+    const quot = cDiv(parseComplex('3+4i'), parseComplex('1-2i')) // -1 + 2i
+    ok('complex: (3+4i)/(1-2i) = -1+2i', near(quot.re, -1) && near(quot.im, 2), cFormat(quot))
+    ok('complex: |3+4i| = 5', near(cModulus(parseComplex('3+4i')), 5))
+    let divThrew = false
+    try { cDiv(parseComplex('1'), parseComplex('0')) } catch { divThrew = true }
+    ok('complex: divide by 0 throws', divThrew)
+}
+
+// --- 6. distributions -----------------------------------------------------
+{
+    ok('dist: Phi(0) = 0.5', near(normalCdf(0, 0, 1), 0.5, 1e-6))
+    ok('dist: Phi(1.96) ~ 0.975', near(normalCdf(1.96, 0, 1), 0.975, 2e-3), normalCdf(1.96, 0, 1))
+    ok('dist: binom(20,.5) sums to 1', near(binomCdf(20, 20, 0.5), 1, 1e-9))
+    ok('dist: binom(20,.5) P(X=10) ~ 0.1762', near(binomPmf(10, 20, 0.5), 0.1762, 1e-3), binomPmf(10, 20, 0.5))
+    ok('dist: poisson(4) sums to ~1', near(poissonCdf(60, 4), 1, 1e-6))
+    ok('dist: poisson(4) P(X=4) ~ 0.1954', near(poissonPmf(4, 4), 0.1954, 1e-3), poissonPmf(4, 4))
 }
 
 // --- report ---------------------------------------------------------------

@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { prepareHiDPICanvas, cssVar, exportCanvasPng } from '../utils/plane'
 import { useThemeContext } from '../theme/ThemeContext'
+import { normalPdf, normalCdf, binomPmf, poissonPmf } from '../utils/distributions'
 
 /**
  * Distribution Plotter — draw common probability distributions (Normal,
@@ -14,23 +15,6 @@ const H = 360
 const PAD = { l: 44, r: 16, t: 18, b: 34 }
 
 const fmt = (n, p = 4) => (!Number.isFinite(n) ? '—' : String(parseFloat(n.toPrecision(p))))
-
-// --- math ------------------------------------------------------------------
-// erf via Abramowitz & Stegun 7.1.26 (max error ~1.5e-7).
-const erf = (x) => {
-    const s = x < 0 ? -1 : 1
-    x = Math.abs(x)
-    const t = 1 / (1 + 0.3275911 * x)
-    const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x)
-    return s * y
-}
-const normalPdf = (x, mu, sig) => Math.exp(-0.5 * ((x - mu) / sig) ** 2) / (sig * Math.sqrt(2 * Math.PI))
-const normalCdf = (x, mu, sig) => 0.5 * (1 + erf((x - mu) / (sig * Math.SQRT2)))
-
-const logFact = (n) => { let s = 0; for (let i = 2; i <= n; i++) s += Math.log(i); return s }
-const logChoose = (n, k) => logFact(n) - logFact(k) - logFact(n - k)
-const binomPmf = (k, n, p) => (k < 0 || k > n) ? 0 : Math.exp(logChoose(n, k) + k * Math.log(p) + (n - k) * Math.log(1 - p))
-const poissonPmf = (k, lam) => Math.exp(-lam + k * Math.log(lam) - logFact(k))
 
 const DISTS = [
     { key: 'normal', label: 'Normal' },
