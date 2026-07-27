@@ -1,55 +1,32 @@
 /**
  * Graph utility functions for parsing and evaluating mathematical functions
  */
+import { parse, evalAst } from './calculus.js'
+
+// Cache one parsed AST per unique function string (parsing is the expensive
+// part; plotting calls this hundreds of times with the same expression).
+const _astCache = new Map()
 
 /**
- * Parse and evaluate a function string at a given x value
+ * Parse and evaluate a function string at a given x value.
+ * Uses the shared expression parser so precedence is correct — notably
+ * -x^2 = -(x^2) and negative exponents like 2^-2 — where the old string→JS
+ * translation produced a SyntaxError (NaN) or the wrong sign.
  * @param {string} funcStr - Function string like "sin(x)", "x^2", "2*x + 1"
  * @param {number} x - The x value to evaluate at
- * @returns {number} - The y value
+ * @returns {number} - The y value (NaN if the expression is invalid)
  */
 export const evaluateFunction = (funcStr, x) => {
-    if (!funcStr || funcStr.trim() === '') {
-        return NaN
-    }
-
-    // Insert implicit multiplication so "2x", "3(x+1)" and ")(" work like
-    // "2*x", "3*(x+1)" and ")*(" . Runs before names/constants are expanded so
-    // it never splits a function name like "sin(".
-    let expr = funcStr
-        .replace(/(\d)([a-zA-Z(])/g, '$1*$2')
-        .replace(/\)([a-zA-Z0-9(])/g, ')*$1')
-
-    // Replace constants
-    expr = expr
-        .replace(/\bpi\b/gi, Math.PI.toString())
-        .replace(/\be\b/g, Math.E.toString())
-        .replace(/\bx\b/gi, `(${x})`)
-
-    // Replace function names with Math methods
-    expr = expr
-        .replace(/sin\(/gi, 'Math.sin(')
-        .replace(/cos\(/gi, 'Math.cos(')
-        .replace(/tan\(/gi, 'Math.tan(')
-        .replace(/log\(/gi, 'Math.log10(')
-        .replace(/ln\(/gi, 'Math.log(')
-        .replace(/sqrt\(/gi, 'Math.sqrt(')
-        .replace(/abs\(/gi, 'Math.abs(')
-        .replace(/floor\(/gi, 'Math.floor(')
-        .replace(/ceil\(/gi, 'Math.ceil(')
-        .replace(/asin\(/gi, 'Math.asin(')
-        .replace(/acos\(/gi, 'Math.acos(')
-        .replace(/atan\(/gi, 'Math.atan(')
-        .replace(/exp\(/gi, 'Math.exp(')
-
-    // Replace ^ with ** for exponentiation
-    expr = expr.replace(/\^/g, '**')
-
+    if (!funcStr || funcStr.trim() === '') return NaN
     try {
-        // Use Function constructor for evaluation
-        const fn = new Function('return ' + expr)
-        const result = fn()
-        return isFinite(result) ? result : NaN
+        let ast = _astCache.get(funcStr)
+        if (!ast) {
+            // Lowercase so SIN/X/PI behave the same as sin/x/pi (case-insensitive).
+            ast = parse(funcStr.toLowerCase())
+            _astCache.set(funcStr, ast)
+        }
+        const y = evalAst(ast, x, 'x')
+        return Number.isFinite(y) ? y : NaN
     } catch {
         return NaN
     }
@@ -126,12 +103,18 @@ export const findZeros = (funcStr, xMin, xMax) => {
             let a = x1, b = x2
             let fa = y1
 
-            for (let iter = 0; iter < 50; iter++) {
+            for (let iter = 0; iter < 60; iter++) {
                 const mid = (a + b) / 2
                 const fmid = evaluateFunction(funcStr, mid)
 
-                if (Math.abs(fmid) < tolerance || (b - a) / 2 < tolerance) {
-                    // Found a zero
+                if ((b - a) / 2 < tolerance) {
+                    // Bracket collapsed. Only a genuine root if f is ~0 here —
+                    // a sign flip across a vertical asymptote leaves |f| huge,
+                    // so this rejects poles being reported as zeros.
+                    if (Math.abs(fmid) < 1e-6) zeros.push({ x: mid, y: 0 })
+                    break
+                }
+                if (Math.abs(fmid) < tolerance) {
                     zeros.push({ x: mid, y: 0 })
                     break
                 }

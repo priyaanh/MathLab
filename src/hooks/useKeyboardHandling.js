@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from 'react'
 import { getButtonData } from '../utils/buttonUtils'
+import { CALCULATOR_MODES } from './useCalculatorState'
 
 /**
  * Custom hook for keyboard navigation and input handling
@@ -11,7 +12,9 @@ export const useKeyboardHandling = (
     operations,
     copyPasteOperations = null
 ) => {
-    const { isScientific } = calculatorState
+    // calculatorState exposes `calculatorMode`, not `isScientific` — derive it
+    // so keyboard navigation uses the scientific button layout in Scientific mode.
+    const isScientific = calculatorState.calculatorMode === CALCULATOR_MODES.SCIENTIFIC
     const { isEditing, cursorPosition, expression, setIsEditing, setCursorPosition, setExpression, setCurrentExpression } = expressionState
     const {
         focusedButtonIndex,

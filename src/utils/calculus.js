@@ -14,7 +14,8 @@
 
 const FUNCS = new Set([
     'sin', 'cos', 'tan', 'asin', 'acos', 'atan',
-    'sinh', 'cosh', 'tanh', 'ln', 'log', 'log10', 'log2', 'sqrt', 'exp', 'abs'
+    'sinh', 'cosh', 'tanh', 'ln', 'log', 'log10', 'log2', 'sqrt', 'exp', 'abs',
+    'floor', 'ceil'
 ])
 // --- node constructors -----------------------------------------------------
 const num = (v) => ({ t: 'num', v })
@@ -94,20 +95,22 @@ export const parse = (str) => {
         }
         return node
     }
+    // A unary sign binds looser than ^, so -x^2 parses as -(x^2). The exponent
+    // itself may still be signed, so 2^-2 parses as 2^(-2).
     const parseFactor = () => {
-        const base = parseBase()
-        if (peek() && peek().k === '^') {
-            nextTok()
-            return pow(base, parseFactor()) // right-associative
-        }
-        return base
-    }
-    const parseBase = () => {
         const t = peek()
         if (!t) throw new Error('Unexpected end of expression')
-        if (t.k === '-') { nextTok(); return neg(parseBase()) }
-        if (t.k === '+') { nextTok(); return parseBase() }
-        return parsePrimary()
+        if (t.k === '-') { nextTok(); return neg(parseFactor()) }
+        if (t.k === '+') { nextTok(); return parseFactor() }
+        return parsePower()
+    }
+    const parsePower = () => {
+        const base = parsePrimary()
+        if (peek() && peek().k === '^') {
+            nextTok()
+            return pow(base, parseFactor()) // right-associative; exponent may be signed
+        }
+        return base
     }
     const parsePrimary = () => {
         const t = nextTok()
@@ -324,7 +327,8 @@ const FN_IMPL = {
     asin: Math.asin, acos: Math.acos, atan: Math.atan,
     sinh: Math.sinh, cosh: Math.cosh, tanh: Math.tanh,
     ln: Math.log, log: Math.log10, log2: Math.log2,
-    sqrt: Math.sqrt, exp: Math.exp, abs: Math.abs
+    sqrt: Math.sqrt, exp: Math.exp, abs: Math.abs,
+    floor: Math.floor, ceil: Math.ceil
 }
 
 /**

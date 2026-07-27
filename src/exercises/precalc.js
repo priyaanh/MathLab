@@ -109,7 +109,7 @@ const rationalDomain = {
     desc: 'Find the x-value excluded from the domain.',
     generate() {
         const a = randNonZero(1, 4)
-        const c = randInt(-9, 9)
+        const c = randNonZero(-9, 9)   // non-zero so the denominator isn't "ax + 0"
         const num = randInt(1, 9)
         const excluded = round(c / a, 2)
         const denom = a === 1 ? `x ${c <= 0 ? '+' : '-'} ${Math.abs(c)}` : `${a}x ${c <= 0 ? '+' : '-'} ${Math.abs(c)}`

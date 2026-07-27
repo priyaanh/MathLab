@@ -104,6 +104,7 @@ function StatsPage() {
   const [text, setText] = useState(EXAMPLES.scores)
   const canvasRef = useRef(null)
   const [themeVersion, setThemeVersion] = useState(0)
+  const [resizeTick, setResizeTick] = useState(0)
 
   const { values, bad } = useMemo(() => parseInput(text), [text])
   const stats = useMemo(() => computeStats(values), [values])
@@ -196,13 +197,23 @@ function StatsPage() {
     ctx.fillText(fmt(min), padL, padT + plotH + 6)
     ctx.textAlign = 'right'
     ctx.fillText(fmt(max), padL + plotW, padT + plotH + 6)
-  }, [values, stats, themeVersion])
+  }, [values, stats, themeVersion, resizeTick])
 
   // Watch for theme attribute/class changes on <html> to force a redraw.
   useEffect(() => {
     const obs = new MutationObserver(() => setThemeVersion(v => v + 1))
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme', 'style'] })
     return () => obs.disconnect()
+  }, [])
+
+  // Redraw the histogram when the canvas is resized (window/panel resize), so
+  // the bitmap stays crisp and the axis labels line up with the bars.
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => setResizeTick(t => t + 1))
+    ro.observe(canvas)
+    return () => ro.disconnect()
   }, [])
 
   const tiles = stats ? [

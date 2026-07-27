@@ -38,6 +38,8 @@ const PlaneControls = React.memo(({
                 )}
                 <button className="plane-btn wide" onClick={onReset} title="Reset view" aria-label="Reset view">Reset</button>
             </div>
+
+            <p className="plane-hint">Drag to pan · scroll to zoom · click + arrow keys to move</p>
         </div>
     )
 })

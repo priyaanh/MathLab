@@ -165,14 +165,19 @@ const toRPN = (tokens) => {
             const unary = tok.value === '-' &&
                 (!prev || prev.type === 'op' || prev.type === 'lparen' || prev.type === 'func')
             const op = unary ? 'u-' : tok.value
-            while (stack.length) {
-                const top = stack[stack.length - 1]
-                if (top.type === 'func') { output.push(stack.pop()); continue }
-                if (top.type !== 'op') break
-                const higher = OP_PRECEDENCE[top.value] > OP_PRECEDENCE[op]
-                const equalLeft = OP_PRECEDENCE[top.value] === OP_PRECEDENCE[op] && !RIGHT_ASSOC[op]
-                if (higher || equalLeft) output.push(stack.pop())
-                else break
+            // A unary (prefix) operator has no left operand, so it must NOT pop
+            // operators off the stack — doing so strands a preceding '^' with no
+            // right operand and breaks inputs like "2^-2".
+            if (!unary) {
+                while (stack.length) {
+                    const top = stack[stack.length - 1]
+                    if (top.type === 'func') { output.push(stack.pop()); continue }
+                    if (top.type !== 'op') break
+                    const higher = OP_PRECEDENCE[top.value] > OP_PRECEDENCE[op]
+                    const equalLeft = OP_PRECEDENCE[top.value] === OP_PRECEDENCE[op] && !RIGHT_ASSOC[op]
+                    if (higher || equalLeft) output.push(stack.pop())
+                    else break
+                }
             }
             stack.push({ type: 'op', value: op })
         } else if (tok.type === 'lparen') {

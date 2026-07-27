@@ -3,7 +3,7 @@ import { makeView, drawGrid, drawPoint, cssVar, prepareHiDPICanvas } from '../ut
 import { slope, distance, midpoint, lineEquation } from '../utils/geometry'
 import { evaluateFunction, validateFunction } from '../utils/graphUtils'
 import { useThemeContext } from '../theme/ThemeContext'
-import { usePlaneView, bindWheelZoom, useKeyboardPan } from '../hooks/usePlaneView'
+import { usePlaneView, bindWheelZoom, useKeyboardPan, useDragPan } from '../hooks/usePlaneView'
 import PlaneControls from '../components/PlaneControls'
 
 const COLORS = ['#ff7a1a', '#22d3ee', '#a78bfa', '#4ade80', '#fb7185', '#fbbf24']
@@ -38,6 +38,7 @@ const LinesPage = () => {
     const canvasRef = useRef(null)
     const { view, pan, zoom, zoomAt, reset, fitTo, canZoomIn, canZoomOut } = usePlaneView(VIEW)
     useKeyboardPan(canvasRef, view, { pan, zoomAt, reset })
+    useDragPan(canvasRef, view, pan, W, H)
 
     const [method, setMethod] = useState('points') // 'points' | 'slope' | 'equation'
     const [type, setType] = useState('line')        // 'line' | 'segment'

@@ -140,6 +140,7 @@ const ShapesPage = () => {
 
     // --- Drag handles directly on the canvas ---------------------------
     const dragRef = useRef(null)
+    const panRef = useRef(null)
 
     // Update a shape from a handle being dragged to graph point (gx, gy).
     const applyHandleDrag = (s, role, index, gx, gy) => {
@@ -187,20 +188,40 @@ const ShapesPage = () => {
             if (hit) { dragRef.current = { role: hit.role, index: hit.index }; return }
         }
 
-        // 2) Otherwise, click-select the top-most shape under the cursor.
+        // 2) Click-select the top-most shape under the cursor (doesn't stop panning).
         for (let i = shapes.length - 1; i >= 0; i--) {
-            if (pointInShape(shapes[i], gx, gy)) { setSelectedId(shapes[i].id); return }
+            if (pointInShape(shapes[i], gx, gy)) { setSelectedId(shapes[i].id); break }
         }
+
+        // 3) Empty space (or a shape body) starts a view pan.
+        panRef.current = { x: e.clientX, y: e.clientY }
+        const canvas = canvasRef.current
+        if (canvas) canvas.style.cursor = 'grabbing'
     }, [selected, shapes, pointerGraph])
 
     const handleMouseMove = useCallback((e) => {
-        if (!dragRef.current) return
-        const { gx, gy } = pointerGraph(e)
-        const { role, index } = dragRef.current
-        updateSelected(s => applyHandleDrag(s, role, index, gx, gy))
-    }, [pointerGraph, updateSelected])
+        if (dragRef.current) {
+            const { gx, gy } = pointerGraph(e)
+            const { role, index } = dragRef.current
+            updateSelected(s => applyHandleDrag(s, role, index, gx, gy))
+            return
+        }
+        if (panRef.current) {
+            const canvas = canvasRef.current
+            const rect = canvas.getBoundingClientRect()
+            const dxPx = ((e.clientX - panRef.current.x) / rect.width) * W
+            const dyPx = ((e.clientY - panRef.current.y) / rect.height) * H
+            panRef.current = { x: e.clientX, y: e.clientY }
+            pan(-(dxPx / W) * (view.xMax - view.xMin), (dyPx / H) * (view.yMax - view.yMin))
+        }
+    }, [pointerGraph, updateSelected, pan, view])
 
-    const endDrag = useCallback(() => { dragRef.current = null }, [])
+    const endDrag = useCallback(() => {
+        dragRef.current = null
+        panRef.current = null
+        const canvas = canvasRef.current
+        if (canvas) canvas.style.cursor = 'crosshair'
+    }, [])
 
     // Fit the view to every shape's extents (circles by their bounding box,
     // polygons/rectangles by their vertices).
@@ -404,7 +425,7 @@ const ShapesPage = () => {
                         onMouseUp={endDrag}
                         onMouseLeave={endDrag}
                     />
-                    <p className="hint">Tip: drag the ringed handles on the selected shape to reshape it — no typing needed.</p>
+                    <p className="hint">Tip: drag the ringed handles to reshape the selected shape. Drag empty space to pan, scroll to zoom.</p>
                 </div>
 
                 <PlaneControls

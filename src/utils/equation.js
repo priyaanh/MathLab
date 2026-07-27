@@ -128,8 +128,12 @@ export function solveQuadratic(a, b, c) {
     let answer, ok, roots
     if (disc > 0) {
         const r = Math.sqrt(disc)
-        const x1 = (-b + r) / (2 * a)
-        const x2 = (-b - r) / (2 * a)
+        // Numerically stable roots: computing both as (−b ± √Δ)/2a loses the
+        // smaller root to catastrophic cancellation when b² ≫ 4ac. Form the
+        // larger-magnitude root first, then get the other from x₁·x₂ = c/a.
+        const q = -(b + Math.sign(b || 1) * r) / 2
+        const x1 = q / a
+        const x2 = c / q
         steps.push(`Δ > 0 → two distinct real roots.`)
         steps.push(`x = (−b ± √Δ) / 2a = (${fmt(-b)} ± ${fmt(r)}) / ${fmt(2 * a)}`)
         steps.push(`x₁ = ${fmt(x1)},  x₂ = ${fmt(x2)}`)
@@ -192,8 +196,21 @@ const bisect = (f, a, b) => {
     return (a + b) / 2
 }
 
+// Minimise |f| on [a, b] by ternary search — used to pin down even-multiplicity
+// (touch) roots, where f dips to zero without changing sign.
+const ternaryMin = (g, a, b) => {
+    for (let i = 0; i < 100; i++) {
+        const m1 = a + (b - a) / 3
+        const m2 = b - (b - a) / 3
+        if (g(m1) < g(m2)) b = m2; else a = m1
+    }
+    return (a + b) / 2
+}
+
 // Scan [min, max] for real roots of f: sign changes (odd multiplicity) plus
-// near-zero touches (even multiplicity). Returns de-duplicated, sorted roots.
+// near-zero touches (even multiplicity). A candidate is only accepted if f is
+// actually ~0 there — this rejects vertical asymptotes, where f flips sign
+// across a pole without ever being a solution. Returns sorted, de-duped roots.
 const findRealRoots = (f, min = -100, max = 100, step = 0.01) => {
     const roots = []
     const add = (r) => {
@@ -202,15 +219,29 @@ const findRealRoots = (f, min = -100, max = 100, step = 0.01) => {
         if (Math.abs(rr - Math.round(rr)) < 1e-6) rr = Math.round(rr)
         if (!roots.some(x => Math.abs(x - rr) < 1e-4)) roots.push(rr)
     }
-    let prevX = min, prevY = f(min)
+    // Genuine root ⇒ f is finite and essentially zero there (not a pole).
+    const genuine = (r) => { const y = f(r); return Number.isFinite(y) && Math.abs(y) < 1e-6 }
+    const absF = (t) => Math.abs(f(t))
+
+    let x0 = null, y0 = null   // two samples back (for local-min / touch detection)
+    let x1 = min, y1 = f(min)  // one sample back
     for (let x = min + step; x <= max + step / 2; x += step) {
         const y = f(x)
-        if (Number.isFinite(prevY) && Number.isFinite(y)) {
-            if (prevY === 0) add(prevX)
-            else if ((prevY < 0) !== (y < 0)) add(bisect(f, prevX, x))
-            else if (Math.abs(y) < 1e-9) add(x)
+        if (Number.isFinite(y1) && Number.isFinite(y)) {
+            if (y1 === 0) { if (genuine(x1)) add(x1) }
+            else if ((y1 < 0) !== (y < 0)) {
+                const r = bisect(f, x1, x)
+                if (genuine(r)) add(r)   // reject asymptote crossings
+            }
         }
-        prevX = x; prevY = y
+        // Touch root: |f| has a local minimum at x1 with no sign change.
+        if (x0 !== null && Number.isFinite(y0) && Number.isFinite(y1) && Number.isFinite(y)
+            && Math.abs(y1) < Math.abs(y0) && Math.abs(y1) <= Math.abs(y)) {
+            const xm = ternaryMin(absF, x0, x)
+            if (genuine(xm)) add(xm)
+        }
+        x0 = x1; y0 = y1
+        x1 = x; y1 = y
     }
     return roots.sort((a, b) => a - b)
 }

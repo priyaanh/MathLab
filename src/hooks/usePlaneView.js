@@ -114,6 +114,71 @@ export const useKeyboardPan = (canvasRef, view, { pan, zoomAt, reset } = {}) => 
 }
 
 /**
+ * Click-and-drag panning for a plot canvas. Grab anywhere and drag; the view
+ * follows the cursor (like dragging a map). Shows a grab / grabbing cursor.
+ * For tools that also drag on-canvas handles (e.g. Shapes) integrate panning
+ * into their own pointer handlers instead of using this hook.
+ *
+ * @param {object} canvasRef  React ref to the <canvas>
+ * @param {object} view       current { xMin, xMax, yMin, yMax }
+ * @param {function} pan       (dx, dy) => void, in graph units
+ * @param {number} W           logical canvas width
+ * @param {number} H           logical canvas height
+ * @param {object} opts        { idleCursor = 'grab' }
+ */
+export const useDragPan = (canvasRef, view, pan, W, H, { idleCursor = 'grab' } = {}) => {
+    // Keep the latest view in a ref so the listeners (attached once) always read
+    // the current span, and keep the drag state in a ref so it survives the
+    // re-renders that panning itself triggers.
+    const viewRef = useRef(view)
+    viewRef.current = view
+    const drag = useRef({ active: false, x: 0, y: 0 })
+
+    useEffect(() => {
+        const canvas = canvasRef.current
+        if (!canvas || !pan) return
+        canvas.style.cursor = idleCursor
+        const st = drag.current
+
+        const onDown = (e) => {
+            if (e.button !== 0) return
+            st.active = true
+            st.x = e.clientX
+            st.y = e.clientY
+            canvas.style.cursor = 'grabbing'
+            e.preventDefault()
+        }
+        const onMove = (e) => {
+            if (!st.active) return
+            const rect = canvas.getBoundingClientRect()
+            const dxPx = ((e.clientX - st.x) / rect.width) * W
+            const dyPx = ((e.clientY - st.y) / rect.height) * H
+            st.x = e.clientX
+            st.y = e.clientY
+            const v = viewRef.current
+            // Drag content with the cursor: view moves opposite on x, same sense
+            // on y (screen y grows downward, graph y upward).
+            pan(-(dxPx / W) * (v.xMax - v.xMin), (dyPx / H) * (v.yMax - v.yMin))
+        }
+        const onUp = () => {
+            if (!st.active) return
+            st.active = false
+            canvas.style.cursor = idleCursor
+        }
+
+        canvas.addEventListener('mousedown', onDown)
+        window.addEventListener('mousemove', onMove)
+        window.addEventListener('mouseup', onUp)
+        return () => {
+            canvas.removeEventListener('mousedown', onDown)
+            window.removeEventListener('mousemove', onMove)
+            window.removeEventListener('mouseup', onUp)
+            canvas.style.cursor = ''
+        }
+    }, [canvasRef, pan, W, H, idleCursor])
+}
+
+/**
  * Attach a non-passive wheel-zoom listener to a canvas. Returns a cleanup fn.
  * `toGraph` converts a pointer event to { gx, gy } graph coordinates.
  */

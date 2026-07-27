@@ -30,7 +30,7 @@ const polyQuad = (A, B, C) => {
 }
 
 // A single factor "(x + r)" -> "(x+3)" or "(x-3)". r must be non-zero.
-const factorTerm = (r) => (r > 0 ? `(x+${r})` : `(x${r})`)
+const factorTerm = (r) => (r === 0 ? '(x)' : r > 0 ? `(x+${r})` : `(x${r})`)
 
 const skills = [
     {

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { makeView, drawGrid, drawPoint, prepareHiDPICanvas, cssVar } from '../utils/plane'
-import { usePlaneView, bindWheelZoom, useKeyboardPan } from '../hooks/usePlaneView'
+import { usePlaneView, bindWheelZoom, useKeyboardPan, useDragPan } from '../hooks/usePlaneView'
 import PlaneControls from '../components/PlaneControls'
 import { useThemeContext } from '../theme/ThemeContext'
 
@@ -53,6 +53,7 @@ const TransformPage = () => {
     const canvasRef = useRef(null)
     const { view, pan, zoom, zoomAt, reset, fitTo, canZoomIn, canZoomOut } = usePlaneView(VIEW)
     useKeyboardPan(canvasRef, view, { pan, zoomAt, reset })
+    useDragPan(canvasRef, view, pan, W, H)
 
     const [preset, setPreset] = useState('triangle')
     const [steps, setSteps] = useState([])

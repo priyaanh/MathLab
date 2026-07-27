@@ -1250,6 +1250,14 @@ a.topic-card {
     gap: 0.35rem;
 }
 
+.plane-hint {
+    flex-basis: 100%;
+    margin: 0.1rem 0 0;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
 .plane-pan {
     display: flex;
     flex-direction: column;
