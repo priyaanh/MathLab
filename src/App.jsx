@@ -26,6 +26,7 @@ const MatrixPage = lazy(() => import('./pages/MatrixPage'))
 const DerivativePage = lazy(() => import('./pages/DerivativePage'))
 const TrianglePage = lazy(() => import('./pages/TrianglePage'))
 const ExercisesPage = lazy(() => import('./pages/ExercisesPage'))
+const QuizPage = lazy(() => import('./pages/QuizPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 
 /**
@@ -42,6 +43,7 @@ function App() {
             <Route index element={<HomePage />} />
             <Route path="exercises" element={<ExercisesPage />} />
             <Route path="exercises/:skillId" element={<ExercisesPage />} />
+            <Route path="quiz" element={<QuizPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route path="scientific" element={<ScientificPage />} />
             <Route path="graph" element={<GraphPage />} />

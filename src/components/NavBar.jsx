@@ -6,6 +6,7 @@ import { useThemeContext } from '../theme/ThemeContext'
 const LINKS = [
     { to: '/scientific', label: 'Calculator' },
     { to: '/exercises', label: 'Exercises' },
+    { to: '/quiz', label: 'Quiz' },
     { to: '/graph', label: 'Grapher' },
     { to: '/solve', label: 'Solver' },
     { to: '/derivative', label: 'Derivatives' },

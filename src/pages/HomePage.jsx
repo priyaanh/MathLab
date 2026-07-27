@@ -5,6 +5,7 @@ import { buildVocab, suggest } from '../utils/search'
 const TOOLS = [
     { to: '/scientific', icon: '🧮', title: 'Scientific Calculator', desc: 'Trig, logs, memory, powers and full expression editing with keyboard support.', keywords: 'calculator arithmetic trig sin cos tan log memory powers factorial' },
     { to: '/exercises', icon: '🎯', title: 'Exercises', desc: 'Guided practice from early math to college — fresh problems, instant checks, mastery streaks.', keywords: 'exercises practice problems quiz drill test mastery skills learn grade school algebra calculus' },
+    { to: '/quiz', icon: '📝', title: 'Quiz', desc: 'A scored, timed-feel run of fresh problems by topic — see your score and review misses.', keywords: 'quiz test scored exam questions review challenge practice mixed topics' },
     { to: '/graph', icon: '📈', title: 'Function Grapher', desc: 'Plot y = f(x): multiple curves, zeros, intersections, trace and value tables.', keywords: 'graph plot function curve zeros roots intersection trace table' },
     { to: '/lines', icon: '📏', title: 'Lines & Segments', desc: 'Plot lines and segments from equations or points. See slope, length, midpoint.', keywords: 'line segment slope intercept midpoint length distance equation' },
     { to: '/shapes', icon: '⬡', title: 'Shapes', desc: 'Draw circles and polygons. Instantly compute area and perimeter.', keywords: 'shape circle rectangle polygon area perimeter geometry' },
