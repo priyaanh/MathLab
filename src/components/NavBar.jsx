@@ -161,6 +161,14 @@ const NavBar = () => {
                 <button onClick={() => navigate('/themes')} title="All themes" aria-label="Open themes page">
                     🎨
                 </button>
+                <NavLink
+                    to="/profile"
+                    className={({ isActive }) => `nav-icon-btn${isActive ? ' active' : ''}`}
+                    title="Your profile"
+                    aria-label="Your profile"
+                >
+                    👤
+                </NavLink>
             </div>
         </nav>
     )

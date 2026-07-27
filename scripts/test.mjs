@@ -13,7 +13,7 @@
 import { ALL_SKILLS, TOTAL_SKILLS, checkAnswer } from '../src/exercises/index.js'
 import { circleArea, circleAreaPi, distance, polygonArea } from '../src/utils/geometry.js'
 import { differentiate, evalAst } from '../src/utils/calculus.js'
-import { parseEquation, solveLinear, solveQuadratic, solveSystem } from '../src/utils/equation.js'
+import { parseEquation, solveLinear, solveQuadratic, solveSystem, solveGeneral } from '../src/utils/equation.js'
 
 let passed = 0
 let failed = 0
@@ -103,6 +103,22 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
     let threw = false
     try { parseEquation('2z + 1 = 0', ['x']) } catch { threw = true }
     ok('solver: rejects unknown variable', threw)
+
+    // General solver: cubic x^3 - 4x = 0 -> {-2, 0, 2}
+    const cubic = solveGeneral('x^3 - 4x = 0').roots || []
+    ok('solver: cubic roots {-2,0,2}',
+        cubic.length === 3 && near(cubic[0], -2, 1e-3) && near(cubic[1], 0, 1e-3) && near(cubic[2], 2, 1e-3),
+        JSON.stringify(cubic))
+
+    // General solver: square root — sqrt(x) = 3 -> x = 9
+    const sq = solveGeneral('sqrt(x) = 3').roots || []
+    ok('solver: sqrt(x)=3 -> 9', sq.length === 1 && near(sq[0], 9, 1e-3), JSON.stringify(sq))
+
+    // General solver: higher power — x^4 - 16 = 0 -> {-2, 2}
+    const quartic = solveGeneral('x^4 - 16 = 0').roots || []
+    ok('solver: quartic roots {-2,2}',
+        quartic.length === 2 && near(quartic[0], -2, 1e-3) && near(quartic[1], 2, 1e-3),
+        JSON.stringify(quartic))
 }
 
 // --- report ---------------------------------------------------------------

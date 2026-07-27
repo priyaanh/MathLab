@@ -7,6 +7,8 @@
  * with step-by-step working.
  */
 
+import { parse, evalAst } from './calculus.js'
+
 // Trim float noise for display.
 export const fmt = (n) => {
     if (!Number.isFinite(n)) return '—'
@@ -161,6 +163,103 @@ export function solveQuadratic(a, b, c) {
             { k: 'Sum of roots (−b/a)', v: fmt(sum) },
             { k: 'Product of roots (c/a)', v: fmt(prod) }
         ]
+    }
+}
+
+// ---- General numeric solver -------------------------------------------
+// Handles anything the expression parser understands — square roots, cubes
+// and higher powers, and other functions — by moving everything to one side
+// and finding where f(x) = 0 numerically. Used when the exact linear/quadratic
+// path can't apply (e.g. x^3, √x, x^5 - 2x).
+
+// Normalize a typed side into syntax the expression parser accepts.
+const preprocess = (s) => String(s)
+    .replace(/√\s*\(([^)]*)\)/g, 'sqrt($1)')
+    .replace(/√\s*([0-9]*\.?[0-9]+)/g, 'sqrt($1)')
+    .replace(/√\s*([a-zA-Zπe])/g, 'sqrt($1)')
+    .replace(/²/g, '^2').replace(/³/g, '^3').replace(/⁴/g, '^4').replace(/⁵/g, '^5')
+    .replace(/−/g, '-').replace(/×/g, '*').replace(/·/g, '*').replace(/÷/g, '/')
+
+// Refine a sign-changing bracket [a, b] to a root by bisection.
+const bisect = (f, a, b) => {
+    let fa = f(a)
+    for (let i = 0; i < 80; i++) {
+        const m = (a + b) / 2
+        const fm = f(m)
+        if (fm === 0 || (b - a) / 2 < 1e-12) return m
+        if ((fa < 0) === (fm < 0)) { a = m; fa = fm } else { b = m }
+    }
+    return (a + b) / 2
+}
+
+// Scan [min, max] for real roots of f: sign changes (odd multiplicity) plus
+// near-zero touches (even multiplicity). Returns de-duplicated, sorted roots.
+const findRealRoots = (f, min = -100, max = 100, step = 0.01) => {
+    const roots = []
+    const add = (r) => {
+        if (!Number.isFinite(r)) return
+        let rr = Math.round(r * 1e6) / 1e6
+        if (Math.abs(rr - Math.round(rr)) < 1e-6) rr = Math.round(rr)
+        if (!roots.some(x => Math.abs(x - rr) < 1e-4)) roots.push(rr)
+    }
+    let prevX = min, prevY = f(min)
+    for (let x = min + step; x <= max + step / 2; x += step) {
+        const y = f(x)
+        if (Number.isFinite(prevY) && Number.isFinite(y)) {
+            if (prevY === 0) add(prevX)
+            else if ((prevY < 0) !== (y < 0)) add(bisect(f, prevX, x))
+            else if (Math.abs(y) < 1e-9) add(x)
+        }
+        prevX = x; prevY = y
+    }
+    return roots.sort((a, b) => a - b)
+}
+
+export function solveGeneral(input) {
+    const raw = String(input).trim()
+    if (raw === '') throw new Error('Enter an equation.')
+    const sides = raw.split('=')
+    if (sides.length > 2) throw new Error('Use at most one "=" sign.')
+
+    let lhs, rhs
+    try {
+        lhs = parse(preprocess(sides[0]))
+        rhs = sides.length === 2 ? parse(preprocess(sides[1])) : { t: 'num', v: 0 }
+    } catch {
+        throw new Error("Couldn't read that equation. Use x, ^ for powers, sqrt( ), and + − × ÷.")
+    }
+
+    const f = (x) => evalAst(lhs, x, 'x') - evalAst(rhs, x, 'x')
+    // Guard against non-x variables (e.g. a stray y): f is NaN everywhere.
+    if (!Number.isFinite(f(0)) && !Number.isFinite(f(1)) && !Number.isFinite(f(2))) {
+        throw new Error('Use only x here. Switch to "System 2×2" for x and y.')
+    }
+
+    const roots = findRealRoots(f)
+    const rhsShown = sides.length === 2 ? sides[1].trim() : '0'
+    const steps = [
+        `Bring everything to one side: f(x) = (${sides[0].trim()}) − (${rhsShown}) = 0`,
+        'Scan x over [−100, 100] for sign changes, then refine each crossing by bisection.'
+    ]
+
+    if (!roots.length) {
+        return {
+            title: 'Result', ok: false,
+            steps: [...steps, 'No sign change was found in the scanned range.'],
+            answer: 'No real solution found in [−100, 100] — there may be complex roots or roots outside this range.',
+            extra: []
+        }
+    }
+
+    const shown = roots.slice(0, 8)
+    const answer = shown
+        .map((r, i) => `x${shown.length > 1 ? `₁₂₃₄₅₆₇₈`[i] || `_${i + 1}` : ''} = ${fmt(r)}`)
+        .join(',  ')
+    steps.push(`Found ${roots.length} real root${roots.length > 1 ? 's' : ''}: ${shown.map(fmt).join(', ')}${roots.length > shown.length ? ', …' : ''}`)
+
+    return {
+        title: 'Result', ok: true, steps, answer, roots: shown,
+        extra: [{ k: 'Real roots found', v: String(roots.length) }]
     }
 }
 

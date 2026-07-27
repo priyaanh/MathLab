@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { parseEquation, solveLinear, solveQuadratic, solveSystem } from '../utils/equation'
+import { parseEquation, solveLinear, solveQuadratic, solveSystem, solveGeneral } from '../utils/equation'
 
 /**
  * Equation Solver — linear, quadratic and 2x2 systems, with step-by-step
@@ -13,7 +13,7 @@ const MODES = [
 ]
 
 const EXAMPLES = {
-    single: ['2x + 3 = 7', 'x^2 - 5x + 6 = 0', '3x + 2 = 5x - 4', 'x² = 9'],
+    single: ['2x + 3 = 7', 'x^2 - 5x + 6 = 0', 'x^3 - 4x = 0', 'x^5 - x = 2', 'sqrt(x) = 3', 'x^2 = 2'],
     system: [['x + y = 2', 'x - y = 0'], ['2x + 3y = 12', 'x - y = 1']]
 }
 
@@ -27,10 +27,18 @@ const SolverPage = () => {
     const result = useMemo(() => {
         try {
             if (mode === 'single') {
-                const p = parseEquation(eq, ['x'])
-                if (p.y !== 0) throw new Error('Use only x here. Switch to "System 2×2" for x and y.')
-                if (p.x2 !== 0) return solveQuadratic(p.x2, p.x, p.c)
-                return solveLinear(p.x, p.c)
+                // Exact path for clean linear/quadratic (nice step-by-step);
+                // otherwise fall back to the general numeric solver, which
+                // handles square roots, cubes, and any higher power.
+                try {
+                    const p = parseEquation(eq, ['x'])
+                    if (p.y !== 0) throw new Error('Use only x here. Switch to "System 2×2" for x and y.')
+                    if (p.x2 !== 0) return solveQuadratic(p.x2, p.x, p.c)
+                    return solveLinear(p.x, p.c)
+                } catch (exactErr) {
+                    if (/Use only x/.test(exactErr.message)) throw exactErr
+                    return solveGeneral(eq)
+                }
             }
             const p1 = parseEquation(eq1, ['x', 'y'])
             const p2 = parseEquation(eq2, ['x', 'y'])
@@ -76,8 +84,9 @@ const SolverPage = () => {
                     {mode === 'single' ? (
                         <>
                             <div className="hint">
-                                Type an equation in <code>x</code> — linear or quadratic. You can use
-                                {' '}<code>^</code> for powers (e.g. <code>x^2</code>). No <code>=</code> means <code>= 0</code>.
+                                Type an equation in <code>x</code>. Use <code>^</code> for any power
+                                (<code>x^2</code>, <code>x^5</code>) and <code>sqrt( )</code> or <code>√</code> for roots.
+                                Higher-degree and root equations are solved numerically. No <code>=</code> means <code>= 0</code>.
                             </div>
                             <input
                                 className="eq-input"

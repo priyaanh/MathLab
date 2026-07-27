@@ -20,6 +20,7 @@ import MatrixPage from './pages/MatrixPage'
 import DerivativePage from './pages/DerivativePage'
 import TrianglePage from './pages/TrianglePage'
 import ExercisesPage from './pages/ExercisesPage'
+import ProfilePage from './pages/ProfilePage'
 import './styles/site.css'
 
 /**
@@ -36,6 +37,7 @@ function App() {
             <Route index element={<HomePage />} />
             <Route path="exercises" element={<ExercisesPage />} />
             <Route path="exercises/:skillId" element={<ExercisesPage />} />
+            <Route path="profile" element={<ProfilePage />} />
             <Route path="scientific" element={<ScientificPage />} />
             <Route path="graph" element={<GraphPage />} />
             <Route path="lines" element={<LinesPage />} />
