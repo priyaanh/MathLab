@@ -26,7 +26,7 @@ const FN_KEYS = [
     { t: 'ln', v: 'ln(' }, { t: 'log', v: 'log(' }, { t: '√', v: 'sqrt(' }
 ]
 const VAR_KEYS = [
-    { t: 'x', v: 'x' }, { t: 'y', v: 'y' }, { t: 'i', v: 'i' }, { t: '(', v: '(' }, { t: ')', v: ')' },
+    { t: 'x=', v: 'x = ' }, { t: 'x', v: 'x' }, { t: 'y', v: 'y' }, { t: 'i', v: 'i' }, { t: '(', v: '(' }, { t: ')', v: ')' },
     { t: '^', v: '^' }, { t: 'π', v: 'pi' }
 ]
 // Numeric pad shared by both variants; the trailing operator column only shows
