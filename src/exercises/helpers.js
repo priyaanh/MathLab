@@ -84,6 +84,16 @@ export const mcFrom = (correct, distractors) => {
 }
 
 // --- answer checking -------------------------------------------------------
+
+// Students often restate the variable, e.g. typing "x = 54" for "Solve for x".
+// Return the value after a leading single-letter assignment ("x =", "y="), or
+// null if there isn't one. Used as an *extra* accepted form, so answers that
+// genuinely contain "=" (like "y=2x+3") still match on their own.
+export const stripAssignment = (s) => {
+    const m = String(s).trim().match(/^[a-zA-Z]\s*=\s*(.+)$/)
+    return m ? m[1].trim() : null
+}
+
 export const normalize = (s) =>
     String(s).trim().toLowerCase().replace(/\s+/g, '').replace(/[×*]/g, '*').replace(/[÷]/g, '/').replace(/−/g, '-')
 
@@ -106,19 +116,29 @@ export const checkAnswer = (problem, input) => {
     if (input == null || String(input).trim() === '') return false
     const { type = 'text', answer, tolerance, accepted = [] } = problem
 
+    // Try the input as typed and, if present, with a leading "x =" stripped.
+    const forms = [String(input)]
+    const bare = stripAssignment(input)
+    if (bare != null) forms.push(bare)
+
     if (type === 'choice') {
-        return normalize(input) === normalize(answer)
+        const candidates = [answer, ...accepted].map(normalize)
+        return forms.some(f => candidates.includes(normalize(f)))
     }
     if (type === 'integer') {
-        const v = parseNumeric(input)
-        return Number.isFinite(v) && Math.abs(v - Number(answer)) < 1e-9
+        return forms.some(f => {
+            const v = parseNumeric(f)
+            return Number.isFinite(v) && Math.abs(v - Number(answer)) < 1e-9
+        })
     }
     if (type === 'numeric') {
-        const v = parseNumeric(input)
         const tol = tolerance ?? 1e-3
-        return Number.isFinite(v) && Math.abs(v - Number(answer)) <= tol
+        return forms.some(f => {
+            const v = parseNumeric(f)
+            return Number.isFinite(v) && Math.abs(v - Number(answer)) <= tol
+        })
     }
     // text / exact (with normalized alternatives)
     const candidates = [answer, ...accepted].map(normalize)
-    return candidates.includes(normalize(input))
+    return forms.some(f => candidates.includes(normalize(f)))
 }
