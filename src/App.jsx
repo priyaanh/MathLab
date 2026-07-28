@@ -67,7 +67,7 @@ function App() {
             <Route path="sequences" element={<SequencesPage />} />
             <Route path="numbertheory" element={<NumberTheoryPage />} />
             <Route path="probability" element={<ProbabilityPage />} />
-            <Route path="dino" element={<DinoGame />} />
+            <Route path="xyzzy" element={<DinoGame />} />
             <Route path="statistics" element={<StatsPage />} />
             <Route path="distribution" element={<DistributionPage />} />
             <Route path="solve" element={<SolverPage />} />

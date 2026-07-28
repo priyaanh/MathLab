@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom'
  * under, and a day/night cycle. Pure canvas + rAF, no assets or network, so it
  * plays offline. High score persists in localStorage.
  *
- * Reached via the secret 🦕 in the footer, or #/dino directly.
+ * Reached via the secret 🦕 in the footer, or #/xyzzy directly.
  * Controls: Space / ↑ to jump, ↓ to duck, tap to jump.
  */
 
