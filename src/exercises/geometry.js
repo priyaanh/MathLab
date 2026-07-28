@@ -23,7 +23,7 @@ const skills = [
                     answer,
                     type: 'numeric',
                     tolerance: 0.02,
-                    explanation: `hypotenuse = leg·√2 = ${leg}·√2 ≈ ${answer}.`,
+                    explanation: `In a 45°-45°-90° triangle, hypotenuse = leg·√2.\nSubstitute the leg: ${leg}·√2.\nHypotenuse ≈ ${answer}.`,
                 }
             }
             const short = randInt(2, 9)
@@ -33,7 +33,7 @@ const skills = [
                 answer,
                 type: 'numeric',
                 tolerance: 0.02,
-                explanation: `long leg = short·√3 = ${short}·√3 ≈ ${answer}.`,
+                explanation: `In a 30°-60°-90° triangle, long leg = short leg·√3.\nSubstitute the short leg: ${short}·√3.\nLong leg ≈ ${answer}.`,
             }
         },
     },
@@ -50,7 +50,7 @@ const skills = [
                 answer,
                 type: 'numeric',
                 tolerance: 0.05,
-                explanation: `V = (4/3)πr³ = (4/3)π(${r})³ ≈ ${answer}.`,
+                explanation: `Volume of a sphere = (4/3)πr³.\nSubstitute r = ${r}: (4/3)π(${r})³ = (4/3)π·${r ** 3}.\nV ≈ ${answer}.`,
             }
         },
     },
@@ -67,7 +67,7 @@ const skills = [
                     prompt: `Two lines cross. One of the vertical angles measures ${a}°. What is the measure of the angle vertical (opposite) to it, in degrees?`,
                     answer: a,
                     type: 'integer',
-                    explanation: `Vertical angles are equal, so the opposite angle is also ${a}°.`,
+                    explanation: `Vertical (opposite) angles formed by two crossing lines are equal.\nSo the opposite angle equals the given ${a}°.\nThe angle is ${a}°.`,
                 }
             }
             const total = kind === 'complementary' ? 90 : 180
@@ -77,7 +77,7 @@ const skills = [
                 prompt: `Two ${kind} angles add up to ${total}°. One angle measures ${a}°. What is the other angle, in degrees?`,
                 answer,
                 type: 'integer',
-                explanation: `${kind === 'complementary' ? 'Complementary' : 'Supplementary'} angles sum to ${total}°, so ${total} − ${a} = ${answer}°.`,
+                explanation: `${kind === 'complementary' ? 'Complementary' : 'Supplementary'} angles sum to ${total}°.\nSubtract the known angle: ${total} − ${a}.\nThe other angle is ${answer}°.`,
             }
         },
     },
@@ -94,7 +94,7 @@ const skills = [
                 prompt: `A triangle has two angles measuring ${a}° and ${b}°. What is the measure of the third angle, in degrees?`,
                 answer,
                 type: 'integer',
-                explanation: `The angles of a triangle sum to 180°, so 180 − ${a} − ${b} = ${answer}°.`,
+                explanation: `The angles of a triangle sum to 180°.\nSubtract the two known angles: 180 − ${a} − ${b}.\nThe third angle is ${answer}°.`,
             }
         },
     },
@@ -116,7 +116,7 @@ const skills = [
                     answer: c,
                     type: 'numeric',
                     tolerance: 0.05,
-                    explanation: `c = √(${a}^2 + ${b}^2) = √${a * a + b * b} = ${c}.`,
+                    explanation: `By the Pythagorean theorem, c = √(a^2 + b^2).\nSubstitute the legs: √(${a}^2 + ${b}^2) = √${a * a + b * b}.\nHypotenuse c = ${c}.`,
                 }
             }
             // Find a leg: give hypotenuse c and leg b, find leg a.
@@ -125,7 +125,7 @@ const skills = [
                 answer: a,
                 type: 'numeric',
                 tolerance: 0.05,
-                explanation: `leg = √(${c}^2 − ${b}^2) = √${c * c - b * b} = ${a}.`,
+                explanation: `Rearranging the Pythagorean theorem, leg = √(c^2 − b^2).\nSubstitute: √(${c}^2 − ${b}^2) = √${c * c - b * b}.\nThe other leg = ${a}.`,
             }
         },
     },
@@ -145,7 +145,7 @@ const skills = [
                     answer,
                     type: 'numeric',
                     tolerance: 0.05,
-                    explanation: `Area = ½ × ${b} × ${h} = ${answer}.`,
+                    explanation: `Area of a triangle = ½ × base × height.\nSubstitute: ½ × ${b} × ${h}.\nArea = ${answer}.`,
                 }
             }
             if (shape === 'parallelogram') {
@@ -157,7 +157,7 @@ const skills = [
                     answer,
                     type: 'numeric',
                     tolerance: 0.05,
-                    explanation: `Area = ${b} × ${h} = ${answer}.`,
+                    explanation: `Area of a parallelogram = base × height.\nSubstitute: ${b} × ${h}.\nArea = ${answer}.`,
                 }
             }
             const b1 = randInt(4, 16)
@@ -169,7 +169,7 @@ const skills = [
                 answer,
                 type: 'numeric',
                 tolerance: 0.05,
-                explanation: `Area = ½ × (${b1} + ${b2}) × ${h} = ${answer}.`,
+                explanation: `Area of a trapezoid = ½ × (b₁ + b₂) × height.\nAdd the bases and substitute: ½ × (${b1} + ${b2}) × ${h} = ½ × ${b1 + b2} × ${h}.\nArea = ${answer}.`,
             }
         },
     },
@@ -186,7 +186,7 @@ const skills = [
                 answer,
                 type: 'numeric',
                 tolerance: 0.05,
-                explanation: `Area = π × ${r}^2 = π × ${r * r} ≈ ${answer}.`,
+                explanation: `Area of a circle = π × r^2.\nSubstitute r = ${r}: π × ${r}^2 = π × ${r * r}.\nArea ≈ ${answer}.`,
             }
         },
     },
@@ -203,7 +203,7 @@ const skills = [
                 answer,
                 type: 'numeric',
                 tolerance: 0.05,
-                explanation: `Circumference = 2 × π × ${r} ≈ ${answer}.`,
+                explanation: `Circumference of a circle = 2 × π × r.\nSubstitute r = ${r}: 2 × π × ${r}.\nCircumference ≈ ${answer}.`,
             }
         },
     },
@@ -223,7 +223,7 @@ const skills = [
                     answer,
                     type: 'numeric',
                     tolerance: 0.05,
-                    explanation: `Volume = ${l} × ${w} × ${h} = ${answer}.`,
+                    explanation: `Volume of a rectangular prism = length × width × height.\nSubstitute: ${l} × ${w} × ${h}.\nVolume = ${answer}.`,
                 }
             }
             const r = randInt(2, 10)
@@ -234,7 +234,7 @@ const skills = [
                 answer,
                 type: 'numeric',
                 tolerance: 0.05,
-                explanation: `Volume = π × ${r}^2 × ${h} = π × ${r * r * h} ≈ ${answer}.`,
+                explanation: `Volume of a cylinder = π × r^2 × h.\nSubstitute r = ${r}, h = ${h}: π × ${r}^2 × ${h} = π × ${r * r * h}.\nVolume ≈ ${answer}.`,
             }
         },
     },
@@ -253,7 +253,7 @@ const skills = [
                 answer,
                 type: 'numeric',
                 tolerance: 0.05,
-                explanation: `Surface area = 2 × (${l}×${w} + ${l}×${h} + ${w}×${h}) = ${answer}.`,
+                explanation: `Surface area of a rectangular prism = 2 × (lw + lh + wh).\nSubstitute: 2 × (${l}×${w} + ${l}×${h} + ${w}×${h}) = 2 × (${l * w} + ${l * h} + ${w * h}).\nSurface area = ${answer}.`,
             }
         },
     },
@@ -275,7 +275,7 @@ const skills = [
                 answer: d,
                 type: 'numeric',
                 tolerance: 0.05,
-                explanation: `Distance = √(${dx}^2 + ${dy}^2) = √${dx * dx + dy * dy} = ${d}.`,
+                explanation: `Distance = √((x₂ − x₁)^2 + (y₂ − y₁)^2).\nThe coordinate differences are ${dx} and ${dy}: √(${dx}^2 + ${dy}^2) = √${dx * dx + dy * dy}.\nDistance = ${d}.`,
             }
         },
     },
@@ -302,7 +302,7 @@ const skills = [
                     `${mx},${my}`,
                     `${mx}, ${my}`,
                 ],
-                explanation: `Midpoint = ((${x1} + ${x2})/2, (${y1} + ${y2})/2) = (${mx}, ${my}).`,
+                explanation: `Midpoint = ((x₁ + x₂)/2, (y₁ + y₂)/2).\nSubstitute: ((${x1} + ${x2})/2, (${y1} + ${y2})/2) = (${x1 + x2}/2, ${y1 + y2}/2).\nMidpoint = (${mx}, ${my}).`,
             }
         },
     },
@@ -324,7 +324,7 @@ const skills = [
                 answer,
                 type: 'numeric',
                 tolerance: 0.05,
-                explanation: `Interior angle = (${n} − 2) × 180 / ${n} = ${(n - 2) * 180} / ${n} ≈ ${answer}.`,
+                explanation: `Interior angle of a regular n-gon = (n − 2) × 180 / n.\nSubstitute n = ${n}: (${n} − 2) × 180 / ${n} = ${(n - 2) * 180} / ${n}.\nInterior angle ≈ ${answer}°.`,
             }
         },
     },
@@ -346,7 +346,7 @@ const skills = [
                 answer,
                 type: 'numeric',
                 tolerance: 0.05,
-                explanation: `Scale factor = ${a2}/${a1} = ${k}, so the missing side = ${b1} × ${k} = ${answer}.`,
+                explanation: `Corresponding sides of similar triangles share one scale factor.\nScale factor = ${a2}/${a1} = ${k}.\nMissing side = ${b1} × ${k} = ${answer}.`,
             }
         },
     },

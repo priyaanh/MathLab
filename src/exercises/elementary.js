@@ -26,7 +26,7 @@ const multiplicationFacts = {
             prompt: `${a} × ${b} = ?`,
             answer: a * b,
             type: 'integer',
-            explanation: `${a} × ${b} = ${a * b}.`,
+            explanation: `Multiply ${a} groups of ${b}.\nCount by ${b}s, ${a} times.\n${a} × ${b} = ${a * b}.`,
         }
     },
 }
@@ -44,7 +44,7 @@ const divisionFacts = {
             prompt: `${a} ÷ ${b} = ?`,
             answer: q,
             type: 'integer',
-            explanation: `${b} × ${q} = ${a}, so ${a} ÷ ${b} = ${q}.`,
+            explanation: `Ask: what times ${b} makes ${a}?\n${b} × ${q} = ${a}.\nSo ${a} ÷ ${b} = ${q}.`,
         }
     },
 }
@@ -61,7 +61,7 @@ const multiDigitMultiplication = {
             prompt: `${a} × ${b} = ?`,
             answer: a * b,
             type: 'integer',
-            explanation: `${a} × ${b} = ${a * b}.`,
+            explanation: `Split ${a} into ${Math.floor(a / 10) * 10} + ${a % 10}.\n${Math.floor(a / 10) * 10} × ${b} = ${Math.floor(a / 10) * 10 * b}, and ${a % 10} × ${b} = ${(a % 10) * b}.\nAdd them: ${a * b}.`,
         }
     },
 }
@@ -79,7 +79,7 @@ const longDivision = {
             prompt: `${a} ÷ ${b} = ?`,
             answer: q,
             type: 'integer',
-            explanation: `${b} × ${q} = ${a}, so ${a} ÷ ${b} = ${q}.`,
+            explanation: `Ask: what times ${b} makes ${a}?\nCheck: ${b} × ${q} = ${a}.\nSo ${a} ÷ ${b} = ${q}.`,
         }
     },
 }
@@ -101,14 +101,14 @@ const orderOfOperations = {
                 prompt: `${a} + ${b} × ${c} = ?`,
                 answer: a + product,
                 type: 'integer',
-                explanation: `First ${b} × ${c} = ${product}, then ${a} + ${product} = ${a + product}.`,
+                explanation: `Do multiplication before addition.\n${b} × ${c} = ${product}.\nThen ${a} + ${product} = ${a + product}.`,
             }
         }
         return {
             prompt: `${a} − ${b} × ${c} = ?`,
             answer: a - product,
             type: 'integer',
-            explanation: `First ${b} × ${c} = ${product}, then ${a} − ${product} = ${a - product}.`,
+            explanation: `Do multiplication before subtraction.\n${b} × ${c} = ${product}.\nThen ${a} − ${product} = ${a - product}.`,
         }
     },
 }
@@ -128,7 +128,7 @@ const equivalentFractions = {
             prompt: `${numer}/${denom} = ?/${newDenom}`,
             answer: newNumer,
             type: 'integer',
-            explanation: `${denom} × ${factor} = ${newDenom}, so multiply the top too: ${numer} × ${factor} = ${newNumer}.`,
+            explanation: `See how the bottom grew: ${denom} × ${factor} = ${newDenom}.\nMultiply the top by the same ${factor}.\n${numer} × ${factor} = ${newNumer}.`,
         }
     },
 }
@@ -165,7 +165,7 @@ const likeFractions = {
             answer,
             type: 'text',
             accepted,
-            explanation: `Keep the denominator ${denom}: ${a} ${op} ${b} = ${resultNumer}, so ${resultNumer}/${denom} = ${answer}.`,
+            explanation: `Same denominator, so keep ${denom}.\n${op === '+' ? 'Add' : 'Subtract'} the tops: ${a} ${op} ${b} = ${resultNumer}.\n${resultNumer}/${denom} in lowest terms is ${answer}.`,
         }
     },
 }
@@ -192,7 +192,7 @@ const compareFractions = {
             answer,
             type: 'choice',
             choices,
-            explanation: `${n1}/${d1} = ${round(left, 3)} and ${n2}/${d2} = ${round(right, 3)}, so ${n1}/${d1} ${correct} ${n2}/${d2}.`,
+            explanation: `Turn each fraction into a decimal.\n${n1}/${d1} = ${round(left, 3)} and ${n2}/${d2} = ${round(right, 3)}.\nCompare: ${n1}/${d1} ${correct} ${n2}/${d2}.`,
         }
     },
 }
@@ -210,7 +210,7 @@ const rounding = {
             prompt: `Round ${n} to the nearest ${place}.`,
             answer,
             type: 'integer',
-            explanation: `${n} rounds to ${answer} at the nearest ${place}.`,
+            explanation: `The nearest ${place}s below and above are ${Math.floor(n / place) * place} and ${Math.floor(n / place) * place + place}.\n${n} is closest to ${answer}.\nSo ${n} rounds to ${answer}.`,
         }
     },
 }
@@ -242,7 +242,7 @@ const decimalMoney = {
             answer: round(resultCents / scale, dp),
             type: 'numeric',
             tolerance: 0.001,
-            explanation: `${fmt(a)} ${op} ${fmt(b)} = ${fmt(resultCents)}.`,
+            explanation: `Line up the decimal points.\n${op === '+' ? 'Add' : 'Subtract'} the amounts: ${fmt(a)} ${op} ${fmt(b)}.\nThat gives ${fmt(resultCents)}.`,
         }
     },
 }
@@ -261,14 +261,14 @@ const rectangle = {
                 prompt: `A rectangle is ${w} units wide and ${h} units tall. What is its area (in square units)?`,
                 answer: w * h,
                 type: 'integer',
-                explanation: `Area = width × height = ${w} × ${h} = ${w * h} square units.`,
+                explanation: `Area of a rectangle = width × height.\nMultiply ${w} × ${h}.\nArea = ${w * h} square units.`,
             }
         }
         return {
             prompt: `A rectangle is ${w} units wide and ${h} units tall. What is its perimeter (in units)?`,
             answer: 2 * (w + h),
             type: 'integer',
-            explanation: `Perimeter = 2 × (width + height) = 2 × (${w} + ${h}) = ${2 * (w + h)} units.`,
+            explanation: `Perimeter = 2 × (width + height).\nAdd the sides: ${w} + ${h} = ${w + h}.\nDouble it: 2 × ${w + h} = ${2 * (w + h)} units.`,
         }
     },
 }
@@ -301,8 +301,8 @@ const factors = {
                 choices,
                 explanation:
                     correct === 'Yes'
-                        ? `${n} has exactly two factors (1 and ${n}), so it is prime.`
-                        : `${n} has more than two factors, so it is not prime.`,
+                        ? `A prime has exactly two factors: 1 and itself.\n${n} divides only by 1 and ${n}.\nSo ${n} is prime.`
+                        : `A prime has exactly two factors: 1 and itself.\n${n} has ${total} factors, more than two.\nSo ${n} is not prime.`,
             }
         }
         const n = randInt(6, 60)
@@ -311,7 +311,7 @@ const factors = {
             prompt: `How many factors does ${n} have?`,
             answer: total,
             type: 'integer',
-            explanation: `Counting every number that divides ${n} evenly gives ${total} factors.`,
+            explanation: `List every number that divides ${n} with no remainder.\nCount each one, including 1 and ${n}.\n${n} has ${total} factors.`,
         }
     },
 }
@@ -332,7 +332,7 @@ export default [
                 answer,
                 type: 'numeric',
                 tolerance: 0.005,
-                explanation: `${x.toFixed(2)} ${add ? '+' : '−'} ${y.toFixed(2)} = ${answer}.`,
+                explanation: `Line up the decimal points.\n${add ? 'Add' : 'Subtract'}: ${x.toFixed(2)} ${add ? '+' : '−'} ${y.toFixed(2)}.\nThat gives ${answer}.`,
             }
         },
     },
@@ -350,7 +350,7 @@ export default [
                 prompt: `What is ${n}/${d} of ${whole}?`,
                 answer,
                 type: 'integer',
-                explanation: `${whole} ÷ ${d} = ${whole / d}, then × ${n} = ${answer}.`,
+                explanation: `Split ${whole} into ${d} equal parts: ${whole} ÷ ${d} = ${whole / d}.\nTake ${n} of those parts: ${whole / d} × ${n}.\nThat gives ${answer}.`,
             }
         },
     },

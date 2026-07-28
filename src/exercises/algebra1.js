@@ -45,7 +45,7 @@ const skills = [
                     answer: m,
                     type: 'numeric',
                     tolerance: 0.02,
-                    explanation: `Parallel lines share the same slope: ${m}.`,
+                    explanation: `Parallel lines never meet, so they rise at the same rate.\nThat means they share the same slope.\nSlope = ${m}.`,
                 }
             }
             const answer = -1 / m
@@ -54,7 +54,7 @@ const skills = [
                 answer,
                 type: 'numeric',
                 tolerance: 0.02,
-                explanation: `Perpendicular slope is the negative reciprocal: −1/(${m}) = ${formatFraction(-1, m)}.`,
+                explanation: `Perpendicular slopes are negative reciprocals of each other.\nTake the reciprocal of ${m} and negate it: −1/(${m}).\nSlope = ${formatFraction(-1, m)}.`,
             }
         },
     },
@@ -73,7 +73,7 @@ const skills = [
                 answer,
                 type: 'text',
                 accepted: [`${outside}sqrt${inside}`],
-                explanation: `√${n} = √(${outside * outside}·${inside}) = ${outside}√${inside}.`,
+                explanation: `Find the largest perfect-square factor of ${n}: ${n} = ${outside * outside}·${inside}.\nSplit the root: √${n} = √${outside * outside}·√${inside}.\nTake √${outside * outside} = ${outside} outside: ${outside}√${inside}.`,
             }
         },
     },
@@ -98,7 +98,7 @@ const skills = [
                 answer,
                 type: 'numeric',
                 tolerance: 0.02,
-                explanation: `Collect x-terms and constants to get ${diff}x = ${D - b}, so x = ${formatFraction(D - b, diff)}.`,
+                explanation: `Move x-terms to the left and constants to the right: (${a} − ${c})x = ${D} − ${b}.\nSimplify both sides: ${diff}x = ${D - b}.\nDivide by ${diff}: x = ${formatFraction(D - b, diff)}.`,
             }
         },
     },
@@ -119,7 +119,7 @@ const skills = [
                 answer,
                 type: 'numeric',
                 tolerance: 0.02,
-                explanation: `slope = (y2 − y1)/(x2 − x1) = (${y2} − ${y1})/(${x2} − ${x1}) = ${formatFraction(y2 - y1, x2 - x1)}.`,
+                explanation: `Slope = (y2 − y1)/(x2 − x1).\nSubstitute the points: (${y2} − ${y1})/(${x2} − ${x1}) = ${y2 - y1}/${x2 - x1}.\nSimplify: ${formatFraction(y2 - y1, x2 - x1)}.`,
             }
         },
     },
@@ -141,7 +141,7 @@ const skills = [
                     answer,
                     type: 'text',
                     accepted: [`y =${polyLinear(m, b)}`],
-                    explanation: `b = y − mx = ${y1} − (${m})(${x1}) = ${b}, so the line is ${answer}.`,
+                    explanation: `Start from y = mx + b with m = ${m}; solve for b using the point: b = y − mx.\nSubstitute (${x1}, ${y1}): b = ${y1} − (${m})(${x1}) = ${b}.\nWrite the equation: ${answer}.`,
                 }
             }
             // Variant B: given the line, find y for a specific x.
@@ -151,7 +151,7 @@ const skills = [
                 prompt: `For the line y = ${polyLinear(m, b)}, find y when x = ${x0}.`,
                 answer,
                 type: 'integer',
-                explanation: `y = (${m})(${x0}) ${b >= 0 ? '+ ' + b : '− ' + Math.abs(b)} = ${answer}.`,
+                explanation: `Substitute x = ${x0} into y = ${polyLinear(m, b)}.\nCompute: y = (${m})(${x0}) ${b >= 0 ? '+ ' + b : '− ' + Math.abs(b)} = ${m * x0} ${b >= 0 ? '+ ' + b : '− ' + Math.abs(b)}.\nSo y = ${answer}.`,
             }
         },
     },
@@ -181,7 +181,7 @@ const skills = [
                     prompt: `Solve the system, then give x:\n  ${eq1}\n  ${eq2}`,
                     answer: x,
                     type: 'integer',
-                    explanation: `The solution is x = ${x}, y = ${y}.`,
+                    explanation: `Solve by elimination or substitution using both equations.\nThe only pair satisfying both is x = ${x}, y = ${y}.\nSo x = ${x}.`,
                 }
             }
             return {
@@ -189,7 +189,7 @@ const skills = [
                 answer: `(${x},${y})`,
                 type: 'text',
                 accepted: [`${x},${y}`, `x=${x},y=${y}`],
-                explanation: `Solving gives x = ${x} and y = ${y}, i.e. (${x}, ${y}).`,
+                explanation: `Solve by elimination or substitution using both equations.\nThe only pair satisfying both is x = ${x} and y = ${y}.\nWrite it as (${x}, ${y}).`,
             }
         },
     },
@@ -212,7 +212,7 @@ const skills = [
                 prompt: `Solve for x:  ${polyLinear(a, b)} ${disp[op]} ${c}`,
                 answer,
                 type: 'text',
-                explanation: `${polyLinear(a, b)} ${disp[op]} ${c}  →  ${a}x ${disp[op]} ${c - b}  →  ${answer}${a < 0 ? '  (sign flipped: divided by a negative)' : ''}.`,
+                explanation: `Subtract ${b} from both sides: ${a}x ${disp[op]} ${c - b}.\nDivide both sides by ${a}${a < 0 ? ', and flip the inequality because ' + a + ' is negative' : ''}.\nSo ${answer}.`,
             }
         },
     },
@@ -232,7 +232,7 @@ const skills = [
                 prompt: `Simplify:  (${polyLinear(a1, b1)}) + (${polyLinear(a2, b2)})`,
                 answer,
                 type: 'text',
-                explanation: `Combine x-terms (${a1} + ${a2} = ${a1 + a2}) and constants (${b1} + ${b2} = ${b1 + b2}) to get ${answer}.`,
+                explanation: `Group the like terms: (${a1}x + ${a2}x) + (${b1} + ${b2}).\nAdd x-coefficients: ${a1} + ${a2} = ${a1 + a2}; add constants: ${b1} + ${b2} = ${b1 + b2}.\nSo the result is ${answer}.`,
             }
         },
     },
@@ -269,7 +269,7 @@ const skills = [
                     prompt,
                     answer,
                     type: 'text',
-                    explanation: `Combine the exponents to get ${answer}.`,
+                    explanation: `Same base ${v}, so ${rule === 'product' ? 'add' : rule === 'power' ? 'multiply' : 'subtract'} the exponents.\nThat gives exponent ${e}.\nSo the result is ${answer}.`,
                 }
             }
             // Numeric variant -> integer answer.
@@ -297,7 +297,7 @@ const skills = [
                 prompt,
                 answer,
                 type: 'integer',
-                explanation: `The result is ${base}^${e} = ${answer}.`,
+                explanation: `Same base ${base}, so ${rule === 'product' ? 'add' : rule === 'power' ? 'multiply' : 'subtract'} the exponents to get exponent ${e}.\nThis leaves ${base}^${e}.\nEvaluate: ${base}^${e} = ${answer}.`,
             }
         },
     },
@@ -316,7 +316,7 @@ const skills = [
                 prompt: `Expand:  ${factorTerm(p)}${factorTerm(q)}`,
                 answer,
                 type: 'text',
-                explanation: `FOIL: x·x + (${p} + ${q})x + (${p})(${q}) = ${answer}.`,
+                explanation: `FOIL each pair: x·x = x^2, outer+inner = (${p} + ${q})x, last = (${p})(${q}).\nCombine: x^2 + ${B}x + ${C}.\nSo the result is ${answer}.`,
             }
         },
     },
@@ -336,7 +336,7 @@ const skills = [
                 answer,
                 type: 'text',
                 accepted: [`${factorTerm(q)}${factorTerm(p)}`],
-                explanation: `Find two numbers that multiply to ${C} and add to ${B}: ${p} and ${q}. So ${answer}.`,
+                explanation: `Look for two numbers that multiply to ${C} and add to ${B}.\nThose numbers are ${p} and ${q}.\nSo the factored form is ${answer}.`,
             }
         },
     },
@@ -357,7 +357,7 @@ const skills = [
                 answer,
                 type: 'text',
                 accepted: [`${r2},${r1}`],
-                explanation: `Factor as ${factorTerm(-r1)}${factorTerm(-r2)} = 0, so x = ${r1} or x = ${r2}.`,
+                explanation: `Factor the quadratic: ${factorTerm(-r1)}${factorTerm(-r2)} = 0.\nSet each factor to 0: x ${-r1 >= 0 ? '+ ' + -r1 : '− ' + r1} = 0 or x ${-r2 >= 0 ? '+ ' + -r2 : '− ' + r2} = 0.\nSo x = ${r1} or x = ${r2}.`,
             }
         },
     },
@@ -376,7 +376,7 @@ const skills = [
                 prompt: `If f(x) = ${polyQuad(a, b, c)}, find f(${x0}).`,
                 answer,
                 type: 'integer',
-                explanation: `f(${x0}) = ${a}·(${x0})^2 + ${b}·(${x0}) + ${c} = ${answer}.`,
+                explanation: `Substitute x = ${x0}: f(${x0}) = ${a}·(${x0})^2 + ${b}·(${x0}) + ${c}.\nEvaluate each term: ${a * x0 * x0} + ${b * x0} + ${c}.\nSo f(${x0}) = ${answer}.`,
             }
         },
     },

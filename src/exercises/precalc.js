@@ -46,7 +46,7 @@ const composition = {
             prompt: `Let f(x) = ${linear(a, b)} and g(x) = ${linear(c, d)}. Find f(g(${p})).`,
             answer: value,
             type: 'integer',
-            explanation: `g(${p}) = ${c}*${p} + ${d} = ${inner}, then f(${inner}) = ${a}*${inner} + ${b} = ${value}.`,
+            explanation: `Evaluate the inner function first: g(${p}) = ${c}*${p} + ${d} = ${inner}.\nApply f to that result: f(${inner}) = ${a}*${inner} + ${b} = ${value}.\nSo f(g(${p})) = ${value}.`,
         }
     },
 }
@@ -66,7 +66,7 @@ const inverse = {
             answer: x,
             type: 'numeric',
             tolerance: 0.01,
-            explanation: `Solve ${a}x + ${b} = ${value}: x = (${value} - ${b}) / ${a} = ${x}.`,
+            explanation: `Set the output equal to ${value}: ${a}x + ${b} = ${value}.\nIsolate x: x = (${value} - ${b}) / ${a}.\nSo x = ${x}.`,
         }
     },
 }
@@ -97,7 +97,7 @@ const endBehavior = {
             answer,
             type: 'choice',
             choices,
-            explanation: `Degree ${degree} is ${even ? 'even' : 'odd'} and the leading coefficient is ${positive ? 'positive' : 'negative'}, so the ends go ${correct}.`,
+            explanation: `Degree ${degree} is ${even ? 'even, so both ends point the same way' : 'odd, so the ends point opposite ways'}.\nThe leading coefficient is ${positive ? 'positive' : 'negative'}, so the right end goes ${positive ? 'up' : 'down'}.\nSo the end behavior (left, right) is ${correct}.`,
         }
     },
 }
@@ -118,7 +118,7 @@ const rationalDomain = {
             answer: excluded,
             type: 'numeric',
             tolerance: 0.01,
-            explanation: `The denominator is zero when ${denom} = 0, i.e. x = ${c} / ${a} = ${excluded}. That value is excluded.`,
+            explanation: `A rational function is undefined where its denominator is 0.\nSolve ${denom} = 0: x = ${c} / ${a} = ${excluded}.\nSo x = ${excluded} is excluded from the domain.`,
         }
     },
 }
@@ -138,7 +138,7 @@ const expLog = {
                 answer: k,
                 type: 'numeric',
                 tolerance: 0.001,
-                explanation: `${base} to the power ${k} = ${value}, so x = ${k}.`,
+                explanation: `Write ${value} as a power of the base ${base}.\nSince ${base} to the power ${k} = ${value}, the exponents must match.\nSo x = ${k}.`,
             }
         }
         return {
@@ -146,7 +146,7 @@ const expLog = {
             answer: k,
             type: 'numeric',
             tolerance: 0.001,
-            explanation: `${base} to the power ${k} = ${value}, so log base ${base} of ${value} = ${k}.`,
+            explanation: `A logarithm asks: ${base} to what power gives ${value}?\nSince ${base} to the power ${k} = ${value}, that power is ${k}.\nSo log base ${base} of ${value} = x = ${k}.`,
         }
     },
 }
@@ -165,7 +165,7 @@ const trigIdentity = {
                 answer: 1,
                 type: 'numeric',
                 tolerance: 0.001,
-                explanation: `By the Pythagorean identity, sin(t)*sin(t) + cos(t)*cos(t) = 1 for every angle t.`,
+                explanation: `Apply the Pythagorean identity sin(t)*sin(t) + cos(t)*cos(t) = 1.\nThis holds for every angle, including t = ${a} deg.\nSo the value is 1.`,
             }
         }
         if (kind === 'secTan') {
@@ -174,7 +174,7 @@ const trigIdentity = {
                 answer: 1,
                 type: 'numeric',
                 tolerance: 0.001,
-                explanation: `Since sec(t)*sec(t) - tan(t)*tan(t) = 1 for every angle t, the value is 1.`,
+                explanation: `Apply the identity sec(t)*sec(t) - tan(t)*tan(t) = 1.\nThis holds for every angle, including t = ${a} deg.\nSo the value is 1.`,
             }
         }
         if (kind === 'cofunction') {
@@ -183,7 +183,7 @@ const trigIdentity = {
                 answer: 90 - a,
                 type: 'numeric',
                 tolerance: 0.001,
-                explanation: `sin(t) = cos(90 - t), so x = 90 - ${a} = ${90 - a}.`,
+                explanation: `Use the cofunction identity sin(t) = cos(90 - t).\nSo cos(x deg) = sin(${a} deg) = cos(90 - ${a} deg).\nMatching angles: x = 90 - ${a} = ${90 - a}.`,
             }
         }
         // double-angle: 2 sin(t) cos(t) = sin(2t)
@@ -193,7 +193,7 @@ const trigIdentity = {
             answer: val,
             type: 'numeric',
             tolerance: 0.01,
-            explanation: `2 sin(${a} deg) cos(${a} deg) = sin(${2 * a} deg) = ${val}.`,
+            explanation: `Apply the double-angle identity 2 sin(t) cos(t) = sin(2t).\nWith t = ${a} deg: 2 sin(${a} deg) cos(${a} deg) = sin(${2 * a} deg).\nSo the value is ${val}.`,
         }
     },
 }
@@ -213,7 +213,7 @@ const vectors = {
                 answer: mag,
                 type: 'numeric',
                 tolerance: 0.01,
-                explanation: `magnitude = sqrt(${a}*${a} + ${b}*${b}) = sqrt(${a * a + b * b}) = ${mag}.`,
+                explanation: `Magnitude uses |<x, y>| = sqrt(x^2 + y^2).\nSubstitute: sqrt(${a}*${a} + ${b}*${b}) = sqrt(${a * a + b * b}).\nSo the magnitude is ${mag}.`,
             }
         }
         const c = randNonZero(-8, 8)
@@ -223,7 +223,7 @@ const vectors = {
             prompt: `Find the dot product of <${a}, ${b}> and <${c}, ${d}>.`,
             answer: dot,
             type: 'integer',
-            explanation: `dot = (${a})(${c}) + (${b})(${d}) = ${a * c} + ${b * d} = ${dot}.`,
+            explanation: `Dot product = (x1)(x2) + (y1)(y2).\nSubstitute: (${a})(${c}) + (${b})(${d}) = ${a * c} + ${b * d}.\nSo the dot product is ${dot}.`,
         }
     },
 }
@@ -244,7 +244,7 @@ const matrix = {
                 prompt: `Find the determinant of the matrix [[${a}, ${b}], [${c}, ${d}]].`,
                 answer: det,
                 type: 'integer',
-                explanation: `det = (${a})(${d}) - (${b})(${c}) = ${a * d} - ${b * c} = ${det}.`,
+                explanation: `Determinant of [[a, b], [c, d]] is a*d - b*c.\nSubstitute: (${a})(${d}) - (${b})(${c}) = ${a * d} - ${b * c}.\nSo the determinant is ${det}.`,
             }
         }
         const e = randInt(-6, 6)
@@ -256,7 +256,7 @@ const matrix = {
                 `Find the top-left entry of the product A*B.`,
             answer: entry,
             type: 'integer',
-            explanation: `(A*B) top-left = (${a})(${e}) + (${b})(${g}) = ${a * e} + ${b * g} = ${entry}.`,
+            explanation: `The top-left entry of A*B is (row 1 of A) dot (column 1 of B).\nSubstitute: (${a})(${e}) + (${b})(${g}) = ${a * e} + ${b * g}.\nSo the top-left entry is ${entry}.`,
         }
     },
 }
@@ -276,7 +276,7 @@ const geometricSum = {
             answer: sum,
             type: 'numeric',
             tolerance: 0.01,
-            explanation: `Sum = a*(1 - r to the power n)/(1 - r) = ${first}*(1 - ${r} to the power ${n})/(1 - ${r}) = ${sum}.`,
+            explanation: `Use the finite geometric sum S = a*(1 - r^n)/(1 - r).\nSubstitute a = ${first}, r = ${r}, n = ${n}: ${first}*(1 - ${r}^${n})/(1 - ${r}).\nSo the sum is ${sum}.`,
         }
     },
 }
@@ -294,7 +294,7 @@ const binomial = {
             prompt: `In the expansion of (x + y) to the power ${n}, what is the coefficient of the term x to the power ${n - k} times y to the power ${k}?`,
             answer: coef,
             type: 'integer',
-            explanation: `The coefficient is n-choose-k = ${n}-choose-${k} = ${coef}.`,
+            explanation: `In (x + y)^${n}, the term x^${n - k} y^${k} comes from choosing ${k} y's.\nIts coefficient is the binomial coefficient ${n}-choose-${k}.\nSo the coefficient is ${coef}.`,
         }
     },
 }
@@ -314,7 +314,7 @@ const polar = {
                 answer: r,
                 type: 'numeric',
                 tolerance: 0.05,
-                explanation: `r = sqrt(${x}*${x} + ${y}*${y}) = ${r}.`,
+                explanation: `Convert with r = sqrt(x^2 + y^2).\nSubstitute: sqrt(${x}*${x} + ${y}*${y}) = sqrt(${x * x + y * y}).\nSo r = ${r}.`,
             }
         }
         const r = randInt(2, 9)
@@ -325,7 +325,7 @@ const polar = {
             answer: x,
             type: 'numeric',
             tolerance: 0.05,
-            explanation: `x = r*cos(theta) = ${r}*cos(${theta} deg) = ${x}.`,
+            explanation: `Convert with x = r*cos(theta).\nSubstitute: ${r}*cos(${theta} deg).\nSo x = ${x}.`,
         }
     },
 }
@@ -347,7 +347,7 @@ export default [
                 answer,
                 type: 'numeric',
                 tolerance: 0.02,
-                explanation: `(f(${q}) − f(${p})) / (${q} − ${p}) = (${f(q)} − ${f(p)}) / ${q - p} = ${answer}.`,
+                explanation: `Average rate of change = (f(${q}) − f(${p})) / (${q} − ${p}).\nSubstitute: (${f(q)} − ${f(p)}) / ${q - p}.\nSo the average rate of change is ${answer}.`,
             }
         },
     },
@@ -364,7 +364,7 @@ export default [
                     prompt: `Evaluate:  Σ (i=1 to ${n}) of i^2`,
                     answer,
                     type: 'integer',
-                    explanation: `Σi² = n(n+1)(2n+1)/6 = ${answer}.`,
+                    explanation: `Use the sum-of-squares formula Σi² = n(n+1)(2n+1)/6.\nSubstitute n = ${n}: ${n}(${n}+1)(2·${n}+1)/6.\nSo the sum is ${answer}.`,
                 }
             }
             const a = randInt(1, 4)
@@ -375,7 +375,7 @@ export default [
                 prompt: `Evaluate:  Σ (i=1 to ${n}) of ${inner}`,
                 answer,
                 type: 'integer',
-                explanation: `${a}·Σi + ${b}·${n} = ${a}·${(n * (n + 1)) / 2} + ${b * n} = ${answer}.`,
+                explanation: `Split the sum: Σ(${a}i + ${b}) = ${a}·Σi + ${b}·${n}.\nSubstitute Σi = ${(n * (n + 1)) / 2}: ${a}·${(n * (n + 1)) / 2} + ${b * n}.\nSo the sum is ${answer}.`,
             }
         },
     },

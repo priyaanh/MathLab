@@ -66,7 +66,7 @@ const skills = [
                 prompt: `Solve for x:  ${a}/${b} = x/${c}`,
                 answer,
                 type: 'integer',
-                explanation: `${c} ÷ ${b} = ${k}, so x = ${a} × ${k} = ${answer}.`,
+                explanation: `The denominator grows from ${b} to ${c}: ${c} ÷ ${b} = ${k}.\nMultiply the numerator by the same factor: x = ${a} × ${k}.\nx = ${answer}.`,
             }
         },
     },
@@ -83,7 +83,7 @@ const skills = [
                 prompt: `Evaluate:  |${a} − (${b})|`,
                 answer,
                 type: 'integer',
-                explanation: `${a} − (${b}) = ${a - b}, and |${a - b}| = ${answer}.`,
+                explanation: `Subtract inside the bars: ${a} − (${b}) = ${a - b}.\nAbsolute value is the distance from 0, so |${a - b}| = ${answer}.\nAnswer: ${answer}.`,
             }
         },
     },
@@ -118,7 +118,10 @@ const skills = [
                 prompt,
                 answer,
                 type: 'integer',
-                explanation: `${prompt.replace(' = ?', '')} = ${fmt(answer)}.`,
+                explanation:
+                    op === '×'
+                        ? `Multiply the values: ${Math.abs(a)} × ${Math.abs(b)} = ${Math.abs(answer)}.\nSame signs give a positive, different signs a negative, so the result is ${a * b < 0 ? 'negative' : 'positive'}.\n${fmt(a)} × ${fmt(b)} = ${fmt(answer)}.`
+                        : `Start at ${fmt(a)} on the number line.\n${op === '+' ? 'Adding' : 'Subtracting'} ${b} ${op === '+' ? 'moves right' : 'moves left'} to ${fmt(answer)}.\n${fmt(a)} ${op} ${b} = ${fmt(answer)}.`,
             }
         },
     },
@@ -137,7 +140,7 @@ const skills = [
                     prompt: `${a} + ${b} × ${c}^2 = ?`,
                     answer,
                     type: 'integer',
-                    explanation: `${c}^2 = ${c * c}, then ${b} × ${c * c} = ${b * c * c}, then ${a} + ${b * c * c} = ${answer}.`,
+                    explanation: `Exponent first: ${c}^2 = ${c * c}.\nThen multiply: ${b} × ${c * c} = ${b * c * c}.\nThen add: ${a} + ${b * c * c} = ${answer}.`,
                 }
             }
             const a = randInt(1, 6)
@@ -148,7 +151,7 @@ const skills = [
                 prompt: `(${a} + ${b})^2 − ${c} = ?`,
                 answer,
                 type: 'integer',
-                explanation: `(${a} + ${b}) = ${a + b}, ${a + b}^2 = ${(a + b) ** 2}, then ${(a + b) ** 2} − ${c} = ${fmt(answer)}.`,
+                explanation: `Parentheses first: (${a} + ${b}) = ${a + b}.\nThen the exponent: ${a + b}^2 = ${(a + b) ** 2}.\nThen subtract: ${(a + b) ** 2} − ${c} = ${fmt(answer)}.`,
             }
         },
     },
@@ -166,7 +169,7 @@ const skills = [
                 prompt: `What is the GCF of ${a} and ${b}?`,
                 answer,
                 type: 'integer',
-                explanation: `The greatest common factor of ${a} and ${b} is ${answer}.`,
+                explanation: `List the factors each number shares.\n${answer} divides both: ${a} = ${answer} × ${a / answer} and ${b} = ${answer} × ${b / answer}.\nNo larger number divides both, so the GCF is ${answer}.`,
             }
         },
     },
@@ -183,7 +186,7 @@ const skills = [
                 prompt: `What is the LCM of ${a} and ${b}?`,
                 answer,
                 type: 'integer',
-                explanation: `The least common multiple of ${a} and ${b} is ${answer}.`,
+                explanation: `The LCM must be a multiple of both ${a} and ${b}.\nCheck: ${answer} = ${a} × ${answer / a} and ${answer} = ${b} × ${answer / b}.\nThe smallest such multiple is ${answer}.`,
             }
         },
     },
@@ -218,7 +221,7 @@ const skills = [
                 answer: exponentForm,
                 type: 'text',
                 accepted,
-                explanation: `${n} = ${expanded} = ${exponentForm}.`,
+                explanation: `Break ${n} into prime factors: ${n} = ${expanded}.\nGroup repeated primes as powers.\n${n} = ${exponentForm}.`,
             }
         },
     },
@@ -235,7 +238,7 @@ const skills = [
                 prompt: `$${total} for ${qty} items. What is the cost per 1 item, in dollars?`,
                 answer: per,
                 type: 'integer',
-                explanation: `${total} ÷ ${qty} = ${per}, so each item costs $${per}.`,
+                explanation: `Unit rate means cost for 1 item, so divide total by quantity.\n${total} ÷ ${qty} = ${per}.\nEach item costs $${per}.`,
             }
         },
     },
@@ -252,7 +255,7 @@ const skills = [
                 prompt: `What is ${p}% of ${base}?`,
                 answer,
                 type: 'numeric',
-                explanation: `${p}% of ${base} = ${p}/100 × ${base} = ${answer}.`,
+                explanation: `Write the percent as a fraction: ${p}% = ${p}/100.\nMultiply by the number: ${p}/100 × ${base}.\n${p}% of ${base} = ${answer}.`,
             }
         },
     },
@@ -273,7 +276,7 @@ const skills = [
                 answer: p,
                 type: 'numeric',
                 tolerance: 0.1,
-                explanation: `Change = ${Math.abs(updated - original)}; ${Math.abs(updated - original)} ÷ ${original} × 100 = ${p}% ${dir}.`,
+                explanation: `Find the change: |${updated} − ${original}| = ${Math.abs(updated - original)}.\nDivide by the original and multiply by 100: ${Math.abs(updated - original)} ÷ ${original} × 100.\nThat is a ${p}% ${dir}.`,
             }
         },
     },
@@ -291,7 +294,7 @@ const skills = [
                     prompt: `Solve for x:  x ${withSign(a)} = ${fmt(b)}`,
                     answer: x,
                     type: 'integer',
-                    explanation: `Subtract ${fmt(a)} from both sides: x = ${fmt(b)} − (${fmt(a)}) = ${fmt(x)}.`,
+                    explanation: `Undo the addition by subtracting ${fmt(a)} from both sides.\nx = ${fmt(b)} − (${fmt(a)}).\nx = ${fmt(x)}.`,
                 }
             }
             const a = randNonZero(2, 12)
@@ -301,7 +304,7 @@ const skills = [
                 prompt: `Solve for x:  ${a}x = ${fmt(b)}`,
                 answer: x,
                 type: 'integer',
-                explanation: `Divide both sides by ${a}: x = ${fmt(b)} ÷ ${a} = ${fmt(x)}.`,
+                explanation: `Undo the multiplication by dividing both sides by ${a}.\nx = ${fmt(b)} ÷ ${a}.\nx = ${fmt(x)}.`,
             }
         },
     },
@@ -319,7 +322,7 @@ const skills = [
                 prompt: `Solve for x:  ${a}x ${withSign(b)} = ${fmt(c)}`,
                 answer: x,
                 type: 'integer',
-                explanation: `Subtract ${fmt(b)}: ${a}x = ${fmt(c - b)}. Divide by ${a}: x = ${fmt(x)}.`,
+                explanation: `Subtract ${fmt(b)} from both sides: ${a}x = ${fmt(c - b)}.\nDivide both sides by ${a}: x = ${fmt(c - b)} ÷ ${a}.\nx = ${fmt(x)}.`,
             }
         },
     },
@@ -336,7 +339,7 @@ const skills = [
                 prompt: `${base}^${exp} = ?`,
                 answer,
                 type: 'integer',
-                explanation: `${base}^${exp} = ${Array(exp).fill(base).join(' × ')} = ${answer}.`,
+                explanation: `The exponent means multiply ${base} by itself ${exp} times.\n${base}^${exp} = ${Array(exp).fill(base).join(' × ')}.\n= ${answer}.`,
             }
         },
     },
@@ -360,7 +363,7 @@ const skills = [
                 answer,
                 type: 'choice',
                 choices,
-                explanation: `x is ${x > 0 ? 'positive' : 'negative'} and y is ${y > 0 ? 'positive' : 'negative'}, so the point is in Quadrant ${correct}.`,
+                explanation: `Check the sign of x: ${fmt(x)} is ${x > 0 ? 'positive (right)' : 'negative (left)'}.\nCheck the sign of y: ${fmt(y)} is ${y > 0 ? 'positive (up)' : 'negative (down)'}.\nThat corner is Quadrant ${correct}.`,
             }
         },
     },
@@ -389,7 +392,7 @@ const skills = [
                 answer,
                 type: 'text',
                 accepted,
-                explanation: `There are ${count} ${name} out of ${total} marbles, so P(${name}) = ${count}/${total} = ${answer}.`,
+                explanation: `Probability = favorable ÷ total: there are ${count} ${name} out of ${total} marbles.\nP(${name}) = ${count}/${total}.\nReduce to lowest terms: ${answer}.`,
             }
         },
     },

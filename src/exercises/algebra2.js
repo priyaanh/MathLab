@@ -79,7 +79,7 @@ const skills = [
                 answer,
                 type: 'text',
                 accepted: [`${h},${k}`],
-                explanation: `h = −b/2a = ${h}; k = ${k}. Vertex (${h}, ${k}).`,
+                explanation: `Find h with h = −b/(2a), where a = 1 and b = ${b}.\nh = −(${b})/2 = ${h}.\nFind k by evaluating: ${c} − (${h})^2 = ${k}.\nSo the vertex is (${h}, ${k}).`,
             }
         },
     },
@@ -97,7 +97,7 @@ const skills = [
                 prompt: `Find the modulus:  |${a} ${b >= 0 ? '+' : '−'} ${Math.abs(b)}i|`,
                 answer: c,
                 type: 'integer',
-                explanation: `|a+bi| = √(a²+b²) = √(${a * a}+${b * b}) = √${a * a + b * b} = ${c}.`,
+                explanation: `Use |a+bi| = √(a²+b²).\nSubstitute a = ${a}, b = ${b}: √(${a * a} + ${b * b}).\n= √${a * a + b * b} = ${c}.`,
             }
         },
     },
@@ -122,7 +122,7 @@ const skills = [
                 answer: `${r1},${r2}`,
                 type: 'text',
                 accepted: [`${r2},${r1}`],
-                explanation: `${poly} factors as (x − ${r1})(x − ${r2}), so the roots are x = ${r1} and x = ${r2}.`,
+                explanation: `Find two numbers with product ${c} and sum ${-b}.\n${poly} factors as (x − ${r1})(x − ${r2}).\nSet each factor to 0: x = ${r1} and x = ${r2}.`,
             }
         },
     },
@@ -153,7 +153,7 @@ const skills = [
                 answer,
                 type: 'text',
                 accepted,
-                explanation: `Combine like terms (using i² = −1 for products) to get ${answer}.`,
+                explanation: `Group like terms, using i² = −1 for any products.\nReal part = ${re}; imaginary part = ${im}.\nWrite in a+bi form: ${answer}.`,
             }
         },
     },
@@ -171,7 +171,7 @@ const skills = [
                 prompt: `Evaluate log_${base}(${x}).`,
                 answer: k,
                 type: 'integer',
-                explanation: `${base}^${k} = ${x}, so log_${base}(${x}) = ${k}.`,
+                explanation: `log_${base}(${x}) asks: ${base} to what power gives ${x}?\n${base}^${k} = ${x}.\nSo log_${base}(${x}) = ${k}.`,
             }
         },
     },
@@ -189,7 +189,7 @@ const skills = [
                 prompt: `Solve for x:  ${base}^x = ${value}.`,
                 answer: x,
                 type: 'integer',
-                explanation: `${base}^${x} = ${value}, so x = ${x}.`,
+                explanation: `Rewrite the right side as a power of ${base}.\n${base}^x = ${value} = ${base}^${x}.\nEqual bases mean equal exponents, so x = ${x}.`,
             }
         },
     },
@@ -211,7 +211,7 @@ const skills = [
                     answer,
                     type: 'text',
                     accepted,
-                    explanation: `log_${base}(m) + log_${base}(n) = log_${base}(m·n) = log_${base}(${m * n}).`,
+                    explanation: `Product rule: log_b(m) + log_b(n) = log_b(m·n).\nMultiply the arguments: ${m}·${n} = ${m * n}.\nSo the answer is log_${base}(${m * n}).`,
                 }
             }
             if (kind === 'diff') {
@@ -224,7 +224,7 @@ const skills = [
                     answer,
                     type: 'text',
                     accepted,
-                    explanation: `log_${base}(${m}) − log_${base}(${dv}) = log_${base}(${m}/${dv}) = log_${base}(${q}).`,
+                    explanation: `Quotient rule: log_b(m) − log_b(n) = log_b(m/n).\nDivide the arguments: ${m}/${dv} = ${q}.\nSo the answer is log_${base}(${q}).`,
                 }
             }
             const x = randInt(2, 7)
@@ -242,7 +242,7 @@ const skills = [
                 answer,
                 type: 'text',
                 accepted,
-                explanation: `log_${base}(x^k) = k·log_${base}(x), so log_${base}(${x}^${k}) = ${k}log_${base}(${x}).`,
+                explanation: `Power rule: log_b(x^k) = k·log_b(x).\nBring the exponent ${k} out in front.\nSo log_${base}(${x}^${k}) = ${k}log_${base}(${x}).`,
             }
         },
     },
@@ -261,7 +261,7 @@ const skills = [
                 prompt: `An arithmetic sequence has first term a₁ = ${a1} and common difference d = ${dd}. Find the ${ordinal(n)} term.`,
                 answer,
                 type: 'integer',
-                explanation: `aₙ = a₁ + (n − 1)d = ${a1} + (${n} − 1)(${dd}) = ${answer}.`,
+                explanation: `Use aₙ = a₁ + (n − 1)d.\nSubstitute a₁ = ${a1}, d = ${dd}, n = ${n}: ${a1} + (${n} − 1)(${dd}).\n= ${a1} + ${(n - 1) * dd} = ${answer}.`,
             }
         },
     },
@@ -280,7 +280,7 @@ const skills = [
                 prompt: `A geometric sequence has first term a₁ = ${a1} and common ratio r = ${r}. Find the ${ordinal(n)} term.`,
                 answer,
                 type: 'integer',
-                explanation: `aₙ = a₁ · r^(n−1) = ${a1} · (${r})^${n - 1} = ${answer}.`,
+                explanation: `Use aₙ = a₁ · r^(n−1).\nSubstitute a₁ = ${a1}, r = ${r}, n = ${n}: ${a1} · (${r})^${n - 1}.\n= ${a1} · ${r ** (n - 1)} = ${answer}.`,
             }
         },
     },
@@ -312,7 +312,7 @@ const skills = [
                 answer,
                 type: 'text',
                 accepted: [...new Set(accepted)],
-                explanation: `${func} θ = ${func === 'tan' ? 'opposite/adjacent' : func === 'sin' ? 'opposite/hypotenuse' : 'adjacent/hypotenuse'} = ${num}/${den} = ${answer}.`,
+                explanation: `${func} θ = ${func === 'tan' ? 'opposite/adjacent' : func === 'sin' ? 'opposite/hypotenuse' : 'adjacent/hypotenuse'}.\nSubstitute the side lengths: ${num}/${den}.\nSimplify: ${answer}.`,
             }
         },
     },
@@ -331,14 +331,14 @@ const skills = [
                     answer: display,
                     type: 'text',
                     accepted: [pi],
-                    explanation: `${deg}° × π/180° = ${display} radians.`,
+                    explanation: `To convert degrees to radians, multiply by π/180°.\n${deg}° × π/180° = ${display}.\nSo ${deg}° = ${display} radians.`,
                 }
             }
             return {
                 prompt: `Convert ${display} radians to degrees.`,
                 answer: deg,
                 type: 'integer',
-                explanation: `${display} × 180°/π = ${deg}°.`,
+                explanation: `To convert radians to degrees, multiply by 180°/π.\n${display} × 180°/π = ${deg}°.\nSo ${display} radians = ${deg}°.`,
             }
         },
     },
@@ -385,7 +385,7 @@ const skills = [
                 answer,
                 type: 'text',
                 accepted: [...new Set(accepted)],
-                explanation: `${func}(${deg}°) = ${answer}.`,
+                explanation: `Locate ${deg}° on the unit circle.\nRead ${func} from its reference angle, keeping the correct sign.\n${func}(${deg}°) = ${answer}.`,
             }
         },
     },
@@ -406,7 +406,7 @@ const skills = [
                     answer: a,
                     type: 'numeric',
                     tolerance: 0.05,
-                    explanation: `a = √(b² + c² − 2bc·cos A) = √(${b}² + ${c}² − 2·${b}·${c}·cos ${A}°) ≈ ${round(a, 2)}.`,
+                    explanation: `Law of cosines: a = √(b² + c² − 2bc·cos A).\nSubstitute b = ${b}, c = ${c}, A = ${A}°: √(${b}² + ${c}² − 2·${b}·${c}·cos ${A}°).\n≈ ${round(a, 2)}.`,
                 }
             }
             const A = choice([30, 40, 45, 50, 60])
@@ -418,7 +418,7 @@ const skills = [
                 answer: b,
                 type: 'numeric',
                 tolerance: 0.05,
-                explanation: `By the law of sines, b = a·sin B / sin A = ${a}·sin ${B}° / sin ${A}° ≈ ${round(b, 2)}.`,
+                explanation: `Law of sines: a/sin A = b/sin B, so b = a·sin B / sin A.\nSubstitute a = ${a}, A = ${A}°, B = ${B}°: ${a}·sin ${B}° / sin ${A}°.\n≈ ${round(b, 2)}.`,
             }
         },
     },

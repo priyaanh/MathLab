@@ -20,7 +20,7 @@ const skills = [
                 prompt: `What is 10 ${more ? 'more than' : 'less than'} ${n}?`,
                 answer,
                 type: 'integer',
-                explanation: `${n} ${more ? '+' : '−'} 10 = ${answer}.`,
+                explanation: `Start at ${n}.\n${more ? 'Add' : 'Take away'} 10: ${n} ${more ? '+' : '−'} 10.\nSo the answer is ${answer}.`,
             }
         },
     },
@@ -37,7 +37,7 @@ const skills = [
                 prompt: `Fill in the blank:  ${a} + ___ = ${sum}`,
                 answer,
                 type: 'integer',
-                explanation: `${sum} − ${a} = ${answer}.`,
+                explanation: `We need ${a} plus a number to make ${sum}.\nTo find it, subtract: ${sum} − ${a}.\nThe missing number is ${answer}.`,
             }
         },
     },
@@ -55,7 +55,7 @@ const skills = [
                 prompt: `What number comes ${dir} ${n}?`,
                 answer,
                 type: 'integer',
-                explanation: `The number just ${dir} ${n} is ${answer}.`,
+                explanation: `Start at ${n}.\nThe number just ${dir} means ${dir === 'after' ? 'count up 1' : 'count back 1'}: ${n} ${dir === 'after' ? '+' : '−'} 1.\nSo the answer is ${answer}.`,
             }
         },
     },
@@ -72,7 +72,7 @@ const skills = [
                 prompt: `${a} + ${b} = ?`,
                 answer,
                 type: 'integer',
-                explanation: `${a} + ${b} = ${answer}.`,
+                explanation: `Start with ${a}.\nCount up ${b} more.\nThat gives ${a} + ${b} = ${answer}.`,
             }
         },
     },
@@ -89,7 +89,7 @@ const skills = [
                 prompt: `${a} − ${b} = ?`,
                 answer,
                 type: 'integer',
-                explanation: `${a} − ${b} = ${answer}.`,
+                explanation: `Start with ${a}.\nTake away ${b}.\nThat leaves ${a} − ${b} = ${answer}.`,
             }
         },
     },
@@ -109,7 +109,7 @@ const skills = [
                 answer,
                 type: 'choice',
                 choices,
-                explanation: `${a} ${correct} ${b}, so the sign is "${correct}".`,
+                explanation: `Compare ${a} and ${b}.\n${a} is ${correct === '>' ? 'bigger than' : correct === '<' ? 'smaller than' : 'equal to'} ${b}.\nSo the sign is "${correct}".`,
             }
         },
     },
@@ -126,7 +126,7 @@ const skills = [
                 prompt: `In ${n}, how many ${place}?`,
                 answer,
                 type: 'integer',
-                explanation: `${n} has ${Math.floor(n / 10)} tens and ${n % 10} ones, so the ${place} digit is ${answer}.`,
+                explanation: `Split ${n} into tens and ones.\n${n} has ${Math.floor(n / 10)} tens and ${n % 10} ones.\nSo the ${place} digit is ${answer}.`,
             }
         },
     },
@@ -144,7 +144,7 @@ const skills = [
                 prompt: `Next number in: ${seq.join(', ')}, __`,
                 answer,
                 type: 'integer',
-                explanation: `The pattern counts by ${step}, so after ${seq[2]} comes ${answer}.`,
+                explanation: `Each number goes up by ${step}.\nAdd ${step} to the last number: ${seq[2]} + ${step}.\nSo the next number is ${answer}.`,
             }
         },
     },
@@ -170,7 +170,7 @@ const skills = [
                 answer,
                 type: 'choice',
                 choices,
-                explanation: `A ${target.name} has ${target.sides} sides.`,
+                explanation: `We want the shape with ${target.sides} sides.\nCount the sides of each shape.\nA ${target.name} has ${target.sides} sides.`,
             }
         },
     },
@@ -192,7 +192,7 @@ const skills = [
                 prompt: `${a} + ${b} = ?`,
                 answer,
                 type: 'integer',
-                explanation: `Add ones (${aOnes} + ${bOnes} = ${aOnes + bOnes}) and tens (${aTens * 10} + ${bTens * 10} = ${(aTens + bTens) * 10}) to get ${answer}.`,
+                explanation: `Add the ones: ${aOnes} + ${bOnes} = ${aOnes + bOnes}.\nAdd the tens: ${aTens * 10} + ${bTens * 10} = ${(aTens + bTens) * 10}.\nPut them together to get ${answer}.`,
             }
         },
     },

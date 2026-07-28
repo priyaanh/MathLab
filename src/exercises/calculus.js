@@ -61,7 +61,7 @@ const skills = [
                 prompt: `If f(x) = ${poly}, find f''(${x0}).`,
                 answer,
                 type: 'integer',
-                explanation: `f'(x) = ${3 * a}x² + ${2 * b}x + ${c}; f''(x) = ${6 * a}x + ${2 * b}; f''(${x0}) = ${answer}.`,
+                explanation: `Power rule once: f'(x) = ${3 * a}x² + ${2 * b}x + ${c}.\nDifferentiate again: f''(x) = ${6 * a}x + ${2 * b}.\nSubstitute x = ${x0}: f''(${x0}) = ${6 * a}(${x0}) + ${2 * b} = ${answer}.`,
             }
         },
     },
@@ -80,7 +80,7 @@ const skills = [
                 prompt: `Let f(x) = ${t(a)}${t(b)}. Find f'(${x0}).`,
                 answer,
                 type: 'integer',
-                explanation: `f'(x) = ${t(b)} + ${t(a)} = 2x + ${a + b}; f'(${x0}) = ${answer}.`,
+                explanation: `Product rule: f'(x) = (first)'·(second) + (first)·(second)' = ${t(b)} + ${t(a)}.\nCombine: f'(x) = 2x + ${a + b}.\nSubstitute x = ${x0}: f'(${x0}) = 2(${x0}) + ${a + b} = ${answer}.`,
             }
         },
     },
@@ -100,7 +100,7 @@ const skills = [
                 prompt: `Evaluate the limit: lim x→${p} of (${f}).`,
                 answer,
                 type: 'integer',
-                explanation: `The polynomial is continuous, so substitute x = ${p}: ${a}(${p})^2 + ${b}(${p}) + ${c} = ${answer}.`,
+                explanation: `A polynomial is continuous everywhere, so the limit equals the value at x = ${p}.\nSubstitute: ${a}(${p})^2 + ${b}(${p}) + ${c}.\nEvaluate: = ${answer}.`,
             }
         },
     },
@@ -123,7 +123,7 @@ const skills = [
                 prompt: `Evaluate the limit: lim x→${r} of (${num}) / (${den}).`,
                 answer,
                 type: 'integer',
-                explanation: `The numerator factors as (x − ${r})(x − ${s}). Cancel (x − ${r}) to get (x − ${s}); at x = ${r} this is ${r} − ${s} = ${answer}.`,
+                explanation: `Direct substitution gives 0/0, so factor the numerator: (x − ${r})(x − ${s}).\nCancel the common factor (x − ${r}) with the denominator, leaving (x − ${s}).\nSubstitute x = ${r}: ${r} − ${s} = ${answer}.`,
             }
         },
     },
@@ -147,7 +147,7 @@ const skills = [
                     answer,
                     type: 'numeric',
                     tolerance: 1e-3,
-                    explanation: `Same degree, so the limit is the ratio of leading coefficients: ${a}/${b} = ${answer}.`,
+                    explanation: `Numerator and denominator have the same degree (x²), so lower-order terms vanish as x → ∞.\nThe limit is the ratio of the leading coefficients: ${a}/${b}.\nSimplify: = ${answer}.`,
                 }
             }
             // Numerator degree lower than denominator: limit is 0.
@@ -157,7 +157,7 @@ const skills = [
                 prompt: `Evaluate the limit: lim x→∞ of (${num}) / (${den}).`,
                 answer: 0,
                 type: 'integer',
-                explanation: 'The numerator has lower degree than the denominator, so the limit is 0.',
+                explanation: 'Compare degrees: the numerator is degree 1, the denominator degree 2.\nSince the denominator grows faster as x → ∞, the fraction shrinks toward 0.\nThe limit is 0.',
             }
         },
     },
@@ -189,7 +189,7 @@ const skills = [
                 answer: canonical,
                 type: 'text',
                 accepted: exprVariants(canonical),
-                explanation: `Bring down each exponent and reduce it by one: f'(x) = ${canonical}.`,
+                explanation: `Power rule: d/dx[x^n] = n·x^(n−1).\nApply to each term of ${f}, bringing down each exponent and reducing it by one.\nf'(x) = ${canonical}.`,
             }
         },
     },
@@ -211,7 +211,7 @@ const skills = [
                 prompt: `For f(x) = ${f}, find f'(${p}).`,
                 answer,
                 type: 'integer',
-                explanation: `f'(x) = ${fmtPoly([{ coef: 3 * a, pow: 2 }, { coef: 2 * b, pow: 1 }, { coef: c, pow: 0 }])}. At x = ${p}: f'(${p}) = ${answer}.`,
+                explanation: `Power rule term by term: f'(x) = ${fmtPoly([{ coef: 3 * a, pow: 2 }, { coef: 2 * b, pow: 1 }, { coef: c, pow: 0 }])}.\nSubstitute x = ${p} into f'(x).\nf'(${p}) = ${answer}.`,
             }
         },
     },
@@ -234,7 +234,7 @@ const skills = [
                     prompt: `Let f(x) = (${fmtPoly([{ coef: a, pow: 1 }, { coef: b, pow: 0 }])})(${fmtPoly([{ coef: c, pow: 1 }, { coef: d, pow: 0 }])}). Find f'(${p}).`,
                     answer,
                     type: 'integer',
-                    explanation: `Product rule: f'(x) = ${a}(${fmtPoly([{ coef: c, pow: 1 }, { coef: d, pow: 0 }])}) + ${c}(${fmtPoly([{ coef: a, pow: 1 }, { coef: b, pow: 0 }])}). At x = ${p}, f'(${p}) = ${answer}.`,
+                    explanation: `Product rule: f'(x) = (first)'·(second) + (first)·(second)'.\nHere f'(x) = ${a}(${fmtPoly([{ coef: c, pow: 1 }, { coef: d, pow: 0 }])}) + ${c}(${fmtPoly([{ coef: a, pow: 1 }, { coef: b, pow: 0 }])}).\nSubstitute x = ${p}: f'(${p}) = ${answer}.`,
                 }
             }
             if (kind === 'chain') {
@@ -246,7 +246,7 @@ const skills = [
                     prompt: `Let f(x) = (${fmtPoly([{ coef: a, pow: 1 }, { coef: b, pow: 0 }])})^2. Find f'(${p}).`,
                     answer,
                     type: 'integer',
-                    explanation: `Chain rule: f'(x) = 2·${a}·(${fmtPoly([{ coef: a, pow: 1 }, { coef: b, pow: 0 }])}). At x = ${p}, f'(${p}) = ${answer}.`,
+                    explanation: `Chain rule: d/dx[u^2] = 2u·u', with u = ${fmtPoly([{ coef: a, pow: 1 }, { coef: b, pow: 0 }])} and u' = ${a}.\nSo f'(x) = 2·${a}·(${fmtPoly([{ coef: a, pow: 1 }, { coef: b, pow: 0 }])}).\nSubstitute x = ${p}: f'(${p}) = ${answer}.`,
                 }
             }
             // quotient: f = (a x + b)/(c x + d) -> f' = (ad - bc)/(c x + d)^2
@@ -262,7 +262,7 @@ const skills = [
                 answer,
                 type: 'numeric',
                 tolerance: 1e-3,
-                explanation: `Quotient rule: f'(x) = (${a * d - b * c}) / (${fmtPoly([{ coef: c, pow: 1 }, { coef: d, pow: 0 }])})^2. At x = ${p}, the denominator is ${denom}^2 = ${denom * denom}, so f'(${p}) = ${answer}.`,
+                explanation: `Quotient rule gives f'(x) = (ad − bc)/(denominator)^2 = (${a * d - b * c}) / (${fmtPoly([{ coef: c, pow: 1 }, { coef: d, pow: 0 }])})^2.\nAt x = ${p} the denominator is ${denom}, so (denominator)^2 = ${denom * denom}.\nf'(${p}) = ${a * d - b * c}/${denom * denom} = ${answer}.`,
             }
         },
     },
@@ -289,7 +289,7 @@ const skills = [
                 answer: canonical,
                 type: 'text',
                 accepted: [canonical, `y=${line}`, starVariant(canonical), starVariant(`y=${line}`)],
-                explanation: `f'(x) = ${fmtPoly([{ coef: 2, pow: 1 }, { coef: p, pow: 0 }])}, so m = f'(${a}) = ${m}. f(${a}) = ${a * a + p * a + q}, giving b = ${b}. Tangent: ${canonical}.`,
+                explanation: `Slope: f'(x) = ${fmtPoly([{ coef: 2, pow: 1 }, { coef: p, pow: 0 }])}, so m = f'(${a}) = ${m}.\nPoint: f(${a}) = ${a * a + p * a + q}; use y − f(${a}) = m(x − ${a}) to get b = ${b}.\nTangent line: ${canonical}.`,
             }
         },
     },
@@ -318,7 +318,7 @@ const skills = [
                     antiTerm, // allow the answer without "+ C"
                     supVariant(antiTerm),
                 ],
-                explanation: `Add one to the exponent and divide: ∫ ${coef}x^${n} dx = ${coef}/${n + 1}·x^${n + 1} + C = ${canonical}.`,
+                explanation: `Power rule for integrals: ∫ x^n dx = x^(n+1)/(n+1) + C.\nAdd one to the exponent and divide: ∫ ${coef}x^${n} dx = ${coef}/${n + 1}·x^${n + 1} + C.\nSimplify: ${canonical}.`,
             }
         },
     },
@@ -343,7 +343,7 @@ const skills = [
                 prompt: `Evaluate the definite integral of (${integrand}) from x = ${lo} to x = ${hi}.`,
                 answer,
                 type: 'integer',
-                explanation: `An antiderivative is F(x) = ${fmtPoly([{ coef: A, pow: 3 }, { coef: B, pow: 2 }, { coef: C, pow: 1 }])}. Result = F(${hi}) − F(${lo}) = ${F(hi)} − ${F(lo)} = ${answer}.`,
+                explanation: `Integrate with the power rule: an antiderivative is F(x) = ${fmtPoly([{ coef: A, pow: 3 }, { coef: B, pow: 2 }, { coef: C, pow: 1 }])}.\nApply the Fundamental Theorem: result = F(${hi}) − F(${lo}) = ${F(hi)} − ${F(lo)}.\nEvaluate: = ${answer}.`,
             }
         },
     },
@@ -364,7 +364,7 @@ const skills = [
                 prompt: `Find the x-value of the critical point of f(x) = ${f} (where f'(x) = 0).`,
                 answer,
                 type: 'integer',
-                explanation: `f'(x) = ${fmtPoly([{ coef: 2 * a, pow: 1 }, { coef: b, pow: 0 }])}. Setting it to 0 gives x = ${-b}/${2 * a} = ${answer}.`,
+                explanation: `Differentiate: f'(x) = ${fmtPoly([{ coef: 2 * a, pow: 1 }, { coef: b, pow: 0 }])}.\nSet f'(x) = 0 and solve: ${2 * a}x + ${b} = 0, so x = ${-b}/${2 * a}.\nSimplify: x = ${answer}.`,
             }
         },
     },

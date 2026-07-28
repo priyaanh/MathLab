@@ -53,7 +53,9 @@ const meanSkill = {
             type: 'numeric',
             tolerance: 0.01,
             explanation:
-                `Sum = ${sum}, count = ${n}. Mean = ${sum} ÷ ${n} = ${mean}.`,
+                `Add all the values: sum = ${sum}.\n` +
+                `Count the values: n = ${n}.\n` +
+                `Mean = sum ÷ n = ${sum} ÷ ${n} = ${mean}.`,
         }
     },
 }
@@ -83,10 +85,12 @@ const medianSkill = {
             type: 'numeric',
             tolerance: 0.01,
             explanation:
-                `Ordered: ${sorted.join(', ')}. ` +
+                `Sort the data: ${sorted.join(', ')}.\n` +
                 (n % 2 === 1
-                    ? `The middle value is ${median}.`
-                    : `Average of the two middle values = ${median}.`),
+                    ? `With ${n} values (odd count), the median is the single middle value.\n` +
+                      `Median = ${median}.`
+                    : `With ${n} values (even count), take the two middle values ${sorted[n / 2 - 1]} and ${sorted[n / 2]}.\n` +
+                      `Median = (${sorted[n / 2 - 1]} + ${sorted[n / 2]}) ÷ 2 = ${median}.`),
         }
     },
 }
@@ -108,7 +112,9 @@ const modeSkill = {
             answer: modeVal,
             type: 'integer',
             explanation:
-                `${modeVal} appears 3 times, more than any other value, so the mode is ${modeVal}.`,
+                `Count how often each value appears.\n` +
+                `${modeVal} appears 3 times; every other value appears just once.\n` +
+                `The most frequent value is the mode, so the mode is ${modeVal}.`,
         }
     },
 }
@@ -129,7 +135,10 @@ const rangeSkill = {
                 `Data: ${data.join(', ')}`,
             answer: max - min,
             type: 'integer',
-            explanation: `Range = ${max} − ${min} = ${max - min}.`,
+            explanation:
+                `Find the largest value: ${max}.\n` +
+                `Find the smallest value: ${min}.\n` +
+                `Range = max − min = ${max} − ${min} = ${max - min}.`,
         }
     },
 }
@@ -155,8 +164,9 @@ const stdDevSkill = {
             type: 'numeric',
             tolerance: 0.05,
             explanation:
-                `Mean = ${round(mean, 2)}. Variance = average of squared ` +
-                `deviations = ${round(variance, 4)}. SD = √variance ≈ ${sd}.`,
+                `Find the mean: ${sum} ÷ ${n} = ${round(mean, 2)}.\n` +
+                `Average the squared deviations from the mean: variance = ${round(variance, 4)}.\n` +
+                `Take the square root: SD = √${round(variance, 4)} ≈ ${sd}.`,
         }
     },
 }
@@ -180,8 +190,9 @@ const simpleProbSkill = {
             type: 'text',
             accepted: [decimal, `${favorable}/${total}`],
             explanation:
-                `P(red) = favorable ÷ total = ${favorable}/${total} = ${frac} ` +
-                `(${decimal}).`,
+                `Favorable outcomes (red marbles) = ${favorable}; total outcomes = ${total}.\n` +
+                `P(red) = favorable ÷ total = ${favorable}/${total}.\n` +
+                `Reduce: ${frac} (${decimal}).`,
         }
     },
 }
@@ -208,8 +219,9 @@ const independentProbSkill = {
             type: 'text',
             accepted: [decimal, `${n1 * n2}/${d1 * d2}`],
             explanation:
-                `P(both) = ${n1}/${d1} × ${n2}/${d2} = ${n1 * n2}/${d1 * d2} = ` +
-                `${frac} (${decimal}).`,
+                `For independent events, multiply their probabilities.\n` +
+                `P(both) = ${n1}/${d1} × ${n2}/${d2} = ${n1 * n2}/${d1 * d2}.\n` +
+                `Reduce: ${frac} (${decimal}).`,
         }
     },
 }
@@ -228,7 +240,9 @@ const combinationsSkill = {
             answer: value,
             type: 'integer',
             explanation:
-                `${n}C${r} = ${n}! / (${r}! × ${n - r}!) = ${value}.`,
+                `Combinations count unordered selections: nCr = n! / (r! × (n−r)!).\n` +
+                `${n}C${r} = ${n}! / (${r}! × ${n - r}!).\n` +
+                `${n}C${r} = ${value}.`,
         }
     },
 }
@@ -247,7 +261,9 @@ const permutationsSkill = {
             answer: value,
             type: 'integer',
             explanation:
-                `${n}P${r} = ${n}! / (${n - r}!) = ${value}.`,
+                `Permutations count ordered arrangements: nPr = n! / (n−r)!.\n` +
+                `${n}P${r} = ${n}! / ${n - r}!.\n` +
+                `${n}P${r} = ${value}.`,
         }
     },
 }
@@ -265,7 +281,10 @@ const factorialSkill = {
             prompt: `Compute ${n}! (the factorial of ${n}).`,
             answer: value,
             type: 'integer',
-            explanation: `${n}! = ${chain} = ${value}.`,
+            explanation:
+                `A factorial multiplies every whole number from ${n} down to 1.\n` +
+                `${n}! = ${chain}.\n` +
+                `${n}! = ${value}.`,
         }
     },
 }
@@ -298,11 +317,13 @@ const expectedValueSkill = {
             type: 'numeric',
             tolerance: 0.01,
             explanation:
-                `E[X] = Σ value × probability = ` +
+                `Expected value multiplies each value by its probability and sums the results.\n` +
+                `E[X] = ` +
                 values
                     .map((v, i) => `${v}×${weights[i]}/${D}`)
                     .join(' + ') +
-                ` = ${ev}.`,
+                `.\n` +
+                `E[X] = ${ev}.`,
         }
     },
 }
@@ -326,7 +347,9 @@ const zScoreSkill = {
             type: 'numeric',
             tolerance: 0.05,
             explanation:
-                `z = (x − mean) ÷ sd = (${x} − ${mean}) ÷ ${sd} = ${z}.`,
+                `The z-score measures how many standard deviations x is from the mean: z = (x − mean) ÷ sd.\n` +
+                `z = (${x} − ${mean}) ÷ ${sd}.\n` +
+                `z = ${z}.`,
         }
     },
 }
@@ -346,7 +369,10 @@ export default [
                 answer,
                 type: 'numeric',
                 tolerance: 0.02,
-                explanation: `Mean = ${round(mean, 2)}. Variance = mean of squared deviations = ${answer}.`,
+                explanation:
+                    `Find the mean of the data: ${round(mean, 2)}.\n` +
+                    `Square each deviation from the mean and average them.\n` +
+                    `Variance = ${answer}.`,
             }
         },
     },
@@ -364,7 +390,10 @@ export default [
                 answer,
                 type: 'numeric',
                 tolerance: 0.005,
-                explanation: `${ways} of 36 outcomes give ${target}, so P = ${ways}/36 ≈ ${answer}.`,
+                explanation:
+                    `Two dice have 6 × 6 = 36 equally likely outcomes.\n` +
+                    `${ways} of them give a sum of ${target}.\n` +
+                    `P(sum = ${target}) = ${ways}/36 ≈ ${answer}.`,
             }
         },
     },
