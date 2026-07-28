@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 
 /**
- * A faithful take on Chrome's offline T-Rex runner — pixel-art sprites drawn as
- * rectangles, a dotted scrolling ground, drifting clouds, pterodactyls you duck
- * under, and a day/night cycle. Pure canvas + rAF, no assets or network, so it
- * plays offline. High score persists in localStorage.
+ * A faithful take on Chrome's offline T-Rex runner. Sprites are authentic
+ * pixel-art bitmaps (see the string maps below) baked into small offscreen
+ * canvases and blitted with nearest-neighbour scaling, so they stay crisp.
+ * Classic palette: dark-gray (#535353) sprites on a white field. Pure canvas +
+ * rAF, no assets or network, so it plays offline. High score persists.
  *
- * Reached via the secret 🦕 in the footer, or #/xyzzy directly.
- * Controls: Space / ↑ to jump, ↓ to duck, tap to jump.
+ * Rendered as a popup overlay (triggered by the secret 🦕 in the footer) so it
+ * never navigates away from the current page. `onClose` dismisses the modal.
+ * Controls: Space / ↑ to jump, ↓ to duck, tap to jump, Esc to close.
  */
 
 const W = 680
@@ -18,47 +19,105 @@ const GRAVITY = 0.75
 const JUMP_V = -11.5
 const HS_KEY = 'mathlab-dino-highscore'
 
+const FG = '#535353'         // classic Chrome dino gray
+const BG = '#ffffff'         // white field
+const CLOUD_C = '#c9c9c9'    // clouds sit a shade lighter
+
 const readHigh = () => { try { return Number(localStorage.getItem(HS_KEY)) || 0 } catch { return 0 } }
 
-// --- pixel sprites: arrays of [x, y, w, h] rects in local coordinates -------
-const REX = {
-    // standing body (no legs)
-    body: [
-        [0, 16, 10, 6],   // tail
-        [6, 12, 22, 22],  // back + body
-        [10, 30, 18, 6],  // belly
-        [22, 4, 12, 16],  // neck
-        [28, 0, 18, 14],  // head
-        [44, 7, 6, 5],    // snout
-        [24, 24, 8, 3]    // arm
-    ],
-    eye: [[40, 3, 3, 3]],           // drawn in bg colour
-    legsA: [[12, 36, 6, 12], [24, 36, 6, 8]],
-    legsB: [[12, 36, 6, 8], [24, 36, 6, 12]],
-    stand: [[12, 36, 6, 13], [24, 36, 6, 13]],
-    w: 50, h: 49,
-    // ducking (long + low)
-    duck: [
-        [0, 8, 14, 7],    // tail
-        [10, 6, 30, 15],  // long body
-        [38, 8, 18, 11],  // head
-        [54, 11, 6, 5]    // snout
-    ],
-    duckEye: [[50, 11, 3, 3]],
-    duckLegsA: [[16, 21, 6, 9], [30, 21, 6, 7]],
-    duckLegsB: [[16, 21, 6, 7], [30, 21, 6, 9]],
-    duckW: 60, duckH: 30
-}
-const CACTUS_S = { rects: [[6, 0, 6, 30], [0, 8, 6, 10], [12, 6, 6, 11]], w: 18, h: 30 }
-const CACTUS_L = { rects: [[8, 0, 8, 44], [0, 14, 8, 15], [16, 9, 8, 17]], w: 24, h: 44 }
-const CACTUS_XL = { rects: [[6, 0, 6, 34], [0, 10, 6, 12], [12, 8, 6, 13], [22, 4, 6, 30], [16, 14, 6, 10], [28, 12, 6, 11]], w: 34, h: 34 }
-const BIRD_UP = { rects: [[0, 12, 12, 4], [12, 9, 18, 7], [30, 7, 9, 7], [39, 9, 5, 3], [14, 0, 12, 9]], w: 44, h: 22 }
-const BIRD_DN = { rects: [[0, 8, 12, 4], [12, 9, 18, 7], [30, 7, 9, 7], [39, 9, 5, 3], [14, 14, 12, 9]], w: 44, h: 23 }
-const CLOUD = [[8, 4, 30, 6], [0, 8, 46, 4], [14, 0, 20, 5]]
+// --- pixel bitmaps: '#' = filled pixel, ' ' = transparent --------------------
+// T-Rex shares one 34x34 body; only the legs swap between frames.
+const REX_BODY = [
+    '                       ########## ',
+    '                      ############',
+    '                      ##### ##  ##',
+    '                      ##### ######',
+    '                      ##### ######',
+    '                      #####       ',
+    '                      ###### ###  ',
+    '                      #######     ',
+    '  #                   ########    ',
+    '  ##                  ########    ',
+    '  ###                #########    ',
+    '  #####             ##########    ',
+    '  ######           ###########    ',
+    '  #######     ################     ',
+    '  ########   #################     ',
+    '  ################ ###########     ',
+    '  ############### ###########      ',
+    '  ############## ###########       ',
+    '  ############# ##########         ',
+    '   ############ #########          ',
+    '    ########### ########           ',
+    '     ##################            ',
+    '      ################             ',
+    '       ##############              ',
+    '        ############               ',
+    '         ##########                ',
+    '         ###    ###                ',
+    '         ###    ###                ',
+    '         ###    ###                ',
+    '         ##     ###                ',
+    '         ##     ###                '
+]
+const REX_STAND = REX_BODY.concat(['         ##     ###                ', '         ##     ###                ', '        ###     ###                '])
+const REX_RUN1 = REX_BODY.concat(['         ##     ###                ', '         ##     ##                 ', '        ####    ##                 '])
+const REX_RUN2 = REX_BODY.concat(['         ##     ###                ', '          ##    ###                ', '          ##   ####                '])
 
-const DinoGame = () => {
+const DUCK = [
+    '                          ##########  ',
+    '                         ############ ',
+    '                         #####  ## ## ',
+    '                         ############ ',
+    '  #####                  ############ ',
+    '  ##########             #####        ',
+    '  ####################   ######       ',
+    '  ############################        ',
+    '  ##############################  #   ',
+    '  #############################       ',
+    '   ##########################         ',
+    '    #####  #########  ######          '
+]
+const REX_DUCK1 = DUCK.concat(['    ##     ####   ##                   ', '   ##       ##   ##                    '])
+const REX_DUCK2 = DUCK.concat(['     ##    ##     ##                   ', '    ##    ##     ##                    '])
+
+const CACTUS_S = ['    ##    ', '    ##    ', '    ##    ', '##  ##    ', '##  ## ## ', '##  ## ## ', '## ###### ', '#### ###  ', ' ##  ##   ', '    ##    ', '    ##    ', '    ##    ', '    ##    ', '    ##    ']
+const CACTUS_L = ['      ###      ', '      ###      ', '      ###      ', '##    ###      ', '##    ###  ##  ', '##    ###  ##  ', '## #  ###  ##  ', '## ## ### ###  ', '###########    ', ' ###  ###  ##  ', '  #   ###  #   ', '      ###      ', '      ###      ', '      ###      ', '      ###      ', '      ###      ', '      ###      ', '      ###      ']
+const CACTUS_XL = [
+    '   ###        ###   ',
+    '   ###        ###   ',
+    '   ###        ###   ',
+    '   ###  ##    ###   ',
+    '#  ###  ##    ### # ',
+    '#  ###  ##    ### # ',
+    '## ###  ##  # ##### ',
+    '########## ##  ###  ',
+    ' ##  ### ####   #   ',
+    '  #  ###  ##    ### ',
+    '     ###  #     ### ',
+    '     ###        ### ',
+    '     ###        ### ',
+    '     ###        ### ',
+    '     ###        ### ',
+    '     ###        ### ',
+    '     ###        ### ',
+    '     ###        ### '
+]
+const BIRD_UP = ['          ###   ', '         ####   ', '        #####   ', '###############', ' ############# ', '      ####      ', '      ##        ']
+const BIRD_DN = ['      ##        ', '      ####      ', ' ############# ', '###############', '        #####   ', '         ####   ', '          ###   ']
+const CLOUD = ['      ######      ', '    ##########    ', '  ##############  ', '##################', '     ###    ##### ']
+
+// gameplay boxes (canvas px) — bitmaps are nearest-neighbour scaled to fit these
+const REX = { w: 48, h: 48, duckW: 59, duckH: 28 }
+const CACTI = [
+    { img: 'cactusS', w: 17, h: 30 },
+    { img: 'cactusL', w: 25, h: 46 },
+    { img: 'cactusXL', w: 40, h: 46 }
+]
+const BIRD_W = 42, BIRD_H = 26
+
+const DinoGame = ({ onClose }) => {
     const canvasRef = useRef(null)
-    const navigate = useNavigate()
     const [high, setHigh] = useState(readHigh)
     const highRef = useRef(readHigh())
     const game = useRef(null)
@@ -74,19 +133,37 @@ const DinoGame = () => {
         game.current = fresh()
         const canvas = canvasRef.current
         const ctx = canvas.getContext('2d')
+        ctx.imageSmoothingEnabled = false
 
-        const rects = (list, ox, oy, color) => {
-            ctx.fillStyle = color
-            for (const [x, y, w, h] of list) ctx.fillRect(Math.round(ox + x), Math.round(oy + y), w, h)
+        // bake a bitmap into a 1px-per-cell offscreen canvas (transparent bg)
+        const bake = (rows, color) => {
+            const w = Math.max(...rows.map(r => r.length))
+            const h = rows.length
+            const c = document.createElement('canvas')
+            c.width = w; c.height = h
+            const cx = c.getContext('2d')
+            cx.fillStyle = color
+            for (let y = 0; y < h; y++) {
+                const row = rows[y]
+                for (let x = 0; x < row.length; x++) if (row[x] === '#') cx.fillRect(x, y, 1, 1)
+            }
+            return c
+        }
+        const SPR = {
+            stand: bake(REX_STAND, FG), run1: bake(REX_RUN1, FG), run2: bake(REX_RUN2, FG),
+            duck1: bake(REX_DUCK1, FG), duck2: bake(REX_DUCK2, FG),
+            cactusS: bake(CACTUS_S, FG), cactusL: bake(CACTUS_L, FG), cactusXL: bake(CACTUS_XL, FG),
+            birdUp: bake(BIRD_UP, FG), birdDn: bake(BIRD_DN, FG),
+            cloud: bake(CLOUD, CLOUD_C)
         }
 
         const spawn = (g) => {
             if (g.score > 320 && Math.random() < 0.28) {
-                const y = [GROUND_Y - 24, GROUND_Y - 50, GROUND_Y - 76][Math.floor(Math.random() * 3)]
-                g.obstacles.push({ kind: 'bird', x: W + 10, y, w: BIRD_UP.w, h: BIRD_UP.h, wing: 0 })
+                const y = [GROUND_Y - 30, GROUND_Y - 58, GROUND_Y - 84][Math.floor(Math.random() * 3)]
+                g.obstacles.push({ kind: 'bird', x: W + 10, y, w: BIRD_W, h: BIRD_H, wing: 0 })
             } else {
-                const c = Math.random() < 0.4 ? CACTUS_S : (Math.random() < 0.5 ? CACTUS_L : CACTUS_XL)
-                g.obstacles.push({ kind: 'cactus', spr: c, x: W + 10, y: GROUND_Y - c.h, w: c.w, h: c.h })
+                const c = Math.random() < 0.4 ? CACTI[0] : (Math.random() < 0.5 ? CACTI[1] : CACTI[2])
+                g.obstacles.push({ kind: 'cactus', img: c.img, x: W + 10, y: GROUND_Y - c.h, w: c.w, h: c.h })
             }
             g.spawnIn = Math.max(30, Math.round(Math.random() * 50 + 60 - g.speed * 2))
         }
@@ -96,7 +173,7 @@ const DinoGame = () => {
             : { x: 44, y: g.y, w: REX.w, h: REX.h }
 
         const hit = (g) => {
-            const d = dinoBox(g); const p = 6
+            const d = dinoBox(g); const p = 8
             return g.obstacles.some(o =>
                 d.x + p < o.x + o.w - 4 && d.x + d.w - p > o.x + 4 &&
                 d.y + p < o.y + o.h - 3 && d.y + d.h - p > o.y + 3)
@@ -124,47 +201,43 @@ const DinoGame = () => {
                     g.over = true
                     const sc = Math.floor(g.score)
                     if (sc > highRef.current) { highRef.current = sc; try { localStorage.setItem(HS_KEY, String(sc)) } catch { /* ignore */ } setHigh(sc) }
-
                 }
             }
 
-            // ---- draw (classic dino: dark-gray sprites on a light-gray field) ----
-            const bg = '#d3d3d3'   // gray background
-            const fg = '#3a3a3a'   // dark-gray sprites (softer than pure black)
-            ctx.fillStyle = bg
+            // ---- draw (classic dino: gray sprites on a white field) ----
+            ctx.imageSmoothingEnabled = false
+            ctx.fillStyle = BG
             ctx.fillRect(0, 0, W, H)
 
-            // clouds (lighter gray than the field)
-            for (const c of g.clouds) rects(CLOUD, c.x, c.y, '#eaeaea')
+            // clouds
+            for (const c of g.clouds) ctx.drawImage(SPR.cloud, Math.round(c.x), Math.round(c.y), 46, 13)
 
             // ground: solid line + scrolling speckles
-            ctx.fillStyle = fg
+            ctx.fillStyle = FG
             ctx.fillRect(0, GROUND_Y + 1, W, 2)
             const off = Math.floor(g.tick * (g.started && !g.over ? g.speed : 0)) % 24
             for (let x = -off; x < W; x += 24) { ctx.fillRect(x + 4, GROUND_Y + 6, 3, 2); ctx.fillRect(x + 14, GROUND_Y + 9, 2, 2) }
 
             // obstacles
             for (const o of g.obstacles) {
-                if (o.kind === 'cactus') rects(o.spr.rects, o.x, o.y, fg)
-                else rects((o.wing ? BIRD_DN : BIRD_UP).rects, o.x, o.y, fg)
+                if (o.kind === 'cactus') ctx.drawImage(SPR[o.img], Math.round(o.x), o.y, o.w, o.h)
+                else ctx.drawImage(o.wing ? SPR.birdDn : SPR.birdUp, Math.round(o.x), o.y, o.w, o.h)
             }
 
             // dino
             const running = g.started && !g.over && g.onGround
             const legPhase = Math.floor(g.tick / 6) % 2
             if (g.duck && g.onGround) {
-                const oy = g.y + (REX.h - REX.duckH)
-                rects(REX.duck, 44, oy, fg)
-                rects(running ? (legPhase ? REX.duckLegsA : REX.duckLegsB) : REX.duckLegsA, 44, oy, fg)
-                rects(REX.duckEye, 44, oy, bg)
+                const dy = g.y + (REX.h - REX.duckH)
+                const img = running ? (legPhase ? SPR.duck1 : SPR.duck2) : SPR.duck1
+                ctx.drawImage(img, 44, Math.round(dy), REX.duckW, REX.duckH)
             } else {
-                rects(REX.body, 44, g.y, fg)
-                rects(!g.started || g.over ? REX.stand : (running ? (legPhase ? REX.legsA : REX.legsB) : REX.stand), 44, g.y, fg)
-                rects(REX.eye, 44, g.y, bg)
+                const img = (!g.started || g.over) ? SPR.stand : (running ? (legPhase ? SPR.run1 : SPR.run2) : SPR.stand)
+                ctx.drawImage(img, 44, Math.round(g.y), REX.w, REX.h)
             }
 
-            // score (top-right, zero-padded, blinking HI badge unused)
-            ctx.fillStyle = fg
+            // score (top-right, zero-padded)
+            ctx.fillStyle = FG
             ctx.font = '700 15px "Courier New", monospace'
             ctx.textBaseline = 'top'
             ctx.textAlign = 'right'
@@ -173,17 +246,17 @@ const DinoGame = () => {
             ctx.textAlign = 'center'
 
             if (!g.started) {
-                ctx.fillStyle = fg
+                ctx.fillStyle = FG
                 ctx.font = '700 14px system-ui, sans-serif'
                 ctx.fillText('Press Space / ↑ or tap to start', W / 2, 26)
             }
             if (g.over) {
-                ctx.fillStyle = fg
+                ctx.fillStyle = FG
                 ctx.font = '700 22px "Courier New", monospace'
                 ctx.fillText('G A M E   O V E R', W / 2, 58)
                 // restart icon (circle + arrow head)
                 const cx = W / 2, cy = 100, r = 15
-                ctx.strokeStyle = fg; ctx.lineWidth = 3
+                ctx.strokeStyle = FG; ctx.lineWidth = 3
                 ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI * 0.35, Math.PI * 1.9); ctx.stroke()
                 ctx.beginPath(); ctx.moveTo(cx + r - 2, cy - 8); ctx.lineTo(cx + r + 5, cy - 5); ctx.lineTo(cx + r - 1, cy + 1); ctx.closePath(); ctx.fill()
             }
@@ -193,11 +266,11 @@ const DinoGame = () => {
         }
         raf = requestAnimationFrame(loop)
 
-        const restart = () => { game.current = fresh(); game.current.started = true; }
+        const restart = () => { game.current = fresh(); game.current.started = true }
         const jump = () => {
             const g = game.current
             if (g.over) { restart(); return }
-            if (!g.started) { g.started = true; }
+            if (!g.started) { g.started = true }
             if (g.onGround) { g.vy = JUMP_V; g.onGround = false }
         }
         const onKeyDown = (e) => {
@@ -218,20 +291,39 @@ const DinoGame = () => {
         }
     }, [])
 
+    // Esc closes the popup (kept separate from the game's own key handling so
+    // the game effect can stay mount-once).
+    useEffect(() => {
+        const onEsc = (e) => { if (e.key === 'Escape') onClose?.() }
+        window.addEventListener('keydown', onEsc)
+        return () => window.removeEventListener('keydown', onEsc)
+    }, [onClose])
+
     return (
-        <div className="page">
-            <div className="page-head">
-                <h1>🦖 Dino Run</h1>
-                <p>MathLab&apos;s secret offline game — just like Chrome&apos;s. <kbd>Space</kbd>/<kbd>↑</kbd> to jump, <kbd>↓</kbd> to duck, or tap. Works with no internet.</p>
-            </div>
+        <div
+            className="dino-modal-backdrop"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Dino Run — secret game"
+            onPointerDown={(e) => { if (e.target === e.currentTarget) onClose?.() }}
+        >
+            <div className="dino-modal">
+                <div className="dino-modal-head">
+                    <div className="page-head">
+                        <h1>🦖 Dino Run</h1>
+                        <p>MathLab&apos;s secret offline game — just like Chrome&apos;s. <kbd>Space</kbd>/<kbd>↑</kbd> to jump, <kbd>↓</kbd> to duck, or tap.</p>
+                    </div>
+                    <button className="dino-close" onClick={() => onClose?.()} aria-label="Close game" title="Close (Esc)">×</button>
+                </div>
 
-            <div className="dino-wrap">
-                <canvas ref={canvasRef} width={W} height={H} className="dino-canvas" aria-label="Dino running game" />
-            </div>
+                <div className="dino-wrap">
+                    <canvas ref={canvasRef} width={W} height={H} className="dino-canvas" aria-label="Dino running game" />
+                </div>
 
-            <div className="dino-actions">
-                <button className="btn ghost" onClick={() => navigate('/')}>← Back to MathLab</button>
-                <span className="hint">Best: {high}</span>
+                <div className="dino-actions">
+                    <button className="btn ghost" onClick={() => onClose?.()}>← Back to MathLab</button>
+                    <span className="hint">Best: {high}</span>
+                </div>
             </div>
         </div>
     )

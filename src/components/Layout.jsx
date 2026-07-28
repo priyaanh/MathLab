@@ -1,8 +1,11 @@
-import { Suspense, useEffect } from 'react'
-import { Outlet, useLocation, Link } from 'react-router-dom'
+import { Suspense, lazy, useEffect, useState } from 'react'
+import { Outlet, useLocation } from 'react-router-dom'
 import NavBar from './NavBar'
 import MathKeypad from './MathKeypad'
 import ErrorBoundary from './ErrorBoundary'
+
+// The secret dino game is a popup overlay — lazy so its code only ships when opened.
+const DinoGame = lazy(() => import('../pages/DinoGame'))
 
 // Per-route document titles — better browser tabs, history entries and SEO.
 const TITLES = {
@@ -29,8 +32,7 @@ const TITLES = {
     '/triangle': 'Triangle Solver · MathLab',
     '/matrix': 'Matrix Calculator · MathLab',
     '/themes': 'Themes · MathLab',
-    '/guide': 'Guide · MathLab',
-    '/xyzzy': '🦖 Dino Run · MathLab'
+    '/guide': 'Guide · MathLab'
 }
 
 const titleFor = (pathname) => {
@@ -50,6 +52,7 @@ const PageLoading = () => (
 
 const Layout = () => {
     const { pathname } = useLocation()
+    const [dinoOpen, setDinoOpen] = useState(false)
     useEffect(() => { document.title = titleFor(pathname) }, [pathname])
 
     return (
@@ -65,9 +68,22 @@ const Layout = () => {
             </main>
             <footer className="footer">
                 MathLab · built with React · a stylish home for calculators &amp; graphing tools
-                <Link to="/xyzzy" className="dino-secret" title="?" aria-label="Secret game">🦕</Link>
+                <button
+                    type="button"
+                    className="dino-secret"
+                    title="?"
+                    aria-label="Secret game"
+                    onClick={() => setDinoOpen(true)}
+                >
+                    🦕
+                </button>
             </footer>
             <MathKeypad />
+            {dinoOpen && (
+                <Suspense fallback={null}>
+                    <DinoGame onClose={() => setDinoOpen(false)} />
+                </Suspense>
+            )}
         </div>
     )
 }
