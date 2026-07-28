@@ -1762,7 +1762,7 @@ a.topic-card {
 /* ---- Secret dino game ------------------------------------------------- */
 .dino-secret {
     margin-left: 0.5rem;
-    opacity: 0.12;
+    opacity: 0.35;
     text-decoration: none;
     transition: opacity 0.2s ease, transform 0.2s ease;
     display: inline-block;
