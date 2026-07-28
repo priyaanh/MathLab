@@ -30,7 +30,7 @@ const TITLES = {
     '/matrix': 'Matrix Calculator · MathLab',
     '/themes': 'Themes · MathLab',
     '/guide': 'Guide · MathLab',
-    '/dino': '🦖 Dino Run · MathLab'
+    '/xyzzy': '🦖 Dino Run · MathLab'
 }
 
 const titleFor = (pathname) => {
@@ -65,7 +65,7 @@ const Layout = () => {
             </main>
             <footer className="footer">
                 MathLab · built with React · a stylish home for calculators &amp; graphing tools
-                <Link to="/dino" className="dino-secret" title="?" aria-label="Secret dino game">🦕</Link>
+                <Link to="/xyzzy" className="dino-secret" title="?" aria-label="Secret game">🦕</Link>
             </footer>
             <MathKeypad />
         </div>
