@@ -66,7 +66,7 @@ const DinoGame = () => {
     const fresh = () => ({
         y: GROUND_Y - REX.h, vy: 0, onGround: true, duck: false,
         obstacles: [], clouds: [{ x: 480, y: 40 }, { x: 650, y: 70 }],
-        speed: 6, spawnIn: 50, score: 0, tick: 0, night: 0, flash: 0,
+        speed: 6, spawnIn: 50, score: 0, tick: 0,
         started: false, over: false
     })
 
@@ -120,10 +120,6 @@ const DinoGame = () => {
                 g.obstacles = g.obstacles.filter(o => o.x + o.w > -20)
                 if (--g.spawnIn <= 0) spawn(g)
                 for (const c of g.clouds) { c.x -= 0.6; if (c.x < -50) { c.x = W + Math.random() * 200; c.y = 20 + Math.random() * 60 } }
-                // day/night flip every ~700 pts
-                const target = Math.floor(g.score / 700) % 2
-                if (target !== g.night) g.night = target
-                if (g.flash > 0) g.flash--
                 if (hit(g)) {
                     g.over = true
                     const sc = Math.floor(g.score)
@@ -132,17 +128,14 @@ const DinoGame = () => {
                 }
             }
 
-            // ---- draw (classic gray-on-white, inverted at night) ----
-            const night = g.night === 1
-            const bg = night ? '#1b1b1b' : '#f7f7f7'
-            const fg = night ? '#f7f7f7' : '#535353'
+            // ---- draw (classic dino: dark-gray sprites on a light-gray field) ----
+            const bg = '#d3d3d3'   // gray background
+            const fg = '#3a3a3a'   // dark-gray sprites (softer than pure black)
             ctx.fillStyle = bg
             ctx.fillRect(0, 0, W, H)
 
-            // clouds
-            for (const c of g.clouds) rects(CLOUD, c.x, c.y, night ? '#5a5a5a' : '#cfcfcf')
-            // moon/sun dot at night
-            if (night) { ctx.fillStyle = '#d0d0d0'; ctx.fillRect(W - 120, 26, 14, 14); ctx.fillStyle = bg; ctx.fillRect(W - 116, 26, 10, 12) }
+            // clouds (lighter gray than the field)
+            for (const c of g.clouds) rects(CLOUD, c.x, c.y, '#eaeaea')
 
             // ground: solid line + scrolling speckles
             ctx.fillStyle = fg
