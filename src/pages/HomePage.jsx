@@ -112,7 +112,7 @@ const HomePage = () => {
                 <h1>Your all-in-one <span className="grad">math lab</span></h1>
                 <p>A stylish home for calculating, graphing and exploring geometry — with tools that stay useful all the way from grade school to college.</p>
                 <div className="hero-cta">
-                    <Link to="/exercises" className="btn primary btn-xl">🎯 Start practicing</Link>
+                    <Link to="/exercises" className="btn primary btn-xl"><span className="btn-ico" aria-hidden="true">🎯</span> Start practicing</Link>
                     <Link to="/scientific" className="btn ghost">Open Calculator</Link>
                     <Link to="/guide" className="btn ghost">See the math roadmap</Link>
                 </div>

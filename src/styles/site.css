@@ -1547,6 +1547,16 @@ a.topic-card {
     box-shadow: 0 10px 26px color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
+/* Emoji as its own flex item with line-height:1 so it optically centers with
+   the label instead of dropping to the text baseline. */
+.btn-ico {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+    font-size: 1.15em;
+    transform: translateY(-0.06em);
+}
+
 /* ---- Guide groups ----------------------------------------------------- */
 .guide-group { margin-bottom: 1.6rem; }
 
