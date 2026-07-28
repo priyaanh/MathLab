@@ -35,7 +35,6 @@ const FractionsPage = lazy(() => import('./pages/FractionsPage'))
 const SequencesPage = lazy(() => import('./pages/SequencesPage'))
 const NumberTheoryPage = lazy(() => import('./pages/NumberTheoryPage'))
 const ProbabilityPage = lazy(() => import('./pages/ProbabilityPage'))
-const DinoGame = lazy(() => import('./pages/DinoGame'))
 
 /**
  * MathLab — a multi-page math site.
@@ -67,7 +66,6 @@ function App() {
             <Route path="sequences" element={<SequencesPage />} />
             <Route path="numbertheory" element={<NumberTheoryPage />} />
             <Route path="probability" element={<ProbabilityPage />} />
-            <Route path="xyzzy" element={<DinoGame />} />
             <Route path="statistics" element={<StatsPage />} />
             <Route path="distribution" element={<DistributionPage />} />
             <Route path="solve" element={<SolverPage />} />

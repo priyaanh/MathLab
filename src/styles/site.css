@@ -1766,8 +1766,66 @@ a.topic-card {
     text-decoration: none;
     transition: opacity 0.2s ease, transform 0.2s ease;
     display: inline-block;
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    line-height: 1;
+    cursor: pointer;
+    color: inherit;
 }
 .dino-secret:hover { opacity: 1; transform: translateY(-2px) scale(1.2); }
+
+/* popup overlay — sits above the whole site without navigating away */
+.dino-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background: color-mix(in srgb, #000 55%, transparent);
+    backdrop-filter: blur(2px);
+    animation: dino-fade 0.18s ease;
+}
+.dino-modal {
+    position: relative;
+    width: 100%;
+    max-width: 728px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    padding: 1.25rem 1.5rem 1.5rem;
+    animation: dino-pop 0.2s ease;
+}
+.dino-modal-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+.dino-modal-head .page-head { margin: 0; }
+.dino-close {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.dino-close:hover { background: var(--surface-2, var(--border)); color: var(--text); }
+@keyframes dino-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dino-pop {
+    from { opacity: 0; transform: translateY(8px) scale(0.98); }
+    to { opacity: 1; transform: none; }
+}
 
 .dino-wrap {
     position: relative;
@@ -1778,7 +1836,7 @@ a.topic-card {
     width: 100%;
     height: auto;
     display: block;
-    background: var(--surface);
+    background: #ffffff;
     border: 1px solid var(--border);
     border-radius: 14px;
     box-shadow: var(--shadow);
