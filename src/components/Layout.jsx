@@ -1,5 +1,5 @@
 import { Suspense, useEffect } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
+import { Outlet, useLocation, Link } from 'react-router-dom'
 import NavBar from './NavBar'
 import MathKeypad from './MathKeypad'
 import ErrorBoundary from './ErrorBoundary'
@@ -29,7 +29,8 @@ const TITLES = {
     '/triangle': 'Triangle Solver · MathLab',
     '/matrix': 'Matrix Calculator · MathLab',
     '/themes': 'Themes · MathLab',
-    '/guide': 'Guide · MathLab'
+    '/guide': 'Guide · MathLab',
+    '/dino': '🦖 Dino Run · MathLab'
 }
 
 const titleFor = (pathname) => {
@@ -64,6 +65,7 @@ const Layout = () => {
             </main>
             <footer className="footer">
                 MathLab · built with React · a stylish home for calculators &amp; graphing tools
+                <Link to="/dino" className="dino-secret" title="?" aria-label="Secret dino game">🦕</Link>
             </footer>
             <MathKeypad />
         </div>
