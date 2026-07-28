@@ -29,6 +29,10 @@ const VAR_KEYS = [
     { t: 'x=', v: 'x = ' }, { t: 'x', v: 'x' }, { t: 'y', v: 'y' }, { t: 'i', v: 'i' }, { t: '(', v: '(' }, { t: ')', v: ')' },
     { t: '^', v: '^' }, { t: 'π', v: 'pi' }
 ]
+// Comparison operators for inequality answers.
+const CMP_KEYS = [
+    { t: '<', v: '<' }, { t: '>', v: '>' }, { t: '≤', v: '≤' }, { t: '≥', v: '≥' }
+]
 // Numeric pad shared by both variants; the trailing operator column only shows
 // in the "full" math layout.
 const PAD = [
@@ -223,6 +227,9 @@ const MathKeypad = () => {
                     </div>
                     <div className="mk-row mk-vars">
                         {VAR_KEYS.map(k => <Btn key={k.t} label={k.t} cls="var" onPress={() => insert(k.v)} />)}
+                    </div>
+                    <div className="mk-row mk-cmp">
+                        {CMP_KEYS.map(k => <Btn key={k.t} label={k.t} cls="var" onPress={() => insert(k.v)} />)}
                     </div>
                 </>
             )}

@@ -95,7 +95,10 @@ export const stripAssignment = (s) => {
 }
 
 export const normalize = (s) =>
-    String(s).trim().toLowerCase().replace(/\s+/g, '').replace(/[×*]/g, '*').replace(/[÷]/g, '/').replace(/−/g, '-')
+    String(s).trim().toLowerCase().replace(/\s+/g, '')
+        .replace(/[×*]/g, '*').replace(/[÷]/g, '/').replace(/−/g, '-')
+        // Canonicalize inequality operators so "≤" and "<=" (and ≥/>=) match.
+        .replace(/≤/g, '<=').replace(/≥/g, '>=')
 
 // Parse a numeric answer, allowing simple "a/b" fractions and π.
 export const parseNumeric = (s) => {
