@@ -98,7 +98,17 @@ const MathKeypad = () => {
         const onFocusOut = (e) => {
             // Ignore blurs caused by pressing a keypad button (focus stays put).
             if (panelRef.current && panelRef.current.contains(e.relatedTarget)) return
-            hideTimer.current = setTimeout(() => setTarget(null), 120)
+            // Clear any pending hide first: when focus passes THROUGH a button
+            // (e.g. "Next" between problems) the old timer would otherwise be
+            // orphaned and fire after focus has returned to the input.
+            clearTimeout(hideTimer.current)
+            hideTimer.current = setTimeout(() => {
+                // Don't hide if a keypad field is actually focused right now —
+                // the blur was only transient (focus bounced off a button).
+                const a = document.activeElement
+                if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA') && a.dataset.keypad) return
+                setTarget(null)
+            }, 120)
         }
         document.addEventListener('focusin', onFocusIn)
         document.addEventListener('focusout', onFocusOut)

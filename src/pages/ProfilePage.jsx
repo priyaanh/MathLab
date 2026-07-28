@@ -1,21 +1,16 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ALL_SKILLS, TOPICS, TOTAL_SKILLS, GRADES } from '../exercises'
 import { evaluateAchievements } from '../utils/achievements'
 import { loadActivity, currentStreak, longestStreak, recentDays, setGoal as persistGoal } from '../utils/activity'
 
 /**
- * Profile — a local identity + a safety net for progress.
+ * Profile — a local identity and progress hub.
  *
- * Everything MathLab remembers (exercise progress, your name, tab/tool order,
- * theme) lives in this browser's localStorage. This page lets you:
- *   - set a display name,
- *   - see your practice stats at a glance,
- *   - export a backup file and import it back (so switching browsers or
- *     clearing site data doesn't wipe your progress),
- *   - reset progress deliberately.
- *
- * No account, no server — the backup file is the portable copy.
+ * Everything MathLab remembers (exercise progress, name, grade, streak,
+ * tab/tool order, theme) lives entirely in this browser's localStorage — no
+ * account, no server. This page lets you set a display name and grade, see
+ * your stats and achievements, and reset progress deliberately.
  */
 
 const PROFILE_KEY = 'mathlab-profile'
@@ -24,14 +19,10 @@ const MASTERY_STREAK = 5
 // How many "practice next" skills to surface on the plan.
 const PLAN_SIZE = 6
 
-// Keys we back up. We deliberately never export an API key.
-const BACKUP_PREFIX = 'mathlab-'
-const BACKUP_EXCLUDE = new Set(['mathlab-anthropic-key'])
-
 // Always hand back a plain object. Stored data can be malformed — e.g. the
-// literal string "null", an array, or a primitive (a bad import can write
-// these) — and JSON.parse would then yield null/array/number, crashing the
-// page on `profile.name` / `Object.entries(progress)`.
+// literal string "null", an array, or a primitive — and JSON.parse would then
+// yield null/array/number, crashing the page on `profile.name` /
+// `Object.entries(progress)`.
 const loadObject = (key) => {
     try {
         const parsed = JSON.parse(localStorage.getItem(key) || '{}')
@@ -41,23 +32,11 @@ const loadObject = (key) => {
 const loadProfile = () => loadObject(PROFILE_KEY)
 const loadProgress = () => loadObject(PROGRESS_KEY)
 
-const collectBackup = () => {
-    const data = {}
-    for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i)
-        if (k && k.startsWith(BACKUP_PREFIX) && !BACKUP_EXCLUDE.has(k)) {
-            data[k] = localStorage.getItem(k)
-        }
-    }
-    return { app: 'MathLab', version: 1, exportedAt: new Date().toISOString(), data }
-}
-
 const ProfilePage = () => {
     const [profile, setProfile] = useState(loadProfile)
     const [progress, setProgress] = useState(loadProgress)
     const [activity, setActivity] = useState(loadActivity)
     const [flash, setFlash] = useState('')
-    const fileRef = useRef(null)
     const navigate = useNavigate()
 
     // Persist a single profile field, keeping the rest intact.
@@ -121,48 +100,8 @@ const ProfilePage = () => {
 
     const flashMsg = (m) => { setFlash(m); setTimeout(() => setFlash(''), 2500) }
 
-    const exportBackup = () => {
-        const blob = new Blob([JSON.stringify(collectBackup(), null, 2)], { type: 'application/json' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        const stamp = new Date().toISOString().slice(0, 10)
-        a.href = url
-        a.download = `mathlab-backup-${stamp}.json`
-        a.click()
-        URL.revokeObjectURL(url)
-        flashMsg('Backup downloaded ✓')
-    }
-
-    const importBackup = (e) => {
-        const file = e.target.files?.[0]
-        if (!file) return
-        const reader = new FileReader()
-        reader.onload = () => {
-            try {
-                const parsed = JSON.parse(String(reader.result))
-                if (parsed?.app !== 'MathLab' || typeof parsed.data !== 'object') {
-                    throw new Error('not a MathLab backup')
-                }
-                Object.entries(parsed.data).forEach(([k, v]) => {
-                    if (k.startsWith(BACKUP_PREFIX) && !BACKUP_EXCLUDE.has(k)) {
-                        localStorage.setItem(k, String(v))
-                    }
-                })
-                setProfile(loadProfile())
-                setProgress(loadProgress())
-                setActivity(loadActivity())
-                flashMsg('Backup restored ✓ — reloading…')
-                setTimeout(() => window.location.reload(), 800)
-            } catch {
-                flashMsg("That file isn't a MathLab backup.")
-            }
-        }
-        reader.readAsText(file)
-        e.target.value = ''
-    }
-
     const resetProgress = () => {
-        if (!window.confirm('Erase all exercise progress on this device? This cannot be undone (export a backup first).')) return
+        if (!window.confirm('Erase all exercise progress on this device? This cannot be undone.')) return
         try { localStorage.removeItem(PROGRESS_KEY) } catch { /* ignore */ }
         setProgress({})
         flashMsg('Progress reset.')
@@ -205,15 +144,9 @@ const ProfilePage = () => {
                         Builds a practice plan tuned to your grade below.
                     </p>
 
-                    <h2 style={{ marginTop: '1.4rem' }}>Keep your progress safe</h2>
-                    <div className="profile-actions">
-                        <button className="btn primary" onClick={exportBackup}>⬇ Export backup</button>
-                        <button className="btn ghost" onClick={() => fileRef.current?.click()}>⬆ Import backup</button>
-                        <input ref={fileRef} type="file" accept="application/json,.json" onChange={importBackup} style={{ display: 'none' }} />
-                    </div>
-                    <p className="hint" style={{ marginTop: '0.6rem' }}>
-                        The backup is a small JSON file with your progress, name, and preferences (never any API key).
-                        Import it on a new browser or after clearing site data.
+                    <p className="hint" style={{ marginTop: '1.4rem' }}>
+                        Everything MathLab remembers — your name, grade, practice progress,
+                        streak and preferences — is saved right here in this browser.
                     </p>
 
                     <button className="btn ghost" style={{ marginTop: '1rem', color: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={resetProgress}>

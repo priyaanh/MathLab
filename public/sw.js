@@ -7,8 +7,11 @@
 //
 // Bumping CACHE_NAME + deleting old caches on activate purges any stale assets
 // left behind by the old worker.
-const CACHE_NAME = 'mathlab-v2'
-const PRECACHE = ['/', '/index.html', '/manifest.json']
+// Bump on each cache-shape change so activate purges the previous cache.
+const CACHE_NAME = 'mathlab-v3'
+// Relative to the worker's scope so they resolve under a base path (e.g.
+// GitHub Pages serves the app from /<repo>/, not the domain root).
+const PRECACHE = ['./', './index.html', './manifest.json']
 
 self.addEventListener('install', (event) => {
     // Activate this worker as soon as it's installed, without waiting for tabs to close.
