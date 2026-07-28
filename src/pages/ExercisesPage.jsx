@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { TOPICS, ALL_SKILLS, TOTAL_SKILLS, checkAnswer } from '../exercises'
-import { renderMath, useProgress, MASTERY_STREAK } from '../exercises/practice.jsx'
+import { renderMath, useProgress, MASTERY_STREAK, ExplanationSteps } from '../exercises/practice.jsx'
 
 // --- one practice session --------------------------------------------------
 const PracticeSession = ({ skill, stat, onRecord, onResetSkill, onBack }) => {
@@ -131,7 +131,12 @@ const PracticeSession = ({ skill, stat, onRecord, onResetSkill, onBack }) => {
                         {!correct && (
                             <div className="ex-answer-reveal">Answer: <strong>{renderMath(String(problem.answer))}</strong></div>
                         )}
-                        {problem.explanation && <div className="ex-explain">{renderMath(problem.explanation)}</div>}
+                        {problem.explanation && (
+                            <div className="ex-explain">
+                                {!correct && <div className="ex-explain-head">Here's why — step by step</div>}
+                                <ExplanationSteps text={problem.explanation} />
+                            </div>
+                        )}
                         {isChoice && (
                             <button className="btn primary" style={{ marginTop: '0.8rem' }} onClick={newProblem}>Next →</button>
                         )}

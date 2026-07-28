@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { GRADES, skillsForGrade, checkAnswer } from '../exercises'
-import { renderMath, useProgress, MASTERY_STREAK } from '../exercises/practice.jsx'
+import { renderMath, useProgress, MASTERY_STREAK, ExplanationSteps } from '../exercises/practice.jsx'
 
 /**
  * Personalized Practice — endless, adaptive drilling of whatever you're
@@ -229,7 +229,12 @@ const PersonalizedPage = () => {
                                 {!correct && (
                                     <div className="ex-answer-reveal">Answer: <strong>{renderMath(String(problem.answer))}</strong></div>
                                 )}
-                                {problem.explanation && <div className="ex-explain">{renderMath(problem.explanation)}</div>}
+                                {problem.explanation && (
+                                    <div className="ex-explain">
+                                        {!correct && <div className="ex-explain-head">Here's why — step by step</div>}
+                                        <ExplanationSteps text={problem.explanation} />
+                                    </div>
+                                )}
                                 {isChoice && (
                                     <button className="btn primary" style={{ marginTop: '0.8rem' }} onClick={nextProblem}>Next →</button>
                                 )}

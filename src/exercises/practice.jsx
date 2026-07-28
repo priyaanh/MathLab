@@ -27,6 +27,20 @@ export const renderMath = (text) => {
     return parts
 }
 
+// Render a problem's explanation as ordered steps. Generators separate steps
+// with newlines; a single-line explanation renders as one plain line. Used by
+// every practice surface so "why + steps" looks the same everywhere.
+export const ExplanationSteps = ({ text }) => {
+    if (text == null || String(text).trim() === '') return null
+    const steps = String(text).split(/\n+/).map(s => s.trim()).filter(Boolean)
+    if (steps.length <= 1) return <div className="exp-steps-single">{renderMath(steps[0] || String(text))}</div>
+    return (
+        <ol className="exp-steps">
+            {steps.map((s, i) => <li key={i}>{renderMath(s)}</li>)}
+        </ol>
+    )
+}
+
 export const loadProgress = () => {
     try {
         const raw = localStorage.getItem(PROGRESS_KEY)

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { TOPICS, ALL_SKILLS, checkAnswer } from '../exercises'
+import { ExplanationSteps } from '../exercises/practice.jsx'
 
 /**
  * Quiz — a scored, fixed-length run of fresh problems drawn from the exercise
@@ -130,7 +131,7 @@ const QuizPage = () => {
                                             <span className="no">You: {r.given || '—'}</span>
                                             <span className="ok">Answer: {renderMath(String(r.problem.answer))}</span>
                                         </div>
-                                        {r.problem.explanation && <div className="quiz-review-exp">{renderMath(r.problem.explanation)}</div>}
+                                        {r.problem.explanation && <div className="quiz-review-exp"><ExplanationSteps text={r.problem.explanation} /></div>}
                                     </div>
                                 ))}
                             </div>
@@ -205,7 +206,12 @@ const QuizPage = () => {
                     <div className={`quiz-feedback ${checked.correct ? 'ok' : 'no'}`}>
                         <div className="quiz-feedback-head">{checked.correct ? '✓ Correct!' : '✗ Not quite'}</div>
                         {!checked.correct && <div>Answer: <strong>{renderMath(String(cur.answer))}</strong></div>}
-                        {cur.explanation && <div className="quiz-exp">{renderMath(cur.explanation)}</div>}
+                        {cur.explanation && (
+                            <div className="quiz-exp">
+                                {!checked.correct && <div className="ex-explain-head">Here's why — step by step</div>}
+                                <ExplanationSteps text={cur.explanation} />
+                            </div>
+                        )}
                         <button className="btn primary" style={{ marginTop: '0.7rem' }} onClick={next}>
                             {idx + 1 >= problems.length ? 'See results →' : 'Next question →'}
                         </button>
