@@ -17,6 +17,7 @@ import { parseEquation, solveLinear, solveQuadratic, solveSystem, solveGeneral }
 import { parseComplex, cMul, cDiv, cModulus, cFormat } from '../src/utils/complex.js'
 import { normalCdf, binomPmf, binomCdf, poissonPmf, poissonCdf } from '../src/utils/distributions.js'
 import { move, canMove, newGame, spawn, isValidBoard, normalizeBoard } from '../src/utils/game2048.js'
+import { toUrl, hostOf, blocksFraming } from '../src/utils/webframe.js'
 
 let passed = 0
 let failed = 0
@@ -238,6 +239,30 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
         }
     }
     ok('2048: 500 random games keep the board valid', boardOk)
+}
+
+// --- 8. web viewer address bar --------------------------------------------
+{
+    ok('webframe: full URLs pass through', toUrl('https://en.wikipedia.org/wiki/Pi') === 'https://en.wikipedia.org/wiki/Pi')
+    ok('webframe: http is kept', toUrl('http://example.com') === 'http://example.com')
+    ok('webframe: bare hosts get https', toUrl('example.com') === 'https://example.com')
+    ok('webframe: host + path gets https', toUrl('wikipedia.org/wiki/Pi') === 'https://wikipedia.org/wiki/Pi')
+    ok('webframe: blank input is null', toUrl('  ') === null && toUrl('') === null && toUrl(null) === null)
+    ok('webframe: javascript: URLs are refused', toUrl('javascript:alert(1)') === null)
+    ok('webframe: prose becomes a search', toUrl('why is pi irrational').startsWith('https://search.disroot.org/search?q='))
+    ok('webframe: search terms are encoded', toUrl('a b&c').endsWith('a%20b%26c'), toUrl('a b&c'))
+    ok('webframe: engine choice is honoured', toUrl('pi', 'wikipedia').startsWith('https://en.wikipedia.org/w/index.php?search='))
+    ok('webframe: an unknown engine falls back', toUrl('pi', 'nope').startsWith('https://search.disroot.org/'))
+    ok('webframe: a phrase with a dot still searches', toUrl('what is 3.5 rounded').includes('search'), toUrl('what is 3.5 rounded'))
+
+    ok('webframe: hostOf reads the host', hostOf('https://en.wikipedia.org/wiki/Pi') === 'en.wikipedia.org')
+    ok('webframe: hostOf survives junk', hostOf('not a url') === '')
+    ok('webframe: flags framing-blocked hosts',
+        ['https://www.google.com', 'https://google.co.uk/search', 'https://www.youtube.com/watch?v=1',
+            'https://github.com', 'https://x.com/home', 'https://duckduckgo.com'].every(blocksFraming))
+    ok('webframe: leaves frameable hosts alone',
+        ['https://en.wikipedia.org', 'https://www.khanacademy.org', 'https://archive.org',
+            'https://search.disroot.org/search?q=pi'].every(u => !blocksFraming(u)))
 }
 
 // --- report ---------------------------------------------------------------

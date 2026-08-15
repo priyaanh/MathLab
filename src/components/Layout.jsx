@@ -4,9 +4,10 @@ import NavBar from './NavBar'
 import MathKeypad from './MathKeypad'
 import ErrorBoundary from './ErrorBoundary'
 
-// The secret games are popup overlays — lazy so their code only ships when opened.
+// Footer popups — lazy so their code only ships when opened.
 const DinoGame = lazy(() => import('../pages/DinoGame'))
 const Game2048 = lazy(() => import('../pages/Game2048'))
+const WebFrame = lazy(() => import('../pages/WebFrame'))
 
 // Per-route document titles — better browser tabs, history entries and SEO.
 const TITLES = {
@@ -88,13 +89,22 @@ const Layout = () => {
                 >
                     🔢
                 </button>
+                <button
+                    type="button"
+                    className="dino-secret"
+                    title="?"
+                    aria-label="Web viewer"
+                    onClick={() => setSecretGame('web')}
+                >
+                    🌐
+                </button>
             </footer>
             <MathKeypad />
             {secretGame && (
                 <Suspense fallback={null}>
-                    {secretGame === 'dino'
-                        ? <DinoGame onClose={closeGame} />
-                        : <Game2048 onClose={closeGame} />}
+                    {secretGame === 'dino' && <DinoGame onClose={closeGame} />}
+                    {secretGame === '2048' && <Game2048 onClose={closeGame} />}
+                    {secretGame === 'web' && <WebFrame onClose={closeGame} />}
                 </Suspense>
             )}
         </div>

@@ -2008,6 +2008,125 @@ a.topic-card {
     .g2048-add,
     .g2048-msg { animation: none; transition: none; }
 }
+
+/* ---- In-page web viewer ------------------------------------------------ */
+.wf-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 210;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: color-mix(in srgb, #000 55%, transparent);
+    backdrop-filter: blur(2px);
+    animation: dino-fade 0.18s ease;
+}
+.wf-shell {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    animation: dino-pop 0.2s ease;
+}
+.wf-shell.is-max { width: calc(100vw - 2rem); height: calc(100vh - 2rem); }
+.wf-shell.is-fs { width: 100vw; height: 100vh; border: none; border-radius: 0; }
+
+.wf-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.45rem 0.5rem;
+    background: var(--bg-2);
+    border-bottom: 1px solid var(--border);
+}
+.wf-nav {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 1rem;
+    line-height: 1;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.wf-nav:hover { background: var(--surface-2, var(--border)); }
+.wf-nav:disabled, .wf-nav.is-off { opacity: 0.4; cursor: default; pointer-events: none; }
+.wf-x:hover { background: var(--danger, #e5484d); color: #fff; }
+.wf-url {
+    flex: 1 1 auto;
+    min-width: 90px;
+    height: 30px;
+    padding: 0 0.7rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 0.85rem;
+}
+.wf-url:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.wf-engine {
+    flex: none;
+    height: 30px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.75rem;
+}
+.wf-spacer { flex: 0 1 0.5rem; }
+
+.wf-note {
+    margin: 0;
+    padding: 0.45rem 0.75rem;
+    background: color-mix(in srgb, var(--danger, #e5484d) 12%, transparent);
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    font-size: 0.8rem;
+}
+.wf-stage { position: relative; flex: 1 1 auto; min-height: 0; background: #fff; }
+.wf-stage.is-resizing .wf-frame { pointer-events: none; } /* keep the drag alive over the frame */
+.wf-frame { width: 100%; height: 100%; border: 0; display: block; }
+.wf-start {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    height: 100%;
+    padding: 1.5rem;
+    text-align: center;
+    background: var(--surface);
+}
+.wf-start-title { margin: 0; font-weight: 700; color: var(--text); }
+.wf-links { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
+.wf-start .hint { max-width: 46ch; margin: 0; }
+
+.wf-resize {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 18px;
+    height: 18px;
+    cursor: nwse-resize;
+    background: linear-gradient(-45deg, transparent 45%, var(--border) 45%, var(--border) 55%, transparent 55%);
+    touch-action: none;
+}
+
 /* ---- Stepped explanations (why + steps) ------------------------------- */
 .ex-explain-head {
     font-weight: 700;
