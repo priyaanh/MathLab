@@ -284,6 +284,7 @@ const DinoGame = ({ onClose }) => {
             if (g.onGround) { g.vy = JUMP_V; g.onGround = false }
         }
         const onKeyDown = (e) => {
+            if (e.metaKey || e.ctrlKey || e.altKey) return // leave ⌘↑, ⌥↓ etc. to the browser
             if (e.code === 'Space' || e.code === 'ArrowUp' || e.key === ' ') { e.preventDefault(); jump() }
             else if (e.code === 'ArrowDown') { e.preventDefault(); game.current.duck = true }
         }

@@ -1867,6 +1867,147 @@ a.topic-card {
     gap: 1rem;
 }
 
+/* ---- Secret 2048 game -------------------------------------------------- */
+/* Board and tiles keep the original game's palette on purpose — only the
+   modal shell around them follows the site theme. */
+.g2048-bar {
+    max-width: 500px;
+    margin: 0.5rem auto 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+.g2048-scores { display: flex; gap: 0.5rem; }
+.g2048-score-box {
+    position: relative;
+    min-width: 78px;
+    padding: 0.3rem 0.75rem;
+    background: #bbada0;
+    border-radius: 4px;
+    text-align: center;
+    color: #f9f6f2;
+}
+.g2048-score-label {
+    display: block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #eee4da;
+}
+.g2048-score-val { display: block; font-size: 1.2rem; font-weight: 800; line-height: 1.25; }
+.g2048-add {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 6px;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: rgba(119, 110, 101, 0.9);
+    pointer-events: none;
+    animation: g2048-add 0.6s ease-in both;
+}
+@keyframes g2048-add {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(-2rem); }
+}
+
+.g2048-wrap { max-width: 500px; margin: 0.75rem auto 0; }
+.g2048-board {
+    --cell: clamp(56px, 19vw, 106px);
+    --gap: calc(var(--cell) / 7);
+    --slide: 0.15s; /* keep in step with SLIDE_MS in Game2048.jsx */
+    position: relative;
+    box-sizing: border-box;
+    width: calc(var(--cell) * 4 + var(--gap) * 5);
+    height: calc(var(--cell) * 4 + var(--gap) * 5);
+    margin: 0 auto;
+    padding: var(--gap);
+    display: grid;
+    grid-template-columns: repeat(4, var(--cell));
+    grid-template-rows: repeat(4, var(--cell));
+    gap: var(--gap);
+    background: #bbada0;
+    border-radius: 6px;
+    box-shadow: var(--shadow);
+    touch-action: none;
+    user-select: none;
+}
+.g2048-cell { background: rgba(238, 228, 218, 0.35); border-radius: 3px; }
+.g2048-tile {
+    position: absolute;
+    width: var(--cell);
+    height: var(--cell);
+    left: calc(var(--gap) + (var(--cell) + var(--gap)) * var(--c));
+    top: calc(var(--gap) + (var(--cell) + var(--gap)) * var(--r));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    background: #eee4da;
+    color: #776e65;
+    font-weight: 700;
+    font-size: calc(var(--cell) * 0.5);
+    transition: left var(--slide) ease-in-out, top var(--slide) ease-in-out;
+}
+.g2048-tile[data-len='3'] { font-size: calc(var(--cell) * 0.4); }
+.g2048-tile[data-len='4'] { font-size: calc(var(--cell) * 0.32); }
+.g2048-tile[data-len='5'] { font-size: calc(var(--cell) * 0.26); }
+.g2048-tile[data-value='4'] { background: #ede0c8; }
+.g2048-tile[data-value='8'] { background: #f2b179; color: #f9f6f2; }
+.g2048-tile[data-value='16'] { background: #f59563; color: #f9f6f2; }
+.g2048-tile[data-value='32'] { background: #f67c5f; color: #f9f6f2; }
+.g2048-tile[data-value='64'] { background: #f65e3b; color: #f9f6f2; }
+.g2048-tile[data-value='128'] { background: #edcf72; color: #f9f6f2; }
+.g2048-tile[data-value='256'] { background: #edcc61; color: #f9f6f2; }
+.g2048-tile[data-value='512'] { background: #edc850; color: #f9f6f2; }
+.g2048-tile[data-value='1024'] { background: #edc53f; color: #f9f6f2; }
+.g2048-tile[data-value='2048'] {
+    background: #edc22e;
+    color: #f9f6f2;
+    box-shadow: 0 0 30px 10px rgba(243, 215, 116, 0.3);
+}
+.g2048-tile[data-value='super'] { background: #3c3a32; color: #f9f6f2; }
+/* both wait out the slide, so tiles converge first and the result lands after */
+.g2048-tile.is-new { animation: g2048-appear 0.2s ease var(--slide) backwards; }
+.g2048-tile.is-merged { animation: g2048-pop 0.2s ease var(--slide) backwards; z-index: 2; }
+@keyframes g2048-appear {
+    from { opacity: 0; transform: scale(0); }
+    to { opacity: 1; transform: none; }
+}
+@keyframes g2048-pop {
+    0% { transform: scale(0); }
+    50% { transform: scale(1.2); }
+    100% { transform: none; }
+}
+
+/* game over / you win — like .dino-overlay, but its buttons are clickable */
+.g2048-msg {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    text-align: center;
+    border-radius: 6px;
+    background: rgba(238, 228, 218, 0.73);
+    animation: dino-fade 0.5s ease both;
+}
+.g2048-msg.win { background: rgba(237, 194, 46, 0.5); }
+.g2048-msg .dino-msg { color: #776e65; font-size: 1.6rem; }
+.g2048-msg-actions { display: flex; gap: 0.5rem; }
+
+@media (prefers-reduced-motion: reduce) {
+    .g2048-tile,
+    .g2048-tile.is-new,
+    .g2048-tile.is-merged,
+    .g2048-add,
+    .g2048-msg { animation: none; transition: none; }
+}
 /* ---- Stepped explanations (why + steps) ------------------------------- */
 .ex-explain-head {
     font-weight: 700;

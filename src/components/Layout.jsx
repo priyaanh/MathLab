@@ -4,8 +4,9 @@ import NavBar from './NavBar'
 import MathKeypad from './MathKeypad'
 import ErrorBoundary from './ErrorBoundary'
 
-// The secret dino game is a popup overlay — lazy so its code only ships when opened.
+// The secret games are popup overlays — lazy so their code only ships when opened.
 const DinoGame = lazy(() => import('../pages/DinoGame'))
+const Game2048 = lazy(() => import('../pages/Game2048'))
 
 // Per-route document titles — better browser tabs, history entries and SEO.
 const TITLES = {
@@ -52,8 +53,9 @@ const PageLoading = () => (
 
 const Layout = () => {
     const { pathname } = useLocation()
-    const [dinoOpen, setDinoOpen] = useState(false)
+    const [secretGame, setSecretGame] = useState(null) // 'dino' | '2048' | null
     useEffect(() => { document.title = titleFor(pathname) }, [pathname])
+    const closeGame = () => setSecretGame(null)
 
     return (
         <div className="site">
@@ -73,15 +75,26 @@ const Layout = () => {
                     className="dino-secret"
                     title="?"
                     aria-label="Secret game"
-                    onClick={() => setDinoOpen(true)}
+                    onClick={() => setSecretGame('dino')}
                 >
                     🦕
                 </button>
+                <button
+                    type="button"
+                    className="dino-secret"
+                    title="?"
+                    aria-label="Another secret game"
+                    onClick={() => setSecretGame('2048')}
+                >
+                    🔢
+                </button>
             </footer>
             <MathKeypad />
-            {dinoOpen && (
+            {secretGame && (
                 <Suspense fallback={null}>
-                    <DinoGame onClose={() => setDinoOpen(false)} />
+                    {secretGame === 'dino'
+                        ? <DinoGame onClose={closeGame} />
+                        : <Game2048 onClose={closeGame} />}
                 </Suspense>
             )}
         </div>
