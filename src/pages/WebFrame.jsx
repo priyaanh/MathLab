@@ -52,6 +52,7 @@ const WebFrame = ({ onClose }) => {
     const [resizing, setResizing] = useState(false)
 
     const shellRef = useRef(null)
+    const urlRef = useRef(null)
     const restoreSize = useRef(null)
     const drag = useRef(null)
 
@@ -89,15 +90,28 @@ const WebFrame = ({ onClose }) => {
         return () => document.removeEventListener('fullscreenchange', onFs)
     }, [])
 
+    /**
+     * Close keys. ` is a panic key: it shuts the viewer at once from anywhere in
+     * this document, fullscreen included. It cannot fire while the framed page
+     * itself has focus — a cross-origin frame keeps its keystrokes to itself and
+     * no page can read them — so the address bar is focused on open.
+     */
     useEffect(() => {
-        const onEsc = (e) => {
-            if (e.key !== 'Escape') return
-            if (document.fullscreenElement) return // let Escape leave fullscreen first
-            onClose?.()
+        const onKey = (e) => {
+            if (e.key === '`') {
+                e.preventDefault()
+                e.stopPropagation()
+                if (document.fullscreenElement) document.exitFullscreen?.().catch(() => { /* ignore */ })
+                onClose?.()
+                return
+            }
+            if (e.key === 'Escape' && !document.fullscreenElement) onClose?.() // Escape leaves fullscreen first
         }
-        window.addEventListener('keydown', onEsc)
-        return () => window.removeEventListener('keydown', onEsc)
+        window.addEventListener('keydown', onKey, { capture: true })
+        return () => window.removeEventListener('keydown', onKey, { capture: true })
     }, [onClose])
+
+    useEffect(() => { urlRef.current?.focus() }, [])
 
     const toggleFullscreen = () => {
         if (document.fullscreenElement) document.exitFullscreen?.()
@@ -160,6 +174,7 @@ const WebFrame = ({ onClose }) => {
                     <button type="button" className="wf-nav" onClick={forward} disabled={idx >= stack.length - 1} aria-label="Forward" title="Forward">›</button>
                     <button type="button" className="wf-nav" onClick={reload} disabled={!current} aria-label="Reload" title="Reload">⟳</button>
                     <input
+                        ref={urlRef}
                         className="wf-url"
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
@@ -189,7 +204,7 @@ const WebFrame = ({ onClose }) => {
                     >↗</a>
                     <button type="button" className="wf-nav" onClick={toggleMaximize} aria-label={maximized ? 'Restore size' : 'Maximize'} title={maximized ? 'Restore size' : 'Maximize'}>{maximized ? '❐' : '▢'}</button>
                     <button type="button" className="wf-nav" onClick={toggleFullscreen} aria-label="Fullscreen" title="Fullscreen">⛶</button>
-                    <button type="button" className="wf-nav wf-x" onClick={() => onClose?.()} aria-label="Close" title="Close (Esc)">×</button>
+                    <button type="button" className="wf-nav wf-x" onClick={() => onClose?.()} aria-label="Close" title="Close (Esc, or ` to close instantly)">×</button>
                 </form>
 
                 {blocked && (

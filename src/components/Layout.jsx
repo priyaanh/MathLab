@@ -70,6 +70,15 @@ const Layout = () => {
                 </ErrorBoundary>
             </main>
             <footer className="footer">
+                <button
+                    type="button"
+                    className="dino-secret is-left"
+                    title="?"
+                    aria-label="Web viewer"
+                    onClick={() => setSecretGame('web')}
+                >
+                    🌐
+                </button>
                 MathLab · built with React · a stylish home for calculators &amp; graphing tools
                 <button
                     type="button"
@@ -88,15 +97,6 @@ const Layout = () => {
                     onClick={() => setSecretGame('2048')}
                 >
                     🔢
-                </button>
-                <button
-                    type="button"
-                    className="dino-secret"
-                    title="?"
-                    aria-label="Web viewer"
-                    onClick={() => setSecretGame('web')}
-                >
-                    🌐
                 </button>
             </footer>
             <MathKeypad />
