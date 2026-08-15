@@ -17,7 +17,10 @@ import { parseEquation, solveLinear, solveQuadratic, solveSystem, solveGeneral }
 import { parseComplex, cMul, cDiv, cModulus, cFormat } from '../src/utils/complex.js'
 import { normalCdf, binomPmf, binomCdf, poissonPmf, poissonCdf } from '../src/utils/distributions.js'
 import { move, canMove, newGame, spawn, isValidBoard, normalizeBoard } from '../src/utils/game2048.js'
-import { toUrl, hostOf, blocksFraming } from '../src/utils/webframe.js'
+import {
+    toUrl, hostOf, blocksFraming, tabLabel, sanitizePrefs, sanitizeSession, sanitizeBookmarks,
+    DEFAULT_PREFS, MAX_BOOKMARKS, MAX_TABS, MAX_STACK, MIN_RAIL, MAX_RAIL
+} from '../src/utils/webframe.js'
 
 let passed = 0
 let failed = 0
@@ -263,6 +266,82 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
     ok('webframe: leaves frameable hosts alone',
         ['https://en.wikipedia.org', 'https://www.khanacademy.org', 'https://archive.org',
             'https://search.disroot.org/search?q=pi'].every(u => !blocksFraming(u)))
+
+    ok('webframe: tabLabel drops the www', tabLabel('https://www.khanacademy.org/x') === 'khanacademy.org')
+    ok('webframe: tabLabel names a blank tab', tabLabel(null) === 'New tab' && tabLabel('') === 'New tab')
+
+    // prefs come from hand-editable localStorage, so nothing in them is trusted
+    const d = sanitizePrefs(null)
+    ok('prefs: junk gives the defaults', d.home === DEFAULT_PREFS.home && d.engine === DEFAULT_PREFS.engine && d.closeKey === '`')
+    ok('prefs: arrays and strings are rejected', sanitizePrefs([]).home === DEFAULT_PREFS.home && sanitizePrefs('x').density === 'normal')
+    ok('prefs: a good home survives', sanitizePrefs({ home: 'https://example.com' }).home === 'https://example.com')
+    ok('prefs: a non-http home is dropped', sanitizePrefs({ home: 'javascript:alert(1)' }).home === DEFAULT_PREFS.home)
+    ok('prefs: an unknown engine falls back', sanitizePrefs({ engine: 'nope' }).engine === DEFAULT_PREFS.engine)
+    ok('prefs: a known engine is kept', sanitizePrefs({ engine: 'wikipedia' }).engine === 'wikipedia')
+    ok('prefs: the panic key must be one character',
+        sanitizePrefs({ closeKey: 'abc' }).closeKey === '`' && sanitizePrefs({ closeKey: '' }).closeKey === '`'
+        && sanitizePrefs({ closeKey: '§' }).closeKey === '§')
+    ok('prefs: density is an allow-list', sanitizePrefs({ density: 'huge' }).density === 'normal' && sanitizePrefs({ density: 'compact' }).density === 'compact')
+    ok('prefs: bar and rail default to on', d.bookmarksBar === true && d.verticalTabs === true)
+    ok('prefs: booleans can be turned off',
+        sanitizePrefs({ bookmarksBar: false }).bookmarksBar === false && sanitizePrefs({ verticalTabs: false }).verticalTabs === false)
+    ok('prefs: no start page means a blank new tab', d.home === '' && d.newTabOpensHome === false)
+    ok('prefs: opening the start page needs one to be set',
+        sanitizePrefs({ newTabOpensHome: true }).newTabOpensHome === false
+        && sanitizePrefs({ newTabOpensHome: true, home: 'https://example.com' }).newTabOpensHome === true)
+    ok('prefs: a background image must be a URL',
+        sanitizePrefs({ newTabBg: 'https://x.com/a.jpg' }).newTabBg === 'https://x.com/a.jpg'
+        && sanitizePrefs({ newTabBg: 'javascript:1' }).newTabBg === ''
+        && sanitizePrefs({ newTabBg: 'not a url' }).newTabBg === '')
+    ok('prefs: bad bookmarks are filtered out',
+        sanitizePrefs({ bookmarks: [{ url: 'https://ok.com' }, { url: 'ftp://no' }, null, 'x', {}] }).bookmarks.length === 1)
+    ok('prefs: a bookmark with no name gets one',
+        sanitizePrefs({ bookmarks: [{ url: 'https://www.example.com/a' }] }).bookmarks[0].label === 'example.com')
+    ok('prefs: bookmark names are capped', sanitizePrefs({ bookmarks: [{ url: 'https://a.com', label: 'x'.repeat(99) }] }).bookmarks[0].label.length === 40)
+    ok('prefs: the bookmark list is capped',
+        sanitizePrefs({ bookmarks: Array.from({ length: 99 }, (_, i) => ({ url: `https://a${i}.com` })) }).bookmarks.length === MAX_BOOKMARKS)
+    // bookmarks are meant to outlive everything else, so they get their own guard
+    ok('marks: good entries survive', sanitizeBookmarks([{ label: 'A', url: 'https://a.com' }]).length === 1)
+    ok('marks: junk is rejected', sanitizeBookmarks([null, 'x', {}, { url: 'ftp://a' }, { url: 'javascript:1' }]).length === 0)
+    ok('marks: non-arrays give an empty list', sanitizeBookmarks(null).length === 0 && sanitizeBookmarks({}).length === 0)
+    ok('marks: duplicates are dropped',
+        sanitizeBookmarks([{ url: 'https://a.com' }, { url: 'https://a.com', label: 'again' }]).length === 1)
+    ok('marks: a missing name uses the host', sanitizeBookmarks([{ url: 'https://www.a.com/x' }])[0].label === 'a.com')
+    ok('marks: names are capped', sanitizeBookmarks([{ url: 'https://a.com', label: 'z'.repeat(80) }])[0].label.length === 40)
+    ok('marks: the list is capped',
+        sanitizeBookmarks(Array.from({ length: 200 }, (_, i) => ({ url: `https://a${i}.com` }))).length === MAX_BOOKMARKS)
+    ok('marks: sanitizing is idempotent', (() => {
+        const once = sanitizeBookmarks([{ url: 'https://a.com' }, { url: 'https://b.com', label: 'B' }])
+        return JSON.stringify(sanitizeBookmarks(once)) === JSON.stringify(once)
+    })())
+
+    ok('prefs: the rail width is clamped',
+        sanitizePrefs({ railWidth: 5 }).railWidth === MIN_RAIL
+        && sanitizePrefs({ railWidth: 9999 }).railWidth === MAX_RAIL
+        && sanitizePrefs({ railWidth: 260 }).railWidth === 260)
+    ok('prefs: a junk rail width falls back', sanitizePrefs({ railWidth: 'wide' }).railWidth === DEFAULT_PREFS.railWidth
+        && sanitizePrefs({}).railWidth === DEFAULT_PREFS.railWidth)
+    ok('prefs: rail width is rounded', sanitizePrefs({ railWidth: 199.7 }).railWidth === 200)
+    ok('prefs: sanitizing is idempotent', JSON.stringify(sanitizePrefs(d)) === JSON.stringify(d))
+
+    // the saved session — reopening must land on the same pages
+    const sess = sanitizeSession({ tabs: [{ stack: ['https://a.com', 'https://b.com'], idx: 1 }], active: 0 })
+    ok('session: a good session restores', sess.tabs.length === 1 && sess.tabs[0].idx === 1 && sess.active === 0)
+    ok('session: history depth survives', sess.tabs[0].stack.length === 2 && sess.tabs[0].stack[0] === 'https://a.com')
+    ok('session: nothing saved -> null', sanitizeSession(null) === null && sanitizeSession({}) === null && sanitizeSession([]) === null)
+    ok('session: a session of blank tabs -> null', sanitizeSession({ tabs: [{ stack: [], idx: -1 }] }) === null)
+    ok('session: non-http entries are dropped',
+        sanitizeSession({ tabs: [{ stack: ['javascript:1', 'https://ok.com', 7], idx: 1 }] }).tabs[0].stack.length === 1)
+    ok('session: an out-of-range index is clamped',
+        sanitizeSession({ tabs: [{ stack: ['https://a.com'], idx: 99 }] }).tabs[0].idx === 0
+        && sanitizeSession({ tabs: [{ stack: ['https://a.com'], idx: -5 }] }).tabs[0].idx === 0)
+    ok('session: a bad active index falls back to the first tab',
+        sanitizeSession({ tabs: [{ stack: ['https://a.com'], idx: 0 }], active: 9 }).active === 0)
+    ok('session: the tab count is capped',
+        sanitizeSession({ tabs: Array.from({ length: 40 }, () => ({ stack: ['https://a.com'], idx: 0 })) }).tabs.length === MAX_TABS)
+    ok('session: history length is capped',
+        sanitizeSession({ tabs: [{ stack: Array.from({ length: 200 }, (_, i) => `https://a.com/${i}`), idx: 199 }] }).tabs[0].stack.length === MAX_STACK)
+    ok('session: sanitizing is idempotent', JSON.stringify(sanitizeSession(sess)) === JSON.stringify(sess))
 }
 
 // --- report ---------------------------------------------------------------
