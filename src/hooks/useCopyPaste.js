@@ -1,13 +1,12 @@
 import { useCallback } from 'react'
-import { evaluateExpression } from '../utils/mathUtils'
 
 /**
  * Custom hook for copy and paste functionality
  */
 export const useCopyPaste = (calculatorState, expressionState, operations) => {
-  const { display, expression, currentExpression, justCalculated } = calculatorState
+  const { display, expression, currentExpression } = calculatorState
   const { setIsEditing, setCursorPosition } = expressionState
-  const { clear, setCurrentExpression, setDisplay, setExpression, setJustCalculated } = operations
+  const { clear, setCurrentExpression, setDisplay, setExpression } = operations
 
   // Copy current result or expression to clipboard
   const copyToClipboard = useCallback(async (type = 'result') => {
@@ -64,29 +63,16 @@ export const useCopyPaste = (calculatorState, expressionState, operations) => {
       }
 
       // Check if it looks like a mathematical expression
-      const expressionMatch = cleanText.match(/^[0-9+\-×÷\(\)\.\^%\s]+$/)
+      const expressionMatch = cleanText.match(/^[0-9+\-×÷().^%\s]+$/)
       if (expressionMatch) {
-        try {
-          // Try to evaluate the expression to validate it
-          const result = evaluateExpression(cleanText)
-          
-          // If evaluation succeeds, set it as current expression
-          clear()
-          setCurrentExpression(cleanText)
-          setDisplay(cleanText)
-          setIsEditing(false)
-          setCursorPosition(0)
-          
-          return true
-        } catch (error) {
-          // If evaluation fails, still allow pasting for editing
-          clear()
-          setCurrentExpression(cleanText)
-          setDisplay(cleanText)
-          setIsEditing(false)
-          setCursorPosition(0)
-          return true
-        }
+        // Paste it either way: a valid expression is ready to use, and an
+        // invalid one is still worth handing to the user to edit.
+        clear()
+        setCurrentExpression(cleanText)
+        setDisplay(cleanText)
+        setIsEditing(false)
+        setCursorPosition(0)
+        return true
       }
 
       return false

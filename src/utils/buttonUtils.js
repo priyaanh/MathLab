@@ -112,7 +112,7 @@ export const findNavigationTarget = (buttons, currentIndex, direction, currentRo
                 newIndex = buttons.findIndex(btn => btn === targetButton)
             }
             break
-        case 'up':
+        case 'up': {
             const previousRow = currentRow - 1
             if (previousRow >= 0) {
                 const buttonsInPreviousRow = buttons.filter(btn => btn.row === previousRow)
@@ -122,7 +122,8 @@ export const findNavigationTarget = (buttons, currentIndex, direction, currentRo
                 }
             }
             break
-        case 'down':
+        }
+        case 'down': {
             const nextRow = currentRow + 1
             const maxRow = Math.max(...buttons.map(btn => btn.row))
             if (nextRow <= maxRow) {
@@ -133,6 +134,7 @@ export const findNavigationTarget = (buttons, currentIndex, direction, currentRo
                 }
             }
             break
+        }
     }
 
     return newIndex

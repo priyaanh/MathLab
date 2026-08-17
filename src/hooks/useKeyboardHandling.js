@@ -110,18 +110,18 @@ export const useKeyboardHandling = (
         if (keyToInsert === '/' || keyToInsert === '÷') keyToInsert = '÷'
 
         // Only allow direct input for valid calculator characters (after normalization)
-        if (/^[0-9+\-×÷()\.\^%]$/.test(keyToInsert)) {
+        if (/^[0-9+\-×÷().^%]$/.test(keyToInsert)) {
             e.preventDefault()
             if (isEditing) {
                 insertAtCursor(keyToInsert)
             } else {
-                if (/^[0-9\.]$/.test(keyToInsert)) {
+                if (/^[0-9.]$/.test(keyToInsert)) {
                     if (keyToInsert === '.') {
                         inputDecimal()
                     } else {
                         inputNumber(parseInt(keyToInsert))
                     }
-                } else if (/^[+\-×÷\^%]$/.test(keyToInsert)) {
+                } else if (/^[+\-×÷^%]$/.test(keyToInsert)) {
                     performOperation(keyToInsert)
                 }
             }

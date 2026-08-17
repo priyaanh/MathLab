@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { makeView, drawGrid, prepareHiDPICanvas, cssVar, exportCanvasPng } from '../utils/plane'
+import { makeView, drawGrid, prepareHiDPICanvas, exportCanvasPng } from '../utils/plane'
 import { usePlaneView, bindWheelZoom, useKeyboardPan, useDragPan } from '../hooks/usePlaneView'
 import { useThemeContext } from '../theme/ThemeContext'
 import PlaneControls from '../components/PlaneControls'
