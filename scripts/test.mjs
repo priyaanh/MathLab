@@ -269,9 +269,14 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
     ok('engines: no entry points at a host known to refuse framing',
         ENGINES.every(e => !blocksFraming(e.q('test'))), JSON.stringify(ENGINES.filter(e => blocksFraming(e.q('test'))).map(e => e.id)))
     ok('engines: ids are unique', new Set(ENGINES.map(e => e.id)).size === ENGINES.length)
-    // a saved id that no longer exists must heal to the default, not stick
+    /*
+     * A saved id that no longer exists must heal to the default, not stick. This
+     * is the whole reason a broken engine gets deleted rather than demoted: prefs
+     * written while it was the default would otherwise pin someone to a viewer
+     * that never returns a result.
+     */
     ok('engines: a retired engine id heals to the default',
-        sanitizePrefs({ engine: 'searx' }).engine === DEFAULT_PREFS.engine)
+        ['searx', 'searxbe', 'nonsense', ''].every(id => sanitizePrefs({ engine: id }).engine === DEFAULT_PREFS.engine))
     ok('webframe: a phrase with a dot still searches', toUrl('what is 3.5 rounded').includes('search'), toUrl('what is 3.5 rounded'))
 
     ok('webframe: hostOf reads the host', hostOf('https://en.wikipedia.org/wiki/Pi') === 'en.wikipedia.org')

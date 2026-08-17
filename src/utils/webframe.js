@@ -6,19 +6,21 @@
  * Search engines that allow being framed. Google/Bing/DuckDuckGo all refuse.
  *
  * An entry has to be reachable AND frameable AND free of a bot wall, or a search
- * lands on a blank pane and the viewer looks broken. Three failed one of those:
- * search.disroot.org answers 429 to public traffic, old.search.marginalia.nu no
- * longer resolves, and searx.be serves an "automated verification" interstitial
- * instead of results. The first two ids are gone on purpose — sanitizePrefs only
- * keeps an id still listed here, so saved prefs pointing at them heal to the
- * default. searx.be stays as a choice since its wall may pass on other networks,
- * but it is no longer what anyone gets by default.
+ * lands on a blank pane and the viewer looks broken. Three failed one of those
+ * and are gone: search.disroot.org answers 429 to public traffic,
+ * old.search.marginalia.nu no longer resolves, and searx.be serves an "automated
+ * verification" interstitial instead of results.
+ *
+ * Deleting the id is the point, not just dropping it down the list. sanitizePrefs
+ * keeps any id still named here, so a saved pref pointing at a broken engine
+ * would pin someone to a viewer that never returns a result — leaving it listed
+ * as "might work on your network" is exactly how that happens. Removing it makes
+ * those prefs fall back to the default on the next read.
  */
 export const ENGINES = [
     { id: 'marginalia', name: 'Marginalia', q: (s) => `https://search.marginalia.nu/search?query=${encodeURIComponent(s)}` },
     { id: 'wikipedia', name: 'Wikipedia', q: (s) => `https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(s)}` },
-    { id: 'wiby', name: 'Wiby', q: (s) => `https://wiby.me/?q=${encodeURIComponent(s)}` },
-    { id: 'searxbe', name: 'searx.be', q: (s) => `https://searx.be/search?q=${encodeURIComponent(s)}` }
+    { id: 'wiby', name: 'Wiby', q: (s) => `https://wiby.me/?q=${encodeURIComponent(s)}` }
 ]
 
 /**
