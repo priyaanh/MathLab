@@ -16,6 +16,11 @@ class ErrorBoundary extends Component {
         return { error }
     }
 
+    // Keep the real reason in the console — the panel below only shows a summary.
+    componentDidCatch(error, info) {
+        console.error('MathLab caught a render error:', error, info?.componentStack)
+    }
+
     componentDidUpdate(prevProps) {
         // A navigation happened — clear the error so the new page can render.
         if (this.state.error && prevProps.resetKey !== this.props.resetKey) {
@@ -24,15 +29,22 @@ class ErrorBoundary extends Component {
     }
 
     render() {
-        if (this.state.error) {
+        const { error } = this.state
+        if (error) {
+            // An overlay passes onClose: retrying in place would just re-mount the
+            // thing that threw, so its primary action dismisses it instead.
+            const { onReset } = this.props
             return (
-                <div className="error-screen" role="alert">
+                <div className={`error-screen${onReset ? ' is-overlay' : ''}`} role="alert">
                     <span className="error-emoji" aria-hidden="true">🧮💥</span>
-                    <h1>Something went wrong on this page</h1>
-                    <p>The rest of MathLab is fine — try again, or head back home. Your saved progress is untouched.</p>
+                    <h1>Something went wrong{onReset ? ' in here' : ' on this page'}</h1>
+                    <p>The rest of MathLab is fine. Your saved progress is untouched.</p>
+                    <p className="error-detail"><code>{String(error?.message || error).slice(0, 300)}</code></p>
                     <div className="error-actions">
-                        <button className="btn primary" onClick={() => this.setState({ error: null })}>Try again</button>
-                        <a className="btn ghost" href="#/">Go home</a>
+                        {onReset
+                            ? <button className="btn primary" onClick={onReset}>Close</button>
+                            : <button className="btn primary" onClick={() => this.setState({ error: null })}>Try again</button>}
+                        {!onReset && <a className="btn ghost" href="#/">Go home</a>}
                     </div>
                 </div>
             )

@@ -2032,8 +2032,12 @@ a.topic-card {
     min-width: 0;
     background: var(--bg-2);
     border: 1px solid var(--border);
-    border-radius: 14px;
-    box-shadow: var(--shadow);
+    border-radius: 18px;
+    /* depth + a rim light along the top edge, so it reads as a real window */
+    box-shadow:
+        0 32px 70px -18px rgba(0, 0, 0, 0.6),
+        0 8px 24px -12px rgba(0, 0, 0, 0.45),
+        inset 0 1px 0 color-mix(in srgb, #fff 9%, transparent);
     overflow: hidden;
     animation: dino-pop 0.2s ease;
 }
@@ -2049,7 +2053,11 @@ a.topic-card {
     gap: 0.35rem;
     width: 210px;
     padding: 0.5rem;
-    background: var(--bg-2);
+    /* a touch darker than the main column, with a hint of accent at the top */
+    background:
+        radial-gradient(120% 40% at 0% 0%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 70%),
+        linear-gradient(180deg, color-mix(in srgb, var(--bg) 55%, var(--bg-2)), var(--bg-2));
+    border-right: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
     overflow: hidden;
 }
 .wf-shell.rail-closed .wf-rail { width: 52px; }
@@ -2070,6 +2078,7 @@ a.topic-card {
 .wf-rail-head { display: flex; align-items: center; }
 .wf-tabs { display: flex; flex-direction: column; gap: 0.2rem; overflow-y: auto; scrollbar-width: thin; }
 .wf-tab {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -2081,14 +2090,30 @@ a.topic-card {
     white-space: nowrap;
     cursor: pointer;
     user-select: none;
+    transition: background 0.14s ease, color 0.14s ease;
 }
 .wf-tab:hover { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); }
 .wf-tab.is-active {
-    background: var(--surface);
+    background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 16%, var(--surface)), var(--surface));
     color: var(--text);
     font-weight: 600;
-    box-shadow: var(--shadow);
+    box-shadow:
+        0 2px 10px -4px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 color-mix(in srgb, #fff 7%, transparent);
 }
+/* accent bar marking the active tab, the way a real vertical-tab strip does */
+.wf-tab.is-active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 3px;
+    height: 18px;
+    border-radius: 0 3px 3px 0;
+    background: var(--accent);
+    transform: translateY(-50%);
+}
+.wf-shell.rail-closed .wf-tab.is-active::before { height: 22px; }
 .wf-tab-label { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; }
 .wf-shell.rail-closed .wf-tab-label,
 .wf-shell.rail-closed .wf-tab-x { display: none; }
@@ -2111,15 +2136,20 @@ a.topic-card {
     flex: none;
     height: 36px;
     margin-top: 0.15rem;
-    border: none;
+    border: 1px dashed color-mix(in srgb, var(--border) 90%, transparent);
     border-radius: 10px;
-    background: color-mix(in srgb, var(--text) 6%, transparent);
+    background: transparent;
     color: var(--text-muted);
     font-size: 1.1rem;
     line-height: 1;
     cursor: pointer;
+    transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
 }
-.wf-newtab:hover { background: color-mix(in srgb, var(--text) 12%, transparent); color: var(--text); }
+.wf-newtab:hover {
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+    color: var(--text);
+}
 
 /* favicons */
 .wf-fav, .wf-omni-fav, .wf-bm-fav, .wf-tile-fav {
@@ -2129,25 +2159,28 @@ a.topic-card {
     border-radius: 4px;
     object-fit: contain;
 }
+/* No favicon: the initial on a colour derived from the host, so a shelf of
+   icon-less sites still reads as distinct icons rather than grey chips. */
 .wf-fav.is-letter, .wf-omni-fav.is-letter, .wf-bm-fav.is-letter, .wf-tile-fav.is-letter {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: color-mix(in srgb, var(--accent) 22%, transparent);
-    color: var(--text);
+    background: hsl(var(--wf-hue, 220) 62% 52%);
+    color: #fff;
     font-size: 0.6rem;
     font-weight: 800;
 }
-.wf-tile-fav, .wf-tile-fav.is-letter { width: 26px; height: 26px; font-size: 0.9rem; border-radius: 8px; }
 
 /* ---- main column ---- */
-.wf-main { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
+/* position: relative anchors the settings popup to the browser window */
+.wf-main { position: relative; flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
 .wf-bar {
     display: flex;
     align-items: center;
     gap: 0.25rem;
     padding: 0.45rem 0.5rem;
-    background: var(--bg-2);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 55%, var(--bg-2)), var(--bg-2));
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
 }
 .wf-icon {
     flex: none;
@@ -2164,11 +2197,16 @@ a.topic-card {
     line-height: 1;
     text-decoration: none;
     cursor: pointer;
-    transition: background 0.15s ease;
+    transition: background 0.15s ease, transform 0.12s ease, color 0.15s ease;
 }
-.wf-icon:hover { background: color-mix(in srgb, var(--text) 10%, transparent); }
-.wf-icon:disabled, .wf-icon.is-off { opacity: 0.35; cursor: default; pointer-events: none; }
-.wf-icon.is-on { background: var(--accent); color: var(--on-accent); }
+.wf-icon:hover { background: color-mix(in srgb, var(--text) 12%, transparent); transform: translateY(-1px); }
+.wf-icon:active { transform: translateY(0); }
+.wf-icon:disabled, .wf-icon.is-off { opacity: 0.3; cursor: default; pointer-events: none; }
+.wf-icon.is-on {
+    background: var(--accent);
+    color: var(--on-accent);
+    box-shadow: 0 3px 12px -3px color-mix(in srgb, var(--accent) 65%, transparent);
+}
 .wf-close:hover { background: var(--danger, #e5484d); color: #fff; }
 
 /* pill omnibox */
@@ -2182,10 +2220,20 @@ a.topic-card {
     margin: 0 0.35rem;
     padding: 0 0.5rem 0 0.75rem;
     border-radius: 999px;
-    background: var(--surface);
+    background: color-mix(in srgb, var(--bg) 45%, var(--surface));
     border: 1px solid var(--border);
+    /* recessed, so the toolbar reads as raised around it */
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.28);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
-.wf-omni:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
+.wf-omni:hover { border-color: color-mix(in srgb, var(--border) 40%, var(--text)); }
+.wf-omni:focus-within {
+    background: var(--surface);
+    border-color: var(--accent);
+    box-shadow:
+        0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent),
+        0 4px 16px -6px color-mix(in srgb, var(--accent) 50%, transparent);
+}
 .wf-url {
     flex: 1 1 auto;
     min-width: 0;
@@ -2220,10 +2268,9 @@ a.topic-card {
     display: flex;
     align-items: center;
     gap: 0.15rem;
-    padding: 0.25rem 0.6rem;
-    background: var(--surface);
-    border-top: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
+    padding: 0.3rem 0.6rem;
+    background: color-mix(in srgb, var(--surface) 55%, var(--bg-2));
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
     overflow-x: auto;
     scrollbar-width: thin;
 }
@@ -2246,17 +2293,79 @@ a.topic-card {
 .wf-bm > span { overflow: hidden; text-overflow: ellipsis; }
 .wf-bm:hover { background: color-mix(in srgb, var(--text) 10%, transparent); color: var(--text); }
 
-/* settings drawer */
-.wf-settings {
+/* ---- settings popup ---- */
+.wf-modal {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: color-mix(in srgb, #000 42%, transparent);
+    backdrop-filter: blur(2px);
+}
+.wf-panel {
     display: flex;
     flex-direction: column;
+    width: min(560px, 100%);
+    max-height: 100%;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 60%, var(--bg-2)), var(--bg-2));
+    border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
+    border-radius: 16px;
+    box-shadow:
+        0 30px 70px -20px rgba(0, 0, 0, 0.7),
+        inset 0 1px 0 color-mix(in srgb, #fff 10%, transparent);
+    overflow: hidden;
+    animation: dino-pop 0.16s ease;
+}
+.wf-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 0.5rem;
-    max-height: 55%;
-    padding: 0.75rem 0.9rem;
-    background: var(--bg-2);
+    padding: 0.6rem 0.6rem 0.6rem 0.9rem;
     border-bottom: 1px solid var(--border);
+}
+.wf-panel-head h2 { margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--text); }
+.wf-panel-nav {
+    display: flex;
+    gap: 0.2rem;
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+.wf-panel-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex: none;
+    padding: 0.3rem 0.6rem;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.78rem;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.wf-panel-tab:hover { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); }
+.wf-panel-tab.is-on {
+    background: var(--accent);
+    color: var(--on-accent);
+    box-shadow: 0 4px 14px -4px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.wf-panel-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 0.85rem 0.9rem;
     overflow-y: auto;
 }
+.wf-panel-body:focus-visible { outline: none; }
+
 .wf-set { display: flex; align-items: center; gap: 0.6rem; font-size: 0.8rem; color: var(--text-muted); }
 .wf-set > span:first-child { flex: 0 0 9.5rem; }
 .wf-set input[type='text'], .wf-set select, .wf-set-row input {
@@ -2273,11 +2382,45 @@ a.topic-card {
 }
 .wf-set.is-check { gap: 0.45rem; }
 .wf-set.is-check > span:first-child { flex: none; }
-.wf-set-list { display: flex; flex-direction: column; gap: 0.3rem; }
+.wf-set.is-stack { flex-direction: column; align-items: stretch; gap: 0.4rem; }
+.wf-set.is-stack > span:first-child { flex: none; }
+.wf-set-list { display: flex; flex-direction: column; gap: 0.4rem; }
 .wf-set-title { font-size: 0.8rem; font-weight: 700; color: var(--text); }
 .wf-set-row { display: flex; align-items: center; gap: 0.4rem; }
-.wf-settings .hint { margin: 0; }
+.wf-panel-body .hint { margin: 0; }
 .wf-set-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+/* the site's buttons are sized for page layouts — bring them down to panel scale */
+.wf-panel-body .btn, .wf-draft .btn { padding: 0.34rem 0.7rem; border-radius: 8px; font-size: 0.78rem; }
+
+/* accent swatches */
+.wf-swatches { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.wf-swatch {
+    position: relative;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    cursor: pointer;
+    overflow: hidden;
+}
+.wf-swatch.is-on { box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 4px var(--accent); }
+.wf-swatch.is-auto {
+    background: var(--surface);
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.7rem;
+    font-weight: 800;
+}
+.wf-swatch.is-custom {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: conic-gradient(#f05a4f, #f5a524, #12a150, #00a8a8, #2f6bff, #7c5cff, #e05fa0, #f05a4f);
+}
+/* the native colour input is only a hit target — the swatch itself shows the wheel */
+.wf-swatch.is-custom input { width: 200%; height: 200%; border: 0; padding: 0; opacity: 0; cursor: pointer; }
+
 .wf-marks-io {
     width: 100%;
     padding: 0.4rem 0.5rem;
@@ -2315,9 +2458,15 @@ a.topic-card {
     justify-content: center;
     padding: 1.5rem;
     overflow-y: auto;
-    background:
-        radial-gradient(120% 90% at 50% 0%, var(--hero-glow, transparent), transparent 70%),
-        linear-gradient(160deg, var(--bg-2), var(--surface));
+    /* --hero-glow is itself a gradient list, so it has to be its own layer. Feeding
+       it to radial-gradient() as a colour voided the whole declaration and let the
+       stage's white show through behind near-white text.
+       Two accent-tinted pools sit under it so the page has somewhere to look. */
+    background-image:
+        var(--hero-glow, none),
+        radial-gradient(70% 55% at 50% 8%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 68%),
+        radial-gradient(60% 60% at 12% 96%, color-mix(in srgb, var(--accent) 11%, transparent), transparent 62%),
+        linear-gradient(165deg, color-mix(in srgb, var(--bg) 65%, var(--bg-2)), var(--surface));
 }
 .wf-ntp.has-bg { background-size: cover; background-position: center; }
 .wf-ntp-inner {
@@ -2333,23 +2482,43 @@ a.topic-card {
     margin: 0;
     font-size: clamp(2rem, 6vw, 3.2rem);
     font-weight: 800;
-    letter-spacing: -0.02em;
-    color: var(--text);
+    letter-spacing: -0.03em;
+    /* the wordmark carries the accent, which is the one thing the user picked */
+    background: linear-gradient(135deg, var(--text) 30%, var(--accent));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
 }
-.wf-ntp.has-bg .wf-ntp-word { color: #fff; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.45); }
+/* over a photo the gradient loses all contrast — go solid white instead */
+.wf-ntp.has-bg .wf-ntp-word {
+    background: none;
+    -webkit-text-fill-color: #fff;
+    color: #fff;
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
+}
 .wf-ntp-search {
     display: flex;
     align-items: center;
     gap: 0.6rem;
     width: 100%;
-    height: 46px;
-    padding: 0 1rem;
+    height: 52px;
+    padding: 0 1.15rem;
     border-radius: 999px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow);
+    background: color-mix(in srgb, var(--surface) 72%, transparent);
+    border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+    backdrop-filter: blur(14px);
+    box-shadow:
+        0 12px 32px -14px rgba(0, 0, 0, 0.7),
+        inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent);
+    transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
-.wf-ntp-search:focus-within { border-color: var(--accent); }
+.wf-ntp-search:hover { transform: translateY(-1px); }
+.wf-ntp-search:focus-within {
+    border-color: var(--accent);
+    box-shadow:
+        0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent),
+        0 16px 38px -16px color-mix(in srgb, var(--accent) 60%, transparent);
+}
 .wf-ntp-search input {
     flex: 1 1 auto;
     min-width: 0;
@@ -2362,16 +2531,32 @@ a.topic-card {
 }
 .wf-ntp-icon { color: var(--text-muted); font-size: 1.1rem; }
 
-.wf-tiles { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; }
+/* App-style shortcut icons. --wf-tile is the icon edge; the three size presets
+   set it once and everything else scales off it. */
+.wf-ntp { --wf-tile: 56px; }
+.wf-ntp.tile-small { --wf-tile: 44px; }
+.wf-ntp.tile-large { --wf-tile: 72px; }
+
+.wf-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, calc(var(--wf-tile) + 2.1rem));
+    justify-content: center;
+    gap: 0.35rem;
+    width: 100%;
+    max-width: 34rem;
+}
+/* the wrapper carries the hover-only remove button, so it can sit over the icon */
+.wf-tile-wrap { position: relative; display: flex; }
 .wf-tile {
     display: flex;
+    flex: 1 1 auto;
     flex-direction: column;
     align-items: center;
-    gap: 0.4rem;
-    width: 78px;
+    gap: 0.45rem;
+    min-width: 0;
     padding: 0.6rem 0.25rem;
     border: none;
-    border-radius: 12px;
+    border-radius: 14px;
     background: transparent;
     color: var(--text);
     font: inherit;
@@ -2381,23 +2566,93 @@ a.topic-card {
 .wf-ntp.has-bg .wf-tile { color: #fff; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5); }
 .wf-ntp.has-bg .wf-tile:hover { background: rgba(255, 255, 255, 0.18); }
 .wf-tile-icon {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background: var(--surface);
-    box-shadow: var(--shadow);
+    width: var(--wf-tile);
+    height: var(--wf-tile);
+    border-radius: 27%; /* squircle, the way an app icon reads */
+    background: linear-gradient(158deg, color-mix(in srgb, #fff 10%, var(--surface)), var(--surface));
+    border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+    box-shadow:
+        0 6px 16px -8px rgba(0, 0, 0, 0.65),
+        inset 0 1px 0 color-mix(in srgb, #fff 12%, transparent);
+    transition: transform 0.16s cubic-bezier(0.2, 0.8, 0.3, 1), box-shadow 0.16s ease;
 }
-.wf-tile-add { color: var(--text-muted); font-size: 1.3rem; }
+/* Hover lift with an accent glow. The glow is a shadow rather than a pseudo-
+   element: the transform below creates a stacking context, which would trap a
+   z-index:-1 layer behind the icon's own background. */
+.wf-tile:hover .wf-tile-icon {
+    transform: translateY(-4px) scale(1.04);
+    box-shadow:
+        0 16px 30px -12px rgba(0, 0, 0, 0.75),
+        0 10px 26px -10px color-mix(in srgb, var(--accent) 60%, transparent),
+        inset 0 1px 0 color-mix(in srgb, #fff 16%, transparent);
+}
+.wf-tile:active .wf-tile-icon { transform: translateY(-1px) scale(1.01); }
+.wf-tile.is-add .wf-tile-icon {
+    background: transparent;
+    border-style: dashed;
+    border-color: color-mix(in srgb, var(--border) 100%, transparent);
+    box-shadow: none;
+}
+.wf-tile.is-add:hover .wf-tile-icon {
+    border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.wf-tile-add { color: var(--text-muted); font-size: 1.5rem; line-height: 1; }
+/* the icon inside a tile scales with the tile; the shared rule above sizes the rest */
+.wf-tile-fav, .wf-tile-fav.is-letter {
+    width: calc(var(--wf-tile) * 0.56);
+    height: calc(var(--wf-tile) * 0.56);
+    border-radius: 24%;
+    font-size: calc(var(--wf-tile) * 0.3);
+}
 .wf-tile-label {
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.7rem;
+    font-size: 0.72rem;
 }
+.wf-tile-x {
+    position: absolute;
+    top: 0.15rem;
+    right: 0.15rem;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+}
+.wf-tile-wrap:hover .wf-tile-x, .wf-tile-x:focus-visible { opacity: 1; }
+.wf-tile-x:hover { background: var(--danger, #e5484d); color: #fff; border-color: transparent; }
+
+/* add-a-shortcut form under the grid */
+.wf-draft { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem; width: 100%; max-width: 30rem; }
+.wf-draft input {
+    flex: 1 1 8rem;
+    min-width: 0;
+    height: 32px;
+    padding: 0 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 0.8rem;
+}
+
 .wf-ntp-note { max-width: 46ch; margin: 0.25rem 0 0; font-size: 0.72rem; color: var(--text-muted); }
 .wf-ntp.has-bg .wf-ntp-note { color: #fff; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6); }
 
@@ -2647,6 +2902,27 @@ a.topic-card {
 .error-screen h1 { margin: 0.3rem 0 0; font-size: 1.4rem; }
 .error-screen p { margin: 0; color: var(--text-muted); max-width: 44ch; }
 .error-actions { display: flex; gap: 0.7rem; flex-wrap: wrap; justify-content: center; margin-top: 0.8rem; }
+.error-detail code {
+    display: inline-block;
+    max-width: 52ch;
+    padding: 0.35rem 0.6rem;
+    border-radius: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    overflow-wrap: anywhere;
+}
+/* An overlay's boundary must float over the page like the overlay it replaced. */
+.error-screen.is-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 220;
+    min-height: 0;
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    backdrop-filter: blur(3px);
+}
 
 /* ---- Accessibility: skip link, main landmark, focus rings ------------- */
 main#main {

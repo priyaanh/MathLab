@@ -19,7 +19,8 @@ import { normalCdf, binomPmf, binomCdf, poissonPmf, poissonCdf } from '../src/ut
 import { move, canMove, newGame, spawn, isValidBoard, normalizeBoard } from '../src/utils/game2048.js'
 import {
     toUrl, hostOf, blocksFraming, tabLabel, sanitizePrefs, sanitizeSession, sanitizeBookmarks,
-    DEFAULT_PREFS, MAX_BOOKMARKS, MAX_TABS, MAX_STACK, MIN_RAIL, MAX_RAIL
+    hueFor, pruneRetiredDefaults, readableOn,
+    ENGINES, DEFAULT_PREFS, MAX_BOOKMARKS, MAX_TABS, MAX_STACK, MIN_RAIL, MAX_RAIL
 } from '../src/utils/webframe.js'
 
 let passed = 0
@@ -252,10 +253,25 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
     ok('webframe: host + path gets https', toUrl('wikipedia.org/wiki/Pi') === 'https://wikipedia.org/wiki/Pi')
     ok('webframe: blank input is null', toUrl('  ') === null && toUrl('') === null && toUrl(null) === null)
     ok('webframe: javascript: URLs are refused', toUrl('javascript:alert(1)') === null)
-    ok('webframe: prose becomes a search', toUrl('why is pi irrational').startsWith('https://search.disroot.org/search?q='))
+    ok('webframe: prose becomes a search', toUrl('why is pi irrational').startsWith('https://search.marginalia.nu/search?query='))
     ok('webframe: search terms are encoded', toUrl('a b&c').endsWith('a%20b%26c'), toUrl('a b&c'))
     ok('webframe: engine choice is honoured', toUrl('pi', 'wikipedia').startsWith('https://en.wikipedia.org/w/index.php?search='))
-    ok('webframe: an unknown engine falls back', toUrl('pi', 'nope').startsWith('https://search.disroot.org/'))
+    ok('webframe: an unknown engine falls back', toUrl('pi', 'nope').startsWith('https://search.marginalia.nu/'))
+    /*
+     * The engine list is the one place a dead URL makes the whole viewer look
+     * broken: a search just lands on a blank pane. These guard the shape of it —
+     * reachability itself can only be checked against the live network.
+     */
+    ok('engines: the default id exists in the list', ENGINES.some(e => e.id === DEFAULT_PREFS.engine), DEFAULT_PREFS.engine)
+    ok('engines: every entry builds an https URL',
+        ENGINES.every(e => /^https:\/\/[^\s]+$/.test(e.q('a b'))), JSON.stringify(ENGINES.map(e => e.q('a b'))))
+    ok('engines: every entry encodes the query', ENGINES.every(e => e.q('a b').includes('a%20b')))
+    ok('engines: no entry points at a host known to refuse framing',
+        ENGINES.every(e => !blocksFraming(e.q('test'))), JSON.stringify(ENGINES.filter(e => blocksFraming(e.q('test'))).map(e => e.id)))
+    ok('engines: ids are unique', new Set(ENGINES.map(e => e.id)).size === ENGINES.length)
+    // a saved id that no longer exists must heal to the default, not stick
+    ok('engines: a retired engine id heals to the default',
+        sanitizePrefs({ engine: 'searx' }).engine === DEFAULT_PREFS.engine)
     ok('webframe: a phrase with a dot still searches', toUrl('what is 3.5 rounded').includes('search'), toUrl('what is 3.5 rounded'))
 
     ok('webframe: hostOf reads the host', hostOf('https://en.wikipedia.org/wiki/Pi') === 'en.wikipedia.org')
@@ -265,7 +281,7 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
             'https://github.com', 'https://x.com/home', 'https://duckduckgo.com'].every(blocksFraming))
     ok('webframe: leaves frameable hosts alone',
         ['https://en.wikipedia.org', 'https://www.khanacademy.org', 'https://archive.org',
-            'https://search.disroot.org/search?q=pi'].every(u => !blocksFraming(u)))
+            'https://searx.be/search?q=pi'].every(u => !blocksFraming(u)))
 
     ok('webframe: tabLabel drops the www', tabLabel('https://www.khanacademy.org/x') === 'khanacademy.org')
     ok('webframe: tabLabel names a blank tab', tabLabel(null) === 'New tab' && tabLabel('') === 'New tab')
@@ -323,6 +339,54 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
         && sanitizePrefs({}).railWidth === DEFAULT_PREFS.railWidth)
     ok('prefs: rail width is rounded', sanitizePrefs({ railWidth: 199.7 }).railWidth === 200)
     ok('prefs: sanitizing is idempotent', JSON.stringify(sanitizePrefs(d)) === JSON.stringify(d))
+
+    // customisation — the accent lands in a style attribute, so it must stay a hex colour
+    ok('prefs: an accent defaults to the theme', d.accent === '')
+    ok('prefs: hex accents are kept',
+        sanitizePrefs({ accent: '#ff0055' }).accent === '#ff0055' && sanitizePrefs({ accent: '#f05' }).accent === '#f05')
+    ok('prefs: a non-hex accent is dropped',
+        sanitizePrefs({ accent: 'red' }).accent === ''
+        && sanitizePrefs({ accent: 'url(x)' }).accent === ''
+        && sanitizePrefs({ accent: '#12345' }).accent === ''
+        && sanitizePrefs({ accent: '#fff;background:url(x)' }).accent === '')
+    ok('prefs: the wordmark is capped but may be blank',
+        sanitizePrefs({ ntpTitle: 'q'.repeat(99) }).ntpTitle.length === 32
+        && sanitizePrefs({ ntpTitle: '' }).ntpTitle === ''
+        && sanitizePrefs({ ntpTitle: 7 }).ntpTitle === DEFAULT_PREFS.ntpTitle)
+    ok('prefs: tile size is an allow-list',
+        sanitizePrefs({ tileSize: 'large' }).tileSize === 'large'
+        && sanitizePrefs({ tileSize: 'huge' }).tileSize === DEFAULT_PREFS.tileSize)
+    ok('prefs: home-screen toggles default on and can be turned off',
+        d.showNtpSearch === true && d.showNtpNote === true
+        && sanitizePrefs({ showNtpSearch: false }).showNtpSearch === false
+        && sanitizePrefs({ showNtpNote: false }).showNtpNote === false)
+
+    ok('readableOn: dark text on a light accent', readableOn('#f5e94a') === '#111111')
+    ok('readableOn: light text on a dark accent', readableOn('#2f6bff') === '#ffffff')
+    ok('readableOn: shorthand hex works', readableOn('#fff') === '#111111' && readableOn('#000') === '#ffffff')
+    ok('readableOn: junk falls back to white', readableOn('red') === '#ffffff' && readableOn(null) === '#ffffff')
+
+    ok('hueFor: a host always lands in range', [...'abcdefgh'].every(c => {
+        const h = hueFor(`${c}.example.com`)
+        return Number.isInteger(h) && h >= 0 && h < 360
+    }))
+    ok('hueFor: the same host gives the same hue', hueFor('wikipedia.org') === hueFor('wikipedia.org'))
+    ok('hueFor: different hosts usually differ', hueFor('wikipedia.org') !== hueFor('archive.org'))
+
+    // Desmos shipped as a default once; a saved list keeps it until pruned once
+    ok('prune: a retired default is dropped',
+        pruneRetiredDefaults([{ url: 'https://www.desmos.com/calculator', label: 'Desmos' }]).length === 0)
+    ok('prune: everything else is kept',
+        pruneRetiredDefaults([{ url: 'https://a.com' }, { url: 'https://www.desmos.com/calculator' }]).length === 1)
+    ok('prune: junk input is safe', pruneRetiredDefaults(null).length === 0 && pruneRetiredDefaults([null]).length === 1)
+    // the oldest saves kept bookmarks inside the prefs blob, with no bookmarks key
+    // at all — pruning must reach those too, not just the dedicated key
+    ok('prune: reaches bookmarks that came from a prefs blob',
+        pruneRetiredDefaults(sanitizePrefs({
+            bookmarks: [{ url: 'https://en.wikipedia.org' }, { url: 'https://www.desmos.com/calculator' }]
+        }).bookmarks).every(b => b.url !== 'https://www.desmos.com/calculator'))
+    ok('prune: Desmos is no longer a default',
+        DEFAULT_PREFS.bookmarks.every(b => b.url !== 'https://www.desmos.com/calculator'))
 
     // the saved session — reopening must land on the same pages
     const sess = sanitizeSession({ tabs: [{ stack: ['https://a.com', 'https://b.com'], idx: 1 }], active: 0 })

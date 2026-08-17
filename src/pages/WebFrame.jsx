@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import {
     DEFAULT_PREFS, ENGINES, MAX_BOOKMARKS, MAX_RAIL, MAX_TABS, MIN_RAIL, blocksFraming, clampRail,
-    hostOf, sanitizeBookmarks, sanitizePrefs, sanitizeSession, tabLabel, toUrl
+    hostOf, hueFor, pruneRetiredDefaults, readableOn, sanitizeBookmarks, sanitizePrefs, sanitizeSession,
+    tabLabel, toUrl
 } from '../utils/webframe'
 
 /**
@@ -19,8 +20,20 @@ const SIZE_KEY = 'mathlab-frame-size'
 const PREFS_KEY = 'mathlab-frame-prefs'
 const SESSION_KEY = 'mathlab-frame-session'
 const MARKS_KEY = 'mathlab-frame-bookmarks'
+const PRUNED_KEY = 'mathlab-frame-pruned'
 const MIN_W = 520
 const MIN_H = 360
+
+/** Settings sections, one pane at a time so the popup never becomes a long scroll. */
+const PANES = [
+    { id: 'look', name: 'Appearance', icon: '◑' },
+    { id: 'start', name: 'Start & search', icon: '⌂' },
+    { id: 'home', name: 'Home screen', icon: '▦' },
+    { id: 'marks', name: 'Shortcuts', icon: '★' },
+    { id: 'privacy', name: 'Privacy', icon: '⚿' }
+]
+
+const ACCENTS = ['#2f6bff', '#7c5cff', '#00a8a8', '#12a150', '#f5a524', '#f05a4f', '#e05fa0', '#8a8f98']
 
 const readSize = () => {
     try {
@@ -34,7 +47,7 @@ const readSize = () => {
 
 /**
  * Bookmarks live under their own key so they outlive a settings reset. Older
- * saves kept them inside the prefs blob — those are migrated on first read.
+ * saves kept them inside the prefs blob — `readPrefs` falls back to those.
  */
 const readMarks = () => {
     try {
@@ -45,10 +58,24 @@ const readMarks = () => {
 
 const readPrefs = () => {
     let prefs
-    try { prefs = sanitizePrefs(JSON.parse(localStorage.getItem(PREFS_KEY) || 'null')) } catch { prefs = { ...DEFAULT_PREFS } }
+    try { prefs = sanitizePrefs(JSON.parse(localStorage.getItem(PREFS_KEY) || 'null')) } catch { prefs = sanitizePrefs(null) }
     // read separately: a broken prefs blob must not cost anyone their bookmarks
     const marks = readMarks()
     if (marks !== null) prefs.bookmarks = marks
+
+    /*
+     * Drop bookmarks that used to be shipped defaults, exactly once. This has to
+     * happen after the fallback above, not inside readMarks: the oldest saves have
+     * no bookmarks key at all, and pruning only that key let those keep Desmos
+     * forever. The flag means one re-added on purpose is then kept for good.
+     */
+    try {
+        if (!localStorage.getItem(PRUNED_KEY)) {
+            localStorage.setItem(PRUNED_KEY, '1')
+            prefs.bookmarks = pruneRetiredDefaults(prefs.bookmarks)
+        }
+    } catch { /* no storage — nothing saved to migrate */ }
+
     return prefs
 }
 
@@ -61,16 +88,29 @@ let nextTabId = 1
 const makeTab = (url) => ({ id: nextTabId++, stack: url ? [url] : [], idx: url ? 0 : -1, nonce: 0 })
 const urlOf = (tab) => (tab && tab.idx >= 0 ? tab.stack[tab.idx] : null)
 
-/** A site's own /favicon.ico — no third-party icon service involved. */
+/**
+ * A site's own /favicon.ico — no third-party icon service involved. When a site
+ * has none, it falls back to its initial on a colour derived from the host, so a
+ * shelf of icons stays distinguishable instead of going uniformly grey.
+ *
+ * The failure is remembered per URL: a tab that leaves an icon-less site must not
+ * keep showing the letter once it lands somewhere that does have one.
+ */
 const Favicon = ({ url, className = 'wf-fav' }) => {
-    const [failed, setFailed] = useState(false)
+    const [failedFor, setFailedFor] = useState(null)
     const host = hostOf(url)
-    if (!host || failed) {
-        return <span className={`${className} is-letter`} aria-hidden="true">{(host || '•').charAt(0).toUpperCase()}</span>
+    if (!host || failedFor === url) {
+        return (
+            <span
+                className={`${className} is-letter`}
+                style={host ? { '--wf-hue': hueFor(host) } : undefined}
+                aria-hidden="true"
+            >{(host || '•').charAt(0).toUpperCase()}</span>
+        )
     }
     let origin = ''
     try { origin = new URL(url).origin } catch { /* handled by the guard above */ }
-    return <img className={className} src={`${origin}/favicon.ico`} alt="" loading="lazy" onError={() => setFailed(true)} />
+    return <img className={className} src={`${origin}/favicon.ico`} alt="" loading="lazy" onError={() => setFailedFor(url)} />
 }
 
 const WebFrame = ({ onClose }) => {
@@ -96,9 +136,11 @@ const WebFrame = ({ onClose }) => {
     const [isFullscreen, setIsFullscreen] = useState(false)
     const [resizing, setResizing] = useState(false)
     const [showSettings, setShowSettings] = useState(false)
+    const [setPane, setSetPane] = useState('look')
     const [railOpen, setRailOpen] = useState(true)
     const [marksIo, setMarksIo] = useState('')
     const [marksMsg, setMarksMsg] = useState('')
+    const [draft, setDraft] = useState(null) // the new-shortcut form on the home screen
 
     const shellRef = useRef(null)
     const urlRef = useRef(null)
@@ -166,10 +208,16 @@ const WebFrame = ({ onClose }) => {
         try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)) } catch { /* ignore */ }
     }, [prefs])
 
-    // kept separately so "Reset settings" and a broken prefs blob both leave them alone
+    /*
+     * Kept separately so "Reset settings" and a broken prefs blob both leave them
+     * alone. Keyed on the serialised form, not the array: sanitizePrefs rebuilds
+     * bookmarks on every call, so an identity dep rewrote the whole list on each
+     * unrelated tweak — once per event while dragging the colour picker.
+     */
+    const marksJson = JSON.stringify(prefs.bookmarks)
     useEffect(() => {
-        try { localStorage.setItem(MARKS_KEY, JSON.stringify(prefs.bookmarks)) } catch { /* ignore */ }
-    }, [prefs.bookmarks])
+        try { localStorage.setItem(MARKS_KEY, marksJson) } catch { /* ignore */ }
+    }, [marksJson])
 
     useEffect(() => {
         if (maximized) return
@@ -286,6 +334,30 @@ const WebFrame = ({ onClose }) => {
     }
     const removeBookmark = (url) => patchPrefs({ bookmarks: prefs.bookmarks.filter(b => b.url !== url) })
 
+    /** The home screen's "+" tile. A bare host is fine — toUrl fills in https://. */
+    const addShortcut = (e) => {
+        e.preventDefault()
+        const typed = (draft?.url || '').trim()
+        // toUrl turns anything it cannot read as an address into a search, and a
+        // shortcut pointing at a results page is never what was meant. So accept
+        // only what is already an address, and leave the form up otherwise.
+        const isAddress = /^https?:\/\//i.test(typed) || /^[^\s/]+\.[a-z]{2,}([/?#]|$)/i.test(typed)
+        const url = isAddress ? toUrl(typed, prefs.engine) : null
+        if (!url) return
+        patchPrefs({ bookmarks: [...prefs.bookmarks, { label: draft.label.trim() || tabLabel(url), url }] })
+        setDraft(null)
+    }
+
+    /** Move a shortcut one place along, so the home screen can be ordered. */
+    const moveBookmark = (url, delta) => {
+        const i = prefs.bookmarks.findIndex(b => b.url === url)
+        const j = i + delta
+        if (i < 0 || j < 0 || j >= prefs.bookmarks.length) return
+        const next = [...prefs.bookmarks]
+        ;[next[i], next[j]] = [next[j], next[i]]
+        patchPrefs({ bookmarks: next })
+    }
+
     /** Chrome's "bookmark all tabs" — duplicates are dropped by the sanitiser. */
     const bookmarkAllTabs = () => {
         const open = tabs.map(urlOf).filter(Boolean).map(u => ({ label: tabLabel(u), url: u }))
@@ -311,9 +383,14 @@ const WebFrame = ({ onClose }) => {
         setMarksMsg(`Imported ${incoming.length}; ${before} kept, duplicates skipped.`)
     }
 
-    const shellStyle = (maximized || isFullscreen)
-        ? undefined
+    const sizeStyle = (maximized || isFullscreen)
+        ? null
         : { width: `min(${size.w}px, calc(100vw - 2rem))`, height: `min(${size.h}px, calc(100vh - 2rem))` }
+
+    // A chosen accent overrides the site theme's, but only inside this window.
+    const shellStyle = prefs.accent
+        ? { ...sizeStyle, '--accent': prefs.accent, '--on-accent': readableOn(prefs.accent) }
+        : (sizeStyle ?? undefined)
 
     const shellClass = [
         'wf-shell',
@@ -447,131 +524,248 @@ const WebFrame = ({ onClose }) => {
                     )}
 
                     {showSettings && (
-                        <div className="wf-settings" role="group" aria-label="Viewer settings">
-                            <label className="wf-set">
-                                <span>Start page</span>
-                                <input
-                                    type="text"
-                                    value={prefs.home}
-                                    placeholder="blank new-tab page"
-                                    spellCheck="false"
-                                    onChange={(e) => setPrefs(p => ({ ...p, home: e.target.value }))}
-                                    onBlur={() => setPrefs(p => sanitizePrefs(p))}
-                                />
-                            </label>
-                            <label className="wf-set">
-                                <span>Search with</span>
-                                <select value={prefs.engine} onChange={(e) => patchPrefs({ engine: e.target.value })}>
-                                    {ENGINES.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                                </select>
-                            </label>
-                            <label className="wf-set">
-                                <span>Background image</span>
-                                <input
-                                    type="text"
-                                    value={prefs.newTabBg}
-                                    placeholder="https://… (blank for a gradient)"
-                                    spellCheck="false"
-                                    onChange={(e) => setPrefs(p => ({ ...p, newTabBg: e.target.value }))}
-                                    onBlur={() => setPrefs(p => sanitizePrefs(p))}
-                                />
-                            </label>
-                            <label className="wf-set">
-                                <span>Panic key</span>
-                                <input
-                                    type="text"
-                                    data-keycapture="1"
-                                    value={prefs.closeKey}
-                                    readOnly
-                                    aria-describedby="wf-panic-help"
-                                    onKeyDown={(e) => {
-                                        if (e.key.length !== 1) return
-                                        e.preventDefault()
-                                        patchPrefs({ closeKey: e.key })
-                                    }}
-                                />
-                            </label>
-                            <label className="wf-set">
-                                <span>Density</span>
-                                <select value={prefs.density} onChange={(e) => patchPrefs({ density: e.target.value })}>
-                                    <option value="normal">Normal</option>
-                                    <option value="compact">Compact</option>
-                                </select>
-                            </label>
-                            <label className="wf-set is-check">
-                                <input type="checkbox" checked={prefs.verticalTabs} onChange={(e) => patchPrefs({ verticalTabs: e.target.checked })} />
-                                <span>Vertical tabs on the left</span>
-                            </label>
-                            <label className="wf-set is-check">
-                                <input type="checkbox" checked={prefs.bookmarksBar} onChange={(e) => patchPrefs({ bookmarksBar: e.target.checked })} />
-                                <span>Show bookmarks bar</span>
-                            </label>
-                            <label className="wf-set is-check">
-                                <input type="checkbox" checked={prefs.newTabOpensHome} disabled={!prefs.home} onChange={(e) => patchPrefs({ newTabOpensHome: e.target.checked })} />
-                                <span>New tabs open the start page</span>
-                            </label>
+                        <div
+                            className="wf-modal"
+                            role="presentation"
+                            onPointerDown={(e) => { if (e.target === e.currentTarget) setShowSettings(false) }}
+                        >
+                            <div className="wf-panel" role="dialog" aria-modal="true" aria-label="Browser settings">
+                                <header className="wf-panel-head">
+                                    <h2>Settings</h2>
+                                    <button type="button" className="wf-icon" onClick={() => setShowSettings(false)} aria-label="Close settings" title="Close settings">×</button>
+                                </header>
 
-                            <div className="wf-set-list">
-                                <span className="wf-set-title">Bookmarks — kept until you delete them</span>
-                                <div className="wf-set-actions">
-                                    <button type="button" className="btn ghost" onClick={bookmarkAllTabs}>Bookmark all open tabs</button>
-                                    <button type="button" className="btn ghost" onClick={exportBookmarks}>Copy as backup</button>
-                                    <button type="button" className="btn ghost" onClick={importBookmarks} disabled={!marksIo.trim()}>Import from box</button>
+                                <div className="wf-panel-nav" role="tablist" aria-label="Settings sections">
+                                    {PANES.map(p => (
+                                        <button
+                                            key={p.id}
+                                            type="button"
+                                            role="tab"
+                                            id={`wf-tab-${p.id}`}
+                                            aria-selected={setPane === p.id}
+                                            aria-controls="wf-panel-body"
+                                            className={`wf-panel-tab${setPane === p.id ? ' is-on' : ''}`}
+                                            onClick={() => setSetPane(p.id)}
+                                        >
+                                            <span aria-hidden="true">{p.icon}</span>
+                                            <span>{p.name}</span>
+                                        </button>
+                                    ))}
                                 </div>
-                                <textarea
-                                    className="wf-marks-io"
-                                    value={marksIo}
-                                    onChange={(e) => { setMarksIo(e.target.value); setMarksMsg('') }}
-                                    placeholder="Backup text appears here — keep a copy, or paste one to restore."
-                                    aria-label="Bookmark backup text"
-                                    spellCheck="false"
-                                    rows={3}
-                                />
-                                {marksMsg && <span className="hint" role="status">{marksMsg}</span>}
-                                {prefs.bookmarks.length === 0 && <span className="hint">None yet — use ☆ on a page.</span>}
-                                {prefs.bookmarks.map(b => (
-                                    <div key={b.url} className="wf-set-row">
-                                        <input
-                                            type="text"
-                                            value={b.label}
-                                            aria-label={`Name for ${b.url}`}
-                                            onChange={(e) => setPrefs(p => ({
-                                                ...p,
-                                                bookmarks: p.bookmarks.map(x => (x.url === b.url ? { ...x, label: e.target.value } : x))
-                                            }))}
-                                            onBlur={() => setPrefs(p => sanitizePrefs(p))}
-                                        />
-                                        <button type="button" className="wf-icon" onClick={() => removeBookmark(b.url)} aria-label={`Remove ${b.label}`} title="Remove">×</button>
-                                    </div>
-                                ))}
-                            </div>
 
-                            <p className="hint" id="wf-panic-help">
-                                Press <kbd>{prefs.closeKey}</kbd> to close instantly. It works from the toolbar and
-                                tabs, but not once you click into the page itself — a framed site keeps its own keystrokes.
-                                {/^[a-z0-9]$/i.test(prefs.closeKey) && (
-                                    <> <b>Careful:</b> a letter or digit also fires while you type in the address bar.</>
-                                )}
-                            </p>
-                            <p className="hint">
-                                Open tabs and their history are saved as you browse and come back when you
-                                reopen. Logins and site data are the browser&apos;s own — a framed site keeps
-                                them only while your browser allows cookies inside an embedded page.
-                            </p>
-                            <div className="wf-set-actions">
-                                <button
-                                    type="button"
-                                    className="btn ghost"
-                                    onClick={() => {
-                                        const blank = makeTab(null)
-                                        setTabs([blank])
-                                        setActiveId(blank.id)
-                                        setInput('')
-                                        try { localStorage.removeItem(SESSION_KEY) } catch { /* ignore */ }
-                                    }}
-                                >Forget open tabs</button>
-                                {/* bookmarks are deliberately spared — resetting is about appearance */}
-                                <button type="button" className="btn ghost" onClick={() => setPrefs({ ...DEFAULT_PREFS, bookmarks: prefs.bookmarks })}>Reset settings</button>
+                                <div className="wf-panel-body" id="wf-panel-body" role="tabpanel" aria-labelledby={`wf-tab-${setPane}`} tabIndex={-1}>
+                                    {setPane === 'look' && (
+                                        <>
+                                            <div className="wf-set is-stack">
+                                                <span>Accent colour</span>
+                                                <div className="wf-swatches">
+                                                    <button
+                                                        type="button"
+                                                        className={`wf-swatch is-auto${prefs.accent ? '' : ' is-on'}`}
+                                                        onClick={() => patchPrefs({ accent: '' })}
+                                                        title="Follow the site theme"
+                                                        aria-label="Follow the site theme"
+                                                        aria-pressed={!prefs.accent}
+                                                    >A</button>
+                                                    {ACCENTS.map(c => (
+                                                        <button
+                                                            key={c}
+                                                            type="button"
+                                                            className={`wf-swatch${prefs.accent.toLowerCase() === c ? ' is-on' : ''}`}
+                                                            style={{ background: c }}
+                                                            onClick={() => patchPrefs({ accent: c })}
+                                                            title={c}
+                                                            aria-label={`Accent ${c}`}
+                                                            aria-pressed={prefs.accent.toLowerCase() === c}
+                                                        />
+                                                    ))}
+                                                    <label className="wf-swatch is-custom" title="Pick any colour">
+                                                        <input
+                                                            type="color"
+                                                            value={prefs.accent || '#2f6bff'}
+                                                            onChange={(e) => patchPrefs({ accent: e.target.value })}
+                                                            aria-label="Custom accent colour"
+                                                        />
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <label className="wf-set">
+                                                <span>Density</span>
+                                                <select value={prefs.density} onChange={(e) => patchPrefs({ density: e.target.value })}>
+                                                    <option value="normal">Normal</option>
+                                                    <option value="compact">Compact</option>
+                                                </select>
+                                            </label>
+                                            <label className="wf-set is-check">
+                                                <input type="checkbox" checked={prefs.verticalTabs} onChange={(e) => patchPrefs({ verticalTabs: e.target.checked })} />
+                                                <span>Vertical tabs on the left</span>
+                                            </label>
+                                            <label className="wf-set is-check">
+                                                <input type="checkbox" checked={prefs.bookmarksBar} onChange={(e) => patchPrefs({ bookmarksBar: e.target.checked })} />
+                                                <span>Show the shortcuts bar</span>
+                                            </label>
+                                        </>
+                                    )}
+
+                                    {setPane === 'start' && (
+                                        <>
+                                            <label className="wf-set">
+                                                <span>Start page</span>
+                                                <input
+                                                    type="text"
+                                                    value={prefs.home}
+                                                    placeholder="blank home screen"
+                                                    spellCheck="false"
+                                                    onChange={(e) => setPrefs(p => ({ ...p, home: e.target.value }))}
+                                                    onBlur={() => setPrefs(p => sanitizePrefs(p))}
+                                                />
+                                            </label>
+                                            <label className="wf-set">
+                                                <span>Search with</span>
+                                                <select value={prefs.engine} onChange={(e) => patchPrefs({ engine: e.target.value })}>
+                                                    {ENGINES.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                                                </select>
+                                            </label>
+                                            <label className="wf-set is-check">
+                                                <input type="checkbox" checked={prefs.newTabOpensHome} disabled={!prefs.home} onChange={(e) => patchPrefs({ newTabOpensHome: e.target.checked })} />
+                                                <span>New tabs open the start page</span>
+                                            </label>
+                                            <p className="hint">
+                                                Google, Bing and DuckDuckGo refuse to be embedded, so the list holds the
+                                                engines that allow it. Leave the start page blank to land on the home screen.
+                                            </p>
+                                        </>
+                                    )}
+
+                                    {setPane === 'home' && (
+                                        <>
+                                            <label className="wf-set">
+                                                <span>Wordmark</span>
+                                                <input
+                                                    type="text"
+                                                    value={prefs.ntpTitle}
+                                                    placeholder="blank for none"
+                                                    maxLength={32}
+                                                    onChange={(e) => patchPrefs({ ntpTitle: e.target.value })}
+                                                />
+                                            </label>
+                                            <label className="wf-set">
+                                                <span>Background image</span>
+                                                <input
+                                                    type="text"
+                                                    value={prefs.newTabBg}
+                                                    placeholder="https://… (blank for a gradient)"
+                                                    spellCheck="false"
+                                                    onChange={(e) => setPrefs(p => ({ ...p, newTabBg: e.target.value }))}
+                                                    onBlur={() => setPrefs(p => sanitizePrefs(p))}
+                                                />
+                                            </label>
+                                            <label className="wf-set">
+                                                <span>Icon size</span>
+                                                <select value={prefs.tileSize} onChange={(e) => patchPrefs({ tileSize: e.target.value })}>
+                                                    <option value="small">Small</option>
+                                                    <option value="medium">Medium</option>
+                                                    <option value="large">Large</option>
+                                                </select>
+                                            </label>
+                                            <label className="wf-set is-check">
+                                                <input type="checkbox" checked={prefs.showNtpSearch} onChange={(e) => patchPrefs({ showNtpSearch: e.target.checked })} />
+                                                <span>Search box on the home screen</span>
+                                            </label>
+                                            <label className="wf-set is-check">
+                                                <input type="checkbox" checked={prefs.showNtpNote} onChange={(e) => patchPrefs({ showNtpNote: e.target.checked })} />
+                                                <span>Explanatory note at the bottom</span>
+                                            </label>
+                                        </>
+                                    )}
+
+                                    {setPane === 'marks' && (
+                                        <div className="wf-set-list">
+                                            <div className="wf-set-actions">
+                                                <button type="button" className="btn ghost" onClick={bookmarkAllTabs}>Add all open tabs</button>
+                                                <button type="button" className="btn ghost" onClick={exportBookmarks}>Copy as backup</button>
+                                                <button type="button" className="btn ghost" onClick={importBookmarks} disabled={!marksIo.trim()}>Import from box</button>
+                                            </div>
+                                            <textarea
+                                                className="wf-marks-io"
+                                                value={marksIo}
+                                                onChange={(e) => { setMarksIo(e.target.value); setMarksMsg('') }}
+                                                placeholder="Backup text appears here — keep a copy, or paste one to restore."
+                                                aria-label="Shortcut backup text"
+                                                spellCheck="false"
+                                                rows={3}
+                                            />
+                                            {marksMsg && <span className="hint" role="status">{marksMsg}</span>}
+                                            {prefs.bookmarks.length === 0 && <span className="hint">None yet — use ☆ on a page, or the + tile on the home screen.</span>}
+                                            {prefs.bookmarks.map((b, i) => (
+                                                <div key={b.url} className="wf-set-row">
+                                                    <Favicon url={b.url} className="wf-bm-fav" />
+                                                    <input
+                                                        type="text"
+                                                        value={b.label}
+                                                        aria-label={`Name for ${b.url}`}
+                                                        onChange={(e) => setPrefs(p => ({
+                                                            ...p,
+                                                            bookmarks: p.bookmarks.map(x => (x.url === b.url ? { ...x, label: e.target.value } : x))
+                                                        }))}
+                                                        onBlur={() => setPrefs(p => sanitizePrefs(p))}
+                                                    />
+                                                    <button type="button" className="wf-icon" onClick={() => moveBookmark(b.url, -1)} disabled={i === 0} aria-label={`Move ${b.label} up`} title="Move up">↑</button>
+                                                    <button type="button" className="wf-icon" onClick={() => moveBookmark(b.url, 1)} disabled={i === prefs.bookmarks.length - 1} aria-label={`Move ${b.label} down`} title="Move down">↓</button>
+                                                    <button type="button" className="wf-icon" onClick={() => removeBookmark(b.url)} aria-label={`Remove ${b.label}`} title="Remove">×</button>
+                                                </div>
+                                            ))}
+                                            <p className="hint">These are kept under their own key, so “Reset settings” never touches them.</p>
+                                        </div>
+                                    )}
+
+                                    {setPane === 'privacy' && (
+                                        <>
+                                            <label className="wf-set">
+                                                <span>Panic key</span>
+                                                <input
+                                                    type="text"
+                                                    data-keycapture="1"
+                                                    value={prefs.closeKey}
+                                                    readOnly
+                                                    aria-describedby="wf-panic-help"
+                                                    onKeyDown={(e) => {
+                                                        if (e.key.length !== 1) return
+                                                        e.preventDefault()
+                                                        patchPrefs({ closeKey: e.key })
+                                                    }}
+                                                />
+                                            </label>
+                                            <p className="hint" id="wf-panic-help">
+                                                Press <kbd>{prefs.closeKey}</kbd> to close instantly. It works from the toolbar and
+                                                tabs, but not once you click into the page itself — a framed site keeps its own keystrokes.
+                                                {/^[a-z0-9]$/i.test(prefs.closeKey) && (
+                                                    <> <b>Careful:</b> a letter or digit also fires while you type in the address bar.</>
+                                                )}
+                                            </p>
+                                            <p className="hint">
+                                                Open tabs and their history are saved as you browse and come back when you
+                                                reopen. Logins and site data are the browser&apos;s own — a framed site keeps
+                                                them only while your browser allows cookies inside an embedded page.
+                                            </p>
+                                            <div className="wf-set-actions">
+                                                <button
+                                                    type="button"
+                                                    className="btn ghost"
+                                                    onClick={() => {
+                                                        const blank = makeTab(null)
+                                                        setTabs([blank])
+                                                        setActiveId(blank.id)
+                                                        setInput('')
+                                                        try { localStorage.removeItem(SESSION_KEY) } catch { /* ignore */ }
+                                                    }}
+                                                >Forget open tabs</button>
+                                                {/* shortcuts are deliberately spared — resetting is about appearance */}
+                                                <button type="button" className="btn ghost" onClick={() => setPrefs({ ...DEFAULT_PREFS, bookmarks: prefs.bookmarks })}>Reset settings</button>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     )}
@@ -601,40 +795,89 @@ const WebFrame = ({ onClose }) => {
 
                         {!current && (
                             <div
-                                className={`wf-ntp${prefs.newTabBg ? ' has-bg' : ''}`}
+                                className={`wf-ntp tile-${prefs.tileSize}${prefs.newTabBg ? ' has-bg' : ''}`}
                                 style={prefs.newTabBg ? { backgroundImage: `url("${prefs.newTabBg}")` } : undefined}
                             >
-                                <form className="wf-ntp-inner" onSubmit={submitNtp}>
-                                    <p className="wf-ntp-word">MathLab</p>
-                                    <div className="wf-ntp-search">
-                                        <span className="wf-ntp-icon" aria-hidden="true">⌕</span>
-                                        <input
-                                            ref={ntpRef}
-                                            value={ntpQuery}
-                                            onChange={(e) => setNtpQuery(e.target.value)}
-                                            placeholder="Search the web"
-                                            aria-label="Search the web"
-                                            spellCheck="false"
-                                            autoComplete="off"
-                                        />
-                                    </div>
+                                <div className="wf-ntp-inner">
+                                    {prefs.ntpTitle && <p className="wf-ntp-word">{prefs.ntpTitle}</p>}
+
+                                    {prefs.showNtpSearch && (
+                                        <form className="wf-ntp-search" onSubmit={submitNtp}>
+                                            <span className="wf-ntp-icon" aria-hidden="true">⌕</span>
+                                            <input
+                                                ref={ntpRef}
+                                                value={ntpQuery}
+                                                onChange={(e) => setNtpQuery(e.target.value)}
+                                                placeholder="Search the web"
+                                                aria-label="Search the web"
+                                                spellCheck="false"
+                                                autoComplete="off"
+                                            />
+                                        </form>
+                                    )}
+
                                     <div className="wf-tiles">
                                         {prefs.bookmarks.map(b => (
-                                            <button key={b.url} type="button" className="wf-tile" onClick={() => go(b.url)} title={b.url}>
-                                                <span className="wf-tile-icon"><Favicon url={b.url} className="wf-tile-fav" /></span>
-                                                <span className="wf-tile-label">{b.label}</span>
-                                            </button>
+                                            <div key={b.url} className="wf-tile-wrap">
+                                                <button type="button" className="wf-tile" onClick={() => go(b.url)} title={b.url}>
+                                                    <span className="wf-tile-icon"><Favicon url={b.url} className="wf-tile-fav" /></span>
+                                                    <span className="wf-tile-label">{b.label}</span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="wf-tile-x"
+                                                    onClick={() => removeBookmark(b.url)}
+                                                    aria-label={`Remove ${b.label}`}
+                                                    title="Remove shortcut"
+                                                >×</button>
+                                            </div>
                                         ))}
-                                        <button type="button" className="wf-tile" onClick={() => urlRef.current?.focus()} title="Type an address above">
-                                            <span className="wf-tile-icon wf-tile-add">+</span>
-                                            <span className="wf-tile-label">Address bar</span>
-                                        </button>
+                                        {prefs.bookmarks.length < MAX_BOOKMARKS && (
+                                            <div className="wf-tile-wrap">
+                                                <button
+                                                    type="button"
+                                                    className="wf-tile is-add"
+                                                    onClick={() => setDraft(d => (d ? null : { label: '', url: '' }))}
+                                                    aria-expanded={!!draft}
+                                                    title="Add a shortcut"
+                                                >
+                                                    <span className="wf-tile-icon wf-tile-add">+</span>
+                                                    <span className="wf-tile-label">Add</span>
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
-                                    <p className="wf-ntp-note">
-                                        Nothing here touches the page URL or your browser history. Sites that send
-                                        X-Frame-Options (Google, YouTube, GitHub…) cannot be embedded by any page — open those with ↗.
-                                    </p>
-                                </form>
+
+                                    {draft && (
+                                        <form className="wf-draft" onSubmit={addShortcut}>
+                                            <input
+                                                autoFocus
+                                                value={draft.url}
+                                                onChange={(e) => setDraft(d => ({ ...d, url: e.target.value }))}
+                                                placeholder="wikipedia.org"
+                                                aria-label="Shortcut address"
+                                                spellCheck="false"
+                                                autoComplete="off"
+                                            />
+                                            <input
+                                                value={draft.label}
+                                                onChange={(e) => setDraft(d => ({ ...d, label: e.target.value }))}
+                                                placeholder="Name (optional)"
+                                                aria-label="Shortcut name"
+                                                maxLength={40}
+                                            />
+                                            <button type="submit" className="btn" disabled={!draft.url.trim()}>Add</button>
+                                            <button type="button" className="btn ghost" onClick={() => setDraft(null)}>Cancel</button>
+                                        </form>
+                                    )}
+
+                                    {prefs.showNtpNote && (
+                                        <p className="wf-ntp-note">
+                                            Nothing here touches the page URL or your browser history. Sites that send
+                                            X-Frame-Options (Google, YouTube, GitHub…) cannot be embedded by any page — open those with ↗.
+                                        </p>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>

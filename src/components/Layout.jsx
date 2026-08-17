@@ -100,12 +100,19 @@ const Layout = () => {
                 </button>
             </footer>
             <MathKeypad />
+            {/*
+              * Overlays get their own boundary. They render outside <main>, so without
+              * one an error in here escapes to the root and unmounts the entire site to
+              * a blank page. resetKey clears it when a different overlay is opened.
+              */}
             {secretGame && (
-                <Suspense fallback={null}>
-                    {secretGame === 'dino' && <DinoGame onClose={closeGame} />}
-                    {secretGame === '2048' && <Game2048 onClose={closeGame} />}
-                    {secretGame === 'web' && <WebFrame onClose={closeGame} />}
-                </Suspense>
+                <ErrorBoundary resetKey={secretGame} onReset={closeGame}>
+                    <Suspense fallback={null}>
+                        {secretGame === 'dino' && <DinoGame onClose={closeGame} />}
+                        {secretGame === '2048' && <Game2048 onClose={closeGame} />}
+                        {secretGame === 'web' && <WebFrame onClose={closeGame} />}
+                    </Suspense>
+                </ErrorBoundary>
             )}
         </div>
     )
