@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-    DEFAULT_PREFS, ENGINES, MAX_BOOKMARKS, MAX_RAIL, MAX_TABS, MIN_RAIL, blocksFraming, clampRail,
-    hostOf, hueFor, pruneRetiredDefaults, readableOn, sanitizeBookmarks, sanitizePrefs, sanitizeSession,
-    tabLabel, toUrl
+    DEFAULT_PREFS, ENGINES, MAX_BOOKMARKS, MAX_CLOSED, MAX_RAIL, MAX_TABS, MIN_RAIL, blocksFraming,
+    clampRail, hostOf, hueFor, pruneRetiredDefaults, rankSuggestions, readableOn, recordVisit,
+    sanitizeBookmarks, sanitizeHistory, sanitizePrefs, sanitizeSession, tabLabel, toUrl
 } from '../utils/webframe'
 
 /**
@@ -21,6 +21,7 @@ const PREFS_KEY = 'mathlab-frame-prefs'
 const SESSION_KEY = 'mathlab-frame-session'
 const MARKS_KEY = 'mathlab-frame-bookmarks'
 const PRUNED_KEY = 'mathlab-frame-pruned'
+const HISTORY_KEY = 'mathlab-frame-history'
 const MIN_W = 520
 const MIN_H = 360
 
@@ -34,6 +35,9 @@ const PANES = [
 ]
 
 const ACCENTS = ['#2f6bff', '#7c5cff', '#00a8a8', '#12a150', '#f5a524', '#f05a4f', '#e05fa0', '#8a8f98']
+
+/** Label only — the handler accepts either modifier regardless of platform. */
+const MOD_LABEL = typeof navigator !== 'undefined' && /Mac|iP(hone|ad)/.test(navigator.platform || '') ? '⌘' : 'Ctrl '
 
 const readSize = () => {
     try {
@@ -81,6 +85,11 @@ const readPrefs = () => {
 
 const readSession = () => {
     try { return sanitizeSession(JSON.parse(localStorage.getItem(SESSION_KEY) || 'null')) } catch { return null }
+}
+
+/** The viewer's own visited list — feeds address-bar suggestions, clearable in settings. */
+const readHistory = () => {
+    try { return sanitizeHistory(JSON.parse(localStorage.getItem(HISTORY_KEY) || 'null')) } catch { return [] }
 }
 
 // Each tab keeps its own history — a cross-origin frame's real history is unreadable.
@@ -141,6 +150,11 @@ const WebFrame = ({ onClose }) => {
     const [marksIo, setMarksIo] = useState('')
     const [marksMsg, setMarksMsg] = useState('')
     const [draft, setDraft] = useState(null) // the new-shortcut form on the home screen
+    const [history, setHistory] = useState(readHistory)
+    const [closed, setClosed] = useState([])   // reopenable tabs, newest first
+    const [loading, setLoading] = useState({}) // tab id -> still fetching
+    const [sugg, setSugg] = useState(-1)       // highlighted omnibox suggestion
+    const [omniOpen, setOmniOpen] = useState(false)
 
     const shellRef = useRef(null)
     const urlRef = useRef(null)
@@ -155,26 +169,50 @@ const WebFrame = ({ onClose }) => {
     const patchActive = (fn) => setTabs(ts => ts.map(t => (t.id === active.id ? fn(t) : t)))
     const patchPrefs = (patch) => setPrefs(p => sanitizePrefs({ ...p, ...patch }))
 
+    // What the address bar offers while typing. Hidden once the text is exactly
+    // the page already open, so it cannot cover the page with a single result.
+    const suggestions = omniOpen && input.trim() && input !== current
+        ? rankSuggestions(input, { bookmarks: prefs.bookmarks, history })
+        : []
+
     /* ---- navigation ---- */
+    const startLoad = (id) => setLoading(l => ({ ...l, [id]: true }))
+
     const go = (url) => {
         if (!url) return
         patchActive(t => ({ ...t, stack: [...t.stack.slice(0, t.idx + 1), url], idx: t.idx + 1 }))
         setInput(url)
         setNtpQuery('')
+        setOmniOpen(false)
+        setSugg(-1)
+        startLoad(active.id)
+        setHistory(h => recordVisit(h, url, Date.now()))
     }
-    const submit = (e) => { e.preventDefault(); go(toUrl(input, prefs.engine)) }
+    const submit = (e) => {
+        e.preventDefault()
+        // Enter takes the highlighted suggestion when one is picked, the way an
+        // address bar does; otherwise it treats the text as typed.
+        const chosen = sugg >= 0 && suggestions[sugg]
+        go(chosen ? chosen.url : toUrl(input, prefs.engine))
+    }
     const submitNtp = (e) => { e.preventDefault(); go(toUrl(ntpQuery, prefs.engine)) }
     const back = () => {
         if (active.idx <= 0) return
         patchActive(t => ({ ...t, idx: t.idx - 1 }))
         setInput(active.stack[active.idx - 1])
+        startLoad(active.id)
     }
     const forward = () => {
         if (active.idx >= active.stack.length - 1) return
         patchActive(t => ({ ...t, idx: t.idx + 1 }))
         setInput(active.stack[active.idx + 1])
+        startLoad(active.id)
     }
-    const reload = () => patchActive(t => ({ ...t, nonce: t.nonce + 1 }))
+    const reload = () => {
+        if (!current) return
+        patchActive(t => ({ ...t, nonce: t.nonce + 1 }))
+        startLoad(active.id)
+    }
 
     /* ---- tabs ---- */
     const openTab = (url) => {
@@ -194,7 +232,12 @@ const WebFrame = ({ onClose }) => {
     const closeTab = (id) => {
         if (tabs.length <= 1) { onClose?.(); return } // last tab closes the viewer, like Chrome
         const i = tabs.findIndex(t => t.id === id)
+        const victim = tabs[i]
         const rest = tabs.filter(t => t.id !== id)
+        // Remember it so Cmd/Ctrl+Shift+T can bring it back with its history.
+        if (victim && urlOf(victim)) {
+            setClosed(c => [{ stack: victim.stack, idx: victim.idx, at: i }, ...c].slice(0, MAX_CLOSED))
+        }
         setTabs(rest)
         if (id === active.id) {
             const next = rest[Math.min(i, rest.length - 1)]
@@ -203,10 +246,57 @@ const WebFrame = ({ onClose }) => {
         }
     }
 
+    /** Chrome's reopen-closed-tab, restoring position and back/forward history. */
+    const reopenClosed = () => {
+        if (!closed.length || tabs.length >= MAX_TABS) return
+        const [first, ...rest] = closed
+        const tab = { id: nextTabId++, stack: first.stack, idx: first.idx, nonce: 0 }
+        setClosed(rest)
+        setTabs(ts => {
+            const at = Math.min(Math.max(first.at, 0), ts.length)
+            return [...ts.slice(0, at), tab, ...ts.slice(at)]
+        })
+        setActiveId(tab.id)
+        setInput(urlOf(tab) || '')
+    }
+
+    /** Same page, its own history going forward — handy for branching a search. */
+    const duplicateTab = (id) => {
+        const src = tabs.find(t => t.id === id)
+        if (!src || tabs.length >= MAX_TABS || !urlOf(src)) return
+        const tab = { id: nextTabId++, stack: [...src.stack], idx: src.idx, nonce: 0 }
+        const at = tabs.findIndex(t => t.id === id) + 1
+        setTabs(ts => [...ts.slice(0, at), tab, ...ts.slice(at)])
+        setActiveId(tab.id)
+        setInput(urlOf(tab) || '')
+    }
+
+    /** Move to the next/previous tab, wrapping like Ctrl+Tab does. */
+    const cycleTab = (delta) => {
+        if (tabs.length < 2) return
+        const i = tabs.findIndex(t => t.id === active.id)
+        selectTab(tabs[(i + delta + tabs.length) % tabs.length].id)
+    }
+
     /* ---- persistence ---- */
     useEffect(() => {
         try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)) } catch { /* ignore */ }
     }, [prefs])
+
+    useEffect(() => {
+        try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)) } catch { /* ignore */ }
+    }, [history])
+
+    /*
+     * A frame that never fires load — blocked, hung, offline — would otherwise
+     * leave the bar animating forever. Give up after a while and just stop
+     * claiming it is still working.
+     */
+    useEffect(() => {
+        if (!Object.values(loading).some(Boolean)) return undefined
+        const timer = setTimeout(() => setLoading({}), 15000)
+        return () => clearTimeout(timer)
+    }, [loading])
 
     /*
      * Kept separately so "Reset settings" and a broken prefs blob both leave them
@@ -252,6 +342,42 @@ const WebFrame = ({ onClose }) => {
     useEffect(() => {
         const onKey = (e) => {
             if (e.target?.dataset?.keycapture) return // the settings field that records a key
+
+            /*
+             * The usual browser shortcuts. Cmd on a Mac, Ctrl elsewhere; the
+             * browser's own Cmd+T/W would act on the real tab, so these are
+             * captured and stopped before it sees them. They only reach us while
+             * focus is outside the frame — a cross-origin page keeps its keys.
+             */
+            const mod = e.metaKey || e.ctrlKey
+            if (mod && !e.altKey) {
+                const k = e.key.toLowerCase()
+                const take = () => { e.preventDefault(); e.stopPropagation() }
+
+                if (k === 't' && e.shiftKey) { take(); reopenClosed(); return }
+                if (k === 't') { take(); openTab(); return }
+                if (k === 'w') { take(); closeTab(active.id); return }
+                if (k === 'l') { take(); urlRef.current?.focus(); urlRef.current?.select(); return }
+                if (k === 'r') { take(); reload(); return }
+                if (k === 'd') { take(); bookmarkCurrent(); return }
+                if (k === 'arrowleft' || (k === '[' && e.shiftKey === false)) { take(); back(); return }
+                if (k === 'arrowright' || k === ']') { take(); forward(); return }
+                // Cmd/Ctrl+1..8 jump to that tab, 9 jumps to the last one.
+                if (/^[1-9]$/.test(e.key)) {
+                    take()
+                    const n = Number(e.key)
+                    const target = n === 9 ? tabs[tabs.length - 1] : tabs[n - 1]
+                    if (target) selectTab(target.id)
+                    return
+                }
+            }
+            // Ctrl+Tab cycles even on a Mac, matching every browser.
+            if (e.ctrlKey && e.key === 'Tab') {
+                e.preventDefault(); e.stopPropagation()
+                cycleTab(e.shiftKey ? -1 : 1)
+                return
+            }
+
             if (e.key === prefs.closeKey && !e.metaKey && !e.ctrlKey && !e.altKey) {
                 e.preventDefault()
                 e.stopPropagation()
@@ -260,13 +386,18 @@ const WebFrame = ({ onClose }) => {
                 return
             }
             if (e.key === 'Escape' && !document.fullscreenElement) {
+                // Peel back one layer at a time rather than closing outright.
+                if (omniOpen) { setOmniOpen(false); setSugg(-1); return }
                 if (showSettings) { setShowSettings(false); return }
                 onClose?.()
             }
         }
         window.addEventListener('keydown', onKey, { capture: true })
         return () => window.removeEventListener('keydown', onKey, { capture: true })
-    }, [onClose, prefs.closeKey, showSettings])
+        // Deliberately no dependency array: the handler reads tabs, the active
+        // tab, the closed stack and both overlay flags. Listing them all would be
+        // the same rebinding with more ways to forget one and act on stale state.
+    })
 
     useEffect(() => { (ntpRef.current || urlRef.current)?.focus() }, [])
 
@@ -411,13 +542,16 @@ const WebFrame = ({ onClose }) => {
                         role="tab"
                         tabIndex={0}
                         aria-selected={t.id === active.id}
-                        className={`wf-tab${t.id === active.id ? ' is-active' : ''}`}
-                        title={u || 'New tab'}
+                        className={`wf-tab${t.id === active.id ? ' is-active' : ''}${loading[t.id] ? ' is-loading' : ''}`}
+                        title={u ? `${u}\nMiddle-click to close · right-click to duplicate` : 'New tab'}
                         onClick={() => selectTab(t.id)}
                         onAuxClick={(e) => { if (e.button === 1) { e.preventDefault(); closeTab(t.id) } }}
+                        // Right-click duplicates rather than raising a menu — one
+                        // useful action beats a menu of one.
+                        onContextMenu={(e) => { if (urlOf(t)) { e.preventDefault(); duplicateTab(t.id) } }}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectTab(t.id) } }}
                     >
-                        <Favicon url={u} />
+                        {loading[t.id] ? <span className="wf-tab-spin" aria-label="Loading" /> : <Favicon url={u} />}
                         <span className="wf-tab-label">{tabLabel(u)}</span>
                         <button
                             type="button"
@@ -488,13 +622,49 @@ const WebFrame = ({ onClose }) => {
                                 ref={urlRef}
                                 className="wf-url"
                                 value={input}
-                                onChange={(e) => setInput(e.target.value)}
+                                onChange={(e) => { setInput(e.target.value); setOmniOpen(true); setSugg(-1) }}
+                                onFocus={() => setOmniOpen(true)}
+                                // A click lands before blur, so closing is deferred a tick or
+                                // the suggestion is unmounted before it can be chosen.
+                                onBlur={() => setTimeout(() => { setOmniOpen(false); setSugg(-1) }, 120)}
+                                onKeyDown={(e) => {
+                                    if (!suggestions.length) return
+                                    if (e.key === 'ArrowDown') { e.preventDefault(); setSugg(i => (i + 1) % suggestions.length) }
+                                    else if (e.key === 'ArrowUp') { e.preventDefault(); setSugg(i => (i <= 0 ? suggestions.length : i) - 1) }
+                                }}
                                 placeholder="Search or type a web address"
                                 aria-label="Address bar"
+                                role="combobox"
+                                aria-expanded={suggestions.length > 0}
+                                aria-controls="wf-suggest"
+                                aria-activedescendant={sugg >= 0 ? `wf-sugg-${sugg}` : undefined}
                                 spellCheck="false"
                                 autoComplete="off"
                             />
                             <button type="button" className="wf-omni-btn" onClick={bookmarkCurrent} disabled={!current} aria-label="Bookmark this page" title="Bookmark this page">☆</button>
+
+                            {suggestions.length > 0 && (
+                                <ul className="wf-suggest" id="wf-suggest" role="listbox" aria-label="Suggestions">
+                                    {suggestions.map((s, i) => (
+                                        <li
+                                            key={s.url}
+                                            id={`wf-sugg-${i}`}
+                                            role="option"
+                                            aria-selected={i === sugg}
+                                            className={`wf-sugg${i === sugg ? ' is-on' : ''}`}
+                                            onMouseEnter={() => setSugg(i)}
+                                            // mousedown, not click: blur would tear the row down first
+                                            onMouseDown={(e) => { e.preventDefault(); go(s.url) }}
+                                        >
+                                            <Favicon url={s.url} className="wf-bm-fav" />
+                                            <span className="wf-sugg-label">{s.label}</span>
+                                            {/* host + path, so two pages on one site stay distinguishable */}
+                                            <span className="wf-sugg-url">{s.url.replace(/^https?:\/\//i, '').replace(/^www\./, '')}</span>
+                                            <span className={`wf-sugg-kind is-${s.kind}`}>{s.kind === 'bookmark' ? '★' : '↺'}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
                         </div>
                         <a
                             className={`wf-icon${current ? '' : ' is-off'}`}
@@ -748,6 +918,44 @@ const WebFrame = ({ onClose }) => {
                                                 reopen. Logins and site data are the browser&apos;s own — a framed site keeps
                                                 them only while your browser allows cookies inside an embedded page.
                                             </p>
+
+                                            <div className="wf-set-list">
+                                                <span className="wf-set-title">Visited pages</span>
+                                                <p className="hint">
+                                                    The viewer keeps its own short list of where you have been, purely so the
+                                                    address bar can suggest it. It is never added to the browser&apos;s history.
+                                                    {history.length > 0 && <> Currently <b>{history.length}</b> {history.length === 1 ? 'page' : 'pages'}.</>}
+                                                </p>
+                                                <div className="wf-set-actions">
+                                                    <button
+                                                        type="button"
+                                                        className="btn ghost"
+                                                        disabled={!history.length}
+                                                        onClick={() => {
+                                                            setHistory([])
+                                                            try { localStorage.removeItem(HISTORY_KEY) } catch { /* ignore */ }
+                                                        }}
+                                                    >Clear visited pages</button>
+                                                </div>
+                                            </div>
+
+                                            <div className="wf-set-list">
+                                                <span className="wf-set-title">Keyboard shortcuts</span>
+                                                <div className="wf-keys">
+                                                    {[
+                                                        ['New tab', 'T'], ['Close tab', 'W'], ['Reopen closed tab', '⇧T'],
+                                                        ['Address bar', 'L'], ['Reload', 'R'], ['Bookmark page', 'D'],
+                                                        ['Back / Forward', '← →'], ['Jump to tab', '1…9']
+                                                    ].map(([what, key]) => (
+                                                        <div key={what} className="wf-key-row">
+                                                            <span>{what}</span>
+                                                            <kbd>{MOD_LABEL}{key}</kbd>
+                                                        </div>
+                                                    ))}
+                                                    <div className="wf-key-row"><span>Next / previous tab</span><kbd>Ctrl Tab</kbd></div>
+                                                    <div className="wf-key-row"><span>Close the viewer</span><kbd>Esc</kbd></div>
+                                                </div>
+                                            </div>
                                             <div className="wf-set-actions">
                                                 <button
                                                     type="button"
@@ -776,19 +984,27 @@ const WebFrame = ({ onClose }) => {
                         </p>
                     )}
 
+                    {/* Indeterminate: a cross-origin frame reports no progress, only
+                        that it finished, so this shows activity rather than a fraction. */}
+                    {loading[active.id] && <div className="wf-progress" role="progressbar" aria-label="Loading page" />}
+
                     <div className={`wf-stage${resizing ? ' is-resizing' : ''}`}>
                         {tabs.map(t => {
                             const u = urlOf(t)
                             if (!u) return null
+                            const frameKey = `${t.id}:${t.idx}:${t.nonce}:${u}`
                             return (
                                 <iframe
-                                    key={`${t.id}:${t.idx}:${t.nonce}:${u}`}
+                                    key={frameKey}
                                     className={`wf-frame${t.id === active.id ? '' : ' is-hidden'}`}
                                     src={u}
                                     title={`Web viewer tab ${tabLabel(u)}`}
                                     referrerPolicy="no-referrer"
                                     allow="fullscreen; clipboard-write"
                                     sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-modals"
+                                    // load fires for a blocked page too, so this only ever means
+                                    // "the browser stopped fetching", which is all it claims.
+                                    onLoad={() => setLoading(l => (l[t.id] ? { ...l, [t.id]: false } : l))}
                                 />
                             )
                         })}

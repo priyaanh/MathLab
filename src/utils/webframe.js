@@ -116,6 +116,101 @@ export const hueFor = (str) => {
 export const MAX_BOOKMARKS = 60
 export const MAX_TABS = 12
 export const MAX_STACK = 50
+export const MAX_HISTORY = 200
+/** How many tabs can be reopened after closing, newest first. */
+export const MAX_CLOSED = 10
+
+/**
+ * Places visited in the viewer, newest first. This is the viewer's own list and
+ * never touches the browser's history — it exists so the address bar can suggest
+ * somewhere you have already been, and the Privacy pane can throw it away.
+ */
+export const sanitizeHistory = (raw) => {
+    const seen = new Set()
+    return (Array.isArray(raw) ? raw : [])
+        .filter(h => h && typeof h === 'object' && /^https?:\/\/\S+$/i.test(String(h.url || '')))
+        .map(h => ({
+            url: String(h.url).trim(),
+            visits: Number.isFinite(h.visits) && h.visits > 0 ? Math.min(9999, Math.floor(h.visits)) : 1,
+            last: Number.isFinite(h.last) && h.last > 0 ? h.last : 0
+        }))
+        .filter(h => (seen.has(h.url) ? false : seen.add(h.url)))
+        .sort((a, b) => b.last - a.last)
+        .slice(0, MAX_HISTORY)
+}
+
+/** Bump an entry to the front, keeping its visit count. Pure: returns a new list. */
+export const recordVisit = (history, url, now) => {
+    if (!/^https?:\/\/\S+$/i.test(String(url || ''))) return history
+    const rest = history.filter(h => h.url !== url)
+    const prev = history.find(h => h.url === url)
+    return [{ url, visits: (prev?.visits || 0) + 1, last: now }, ...rest].slice(0, MAX_HISTORY)
+}
+
+/**
+ * A readable title from the last path segment: "/wiki/Pythagorean_theorem"
+ * becomes "Pythagorean theorem". History rows otherwise show the bare host in
+ * both columns, which makes two pages on one site indistinguishable.
+ * Returns '' for a bare host, where the host itself is the best label.
+ */
+export const prettyPath = (url) => {
+    try {
+        const last = new URL(url).pathname.split('/').filter(Boolean).pop()
+        if (!last) return ''
+        return decodeURIComponent(last)
+            .replace(/\.[a-z0-9]{2,5}$/i, '') // trailing .html and friends
+            .replace(/[_+-]+/g, ' ')
+            .trim()
+            .slice(0, 60)
+    } catch { return '' }
+}
+
+/**
+ * Address-bar suggestions drawn from bookmarks and previous visits.
+ *
+ * Scoring favours the host over the label, because a host is what someone is
+ * usually reaching for when they start typing. Bookmarks outrank bare history at
+ * equal match quality, and a frequently visited page climbs within history.
+ * Returns [] for a blank query so the dropdown stays shut until it is useful.
+ */
+export const rankSuggestions = (query, { bookmarks = [], history = [] } = {}, limit = 6) => {
+    const q = String(query ?? '').trim().toLowerCase()
+    if (!q) return []
+
+    const score = (url, label) => {
+        const host = hostOf(url).replace(/^www\./, '').toLowerCase()
+        const lab = String(label || '').toLowerCase()
+        let s = 0
+        if (host.startsWith(q)) s += 50
+        else if (host.includes(q)) s += 25
+        if (lab.startsWith(q)) s += 30
+        else if (lab.includes(q)) s += 15
+        // a match anywhere in the full URL still counts, just barely
+        if (!s && String(url).toLowerCase().includes(q)) s += 10
+        return s
+    }
+
+    const out = new Map()
+    for (const b of Array.isArray(bookmarks) ? bookmarks : []) {
+        const s = score(b?.url, b?.label)
+        if (s) out.set(b.url, { url: b.url, label: b.label || tabLabel(b.url), kind: 'bookmark', score: s + 20 })
+    }
+    for (const h of Array.isArray(history) ? history : []) {
+        const title = prettyPath(h?.url) || tabLabel(h?.url)
+        // Match on the readable title too, so "pythag" finds /wiki/Pythagorean_theorem.
+        const s = Math.max(score(h?.url, tabLabel(h?.url)), score(h?.url, title))
+        if (!s) continue
+        const total = s + Math.min(10, h.visits || 1)
+        const prev = out.get(h.url)
+        // Already bookmarked: keep the bookmark badge, take the better score.
+        if (prev) { if (total > prev.score) out.set(h.url, { ...prev, score: total }) }
+        else out.set(h.url, { url: h.url, label: title, kind: 'history', score: total })
+    }
+
+    return [...out.values()]
+        .sort((a, b) => b.score - a.score || a.url.localeCompare(b.url))
+        .slice(0, Math.max(0, limit))
+}
 export const MIN_RAIL = 120
 export const MAX_RAIL = 460
 

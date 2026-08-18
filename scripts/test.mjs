@@ -19,7 +19,7 @@ import { normalCdf, binomPmf, binomCdf, poissonPmf, poissonCdf } from '../src/ut
 import { move, canMove, newGame, spawn, isValidBoard, normalizeBoard } from '../src/utils/game2048.js'
 import {
     toUrl, hostOf, blocksFraming, tabLabel, sanitizePrefs, sanitizeSession, sanitizeBookmarks,
-    hueFor, pruneRetiredDefaults, readableOn,
+    hueFor, pruneRetiredDefaults, readableOn, sanitizeHistory, recordVisit, rankSuggestions, prettyPath, MAX_HISTORY,
     ENGINES, DEFAULT_PREFS, MAX_BOOKMARKS, MAX_TABS, MAX_STACK, MIN_RAIL, MAX_RAIL
 } from '../src/utils/webframe.js'
 
@@ -411,7 +411,79 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
     ok('session: history length is capped',
         sanitizeSession({ tabs: [{ stack: Array.from({ length: 200 }, (_, i) => `https://a.com/${i}`), idx: 199 }] }).tabs[0].stack.length === MAX_STACK)
     ok('session: sanitizing is idempotent', JSON.stringify(sanitizeSession(sess)) === JSON.stringify(sess))
+
+    /* ---- visited history + address-bar suggestions ---- */
+    ok('history: junk is filtered out',
+        sanitizeHistory([{ url: 'https://a.com' }, { url: 'ftp://no' }, null, 'x', {}]).length === 1)
+    ok('history: non-arrays give an empty list', sanitizeHistory(null).length === 0 && sanitizeHistory({}).length === 0)
+    ok('history: duplicates collapse', sanitizeHistory([{ url: 'https://a.com' }, { url: 'https://a.com' }]).length === 1)
+    ok('history: newest first', (() => {
+        const h = sanitizeHistory([{ url: 'https://old.com', last: 1 }, { url: 'https://new.com', last: 9 }])
+        return h[0].url === 'https://new.com'
+    })())
+    ok('history: the list is capped',
+        sanitizeHistory(Array.from({ length: 500 }, (_, i) => ({ url: `https://s${i}.com`, last: i }))).length === MAX_HISTORY)
+    ok('history: a visit moves to the front and counts up', (() => {
+        let h = []
+        h = recordVisit(h, 'https://a.com', 1)
+        h = recordVisit(h, 'https://b.com', 2)
+        h = recordVisit(h, 'https://a.com', 3)
+        return h[0].url === 'https://a.com' && h[0].visits === 2 && h.length === 2
+    })())
+    ok('history: a junk URL is ignored', recordVisit([], 'not a url', 1).length === 0)
+
+    const SUG = {
+        bookmarks: [{ label: 'Wikipedia', url: 'https://en.wikipedia.org' }],
+        history: [
+            { url: 'https://archive.org/details/x', visits: 5, last: 9 },
+            { url: 'https://example.com', visits: 1, last: 8 }
+        ]
+    }
+    ok('suggest: a blank query suggests nothing',
+        rankSuggestions('', SUG).length === 0 && rankSuggestions('   ', SUG).length === 0)
+    ok('suggest: matches a host prefix', rankSuggestions('arch', SUG)[0].url === 'https://archive.org/details/x')
+    ok('suggest: matches a bookmark label', rankSuggestions('wiki', SUG)[0].url === 'https://en.wikipedia.org')
+    ok('suggest: a bookmark outranks history at equal match', (() => {
+        const both = { bookmarks: [{ label: 'Zed', url: 'https://zed.com' }], history: [{ url: 'https://zeta.com', visits: 1, last: 1 }] }
+        return rankSuggestions('ze', both)[0].url === 'https://zed.com'
+    })())
+    ok('suggest: nothing matching gives nothing', rankSuggestions('qqqqzz', SUG).length === 0)
+    ok('suggest: results are capped', (() => {
+        const many = { bookmarks: [], history: Array.from({ length: 30 }, (_, i) => ({ url: `https://test${i}.com`, visits: 1, last: i })) }
+        return rankSuggestions('test', many, 4).length === 4
+    })())
+    ok('suggest: a bookmarked page is not listed twice', (() => {
+        const dup = { bookmarks: [{ label: 'Same', url: 'https://same.com' }], history: [{ url: 'https://same.com', visits: 9, last: 1 }] }
+        const r = rankSuggestions('same', dup)
+        return r.length === 1 && r[0].kind === 'bookmark'
+    })())
+    ok('suggest: matching is case-insensitive',
+        rankSuggestions('WIKI', SUG).length === 1 && rankSuggestions('Arch', SUG).length === 1)
+
+    ok('prettyPath: reads a title out of the last segment',
+        prettyPath('https://en.wikipedia.org/wiki/Pythagorean_theorem') === 'Pythagorean theorem')
+    ok('prettyPath: strips a file extension', prettyPath('https://a.com/docs/intro.html') === 'intro')
+    ok('prettyPath: a bare host has no path title',
+        prettyPath('https://example.com') === '' && prettyPath('https://example.com/') === '')
+    ok('prettyPath: junk is safe', prettyPath('not a url') === '' && prettyPath(null) === '')
+    ok('suggest: history rows are labelled by their page, not the host', (() => {
+        const h = { bookmarks: [], history: [{ url: 'https://en.wikipedia.org/wiki/Euclid', visits: 1, last: 1 }] }
+        return rankSuggestions('euclid', h)[0].label === 'Euclid'
+    })())
+    ok('suggest: a page title is matchable, not just the host', (() => {
+        const h = { bookmarks: [], history: [{ url: 'https://en.wikipedia.org/wiki/Pythagorean_theorem', visits: 1, last: 1 }] }
+        return rankSuggestions('pythag', h).length === 1
+    })())
+    ok('suggest: two pages on one host stay distinct', (() => {
+        const h = { bookmarks: [], history: [
+            { url: 'https://en.wikipedia.org/wiki/Euclid', visits: 1, last: 2 },
+            { url: 'https://en.wikipedia.org/wiki/Pythagorean_theorem', visits: 1, last: 1 }
+        ] }
+        const r = rankSuggestions('wikipedia', h)
+        return r.length === 2 && r[0].label !== r[1].label
+    })())
 }
+
 
 
 // --- 9. profile accounts (WebCrypto) --------------------------------------

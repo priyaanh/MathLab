@@ -2211,6 +2211,9 @@ a.topic-card {
 
 /* pill omnibox */
 .wf-omni {
+    /* anchors the suggestion list; without it the dropdown resolves against
+       .wf-main and lands below the whole column, clipped by the shell */
+    position: relative;
     flex: 1 1 auto;
     display: flex;
     align-items: center;
@@ -3331,3 +3334,84 @@ textarea:focus-visible,
     font: inherit;
     font-size: 0.82rem;
 }
+
+/* ---- web viewer: suggestions, progress, shortcut list ------------------- */
+.wf-suggest {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 8;
+    margin: 0;
+    padding: 0.25rem;
+    list-style: none;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 18px 44px -16px rgba(0, 0, 0, 0.7);
+    overflow: hidden;
+}
+.wf-sugg {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.55rem;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    color: var(--text);
+    cursor: pointer;
+}
+.wf-sugg.is-on { background: color-mix(in srgb, var(--accent) 20%, transparent); }
+.wf-sugg-label { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.wf-sugg-url { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.75rem; color: var(--text-muted); }
+.wf-sugg-kind { flex: none; font-size: 0.75rem; color: var(--text-muted); }
+.wf-sugg-kind.is-bookmark { color: var(--accent); }
+
+/* indeterminate loading bar under the toolbar */
+.wf-progress {
+    position: relative;
+    height: 2px;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.wf-progress::after {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 35%;
+    background: var(--accent);
+    animation: wf-slide 1.1s ease-in-out infinite;
+}
+@keyframes wf-slide {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(340%); }
+}
+
+.wf-keys { display: flex; flex-direction: column; gap: 0.2rem; }
+.wf-key-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; font-size: 0.78rem; color: var(--text-muted); }
+.wf-key-row kbd {
+    flex: none;
+    padding: 0.1rem 0.4rem;
+    border: 1px solid var(--border);
+    border-bottom-width: 2px;
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.72rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .wf-progress::after { animation: none; width: 100%; opacity: 0.6; }
+}
+/* per-tab spinner, sized to sit exactly where the favicon was */
+.wf-tab-spin {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid color-mix(in srgb, var(--text) 25%, transparent);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: page-spin 0.7s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) { .wf-tab-spin { animation-duration: 2.5s; } }
