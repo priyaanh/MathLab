@@ -4,10 +4,21 @@ import NavBar from './NavBar'
 import MathKeypad from './MathKeypad'
 import ErrorBoundary from './ErrorBoundary'
 
-// Footer popups — lazy so their code only ships when opened.
-const DinoGame = lazy(() => import('../pages/DinoGame'))
-const Game2048 = lazy(() => import('../pages/Game2048'))
-const WebFrame = lazy(() => import('../pages/WebFrame'))
+/*
+ * Footer popups — lazy so their code only ships when opened.
+ *
+ * The retry matters: React.lazy calls its factory once and caches the result,
+ * rejection included. A single failed chunk fetch therefore breaks the overlay
+ * for the rest of the page's life — reopening replays the same rejected promise.
+ * Retrying inside the factory absorbs a transient miss (a dev server restarting,
+ * a dropped connection, a deploy landing while the tab sat open). Anything worse
+ * needs a fresh document, which is what the boundary offers.
+ */
+const lazyPanel = (load) => lazy(() => load().catch(() => load()))
+
+const DinoGame = lazyPanel(() => import('../pages/DinoGame'))
+const Game2048 = lazyPanel(() => import('../pages/Game2048'))
+const WebFrame = lazyPanel(() => import('../pages/WebFrame'))
 
 // Per-route document titles — better browser tabs, history entries and SEO.
 const TITLES = {
