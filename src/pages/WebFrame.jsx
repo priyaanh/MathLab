@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-    DEFAULT_PREFS, ENGINES, MAX_BOOKMARKS, MAX_CLOSED, MAX_RAIL, MAX_TABS, MIN_RAIL, blocksFraming,
-    clampRail, hostOf, hueFor, pruneRetiredDefaults, rankSuggestions, readableOn, recordVisit,
-    sanitizeBookmarks, sanitizeHistory, sanitizePrefs, sanitizeSession, tabLabel, toUrl
+    DEFAULT_PREFS, ENGINES, MAX_BOOKMARKS, MAX_CLOSED, MAX_RAIL, MAX_TABS, MIN_RAIL, clampRail,
+    embedUrl, hostOf, hueFor, isBlocked, pruneRetiredDefaults, rankSuggestions, readableOn,
+    recordVisit, sanitizeBookmarks, sanitizeHistory, sanitizePrefs, sanitizeSession, searchTermOf,
+    tabLabel, toUrl
 } from '../utils/webframe'
 
 /**
@@ -164,7 +165,8 @@ const WebFrame = ({ onClose }) => {
 
     const active = tabs.find(t => t.id === activeId) || tabs[0]
     const current = urlOf(active)
-    const blocked = current ? blocksFraming(current) : false
+    // Blocked only when there is no official embed to fall back on.
+    const blocked = isBlocked(current)
 
     const patchActive = (fn) => setTabs(ts => ts.map(t => (t.id === active.id ? fn(t) : t)))
     const patchPrefs = (patch) => setPrefs(p => sanitizePrefs({ ...p, ...patch }))
@@ -978,11 +980,6 @@ const WebFrame = ({ onClose }) => {
                         </div>
                     )}
 
-                    {blocked && (
-                        <p className="wf-note" role="status">
-                            <b>{hostOf(current)}</b> refuses to be embedded (X-Frame-Options), so it will stay blank — use <b>↗</b> to open it in a tab.
-                        </p>
-                    )}
 
                     {/* Indeterminate: a cross-origin frame reports no progress, only
                         that it finished, so this shows activity rather than a fraction. */}
@@ -991,16 +988,27 @@ const WebFrame = ({ onClose }) => {
                     <div className={`wf-stage${resizing ? ' is-resizing' : ''}`}>
                         {tabs.map(t => {
                             const u = urlOf(t)
-                            if (!u) return null
-                            const frameKey = `${t.id}:${t.idx}:${t.nonce}:${u}`
+                            if (!u || isBlocked(u)) return null
+                            // The stack holds the page a person typed; the frame gets the
+                            // embeddable form of it where the site publishes one.
+                            const src = embedUrl(u) || u
+                            const frameKey = `${t.id}:${t.idx}:${t.nonce}:${src}`
                             return (
                                 <iframe
                                     key={frameKey}
                                     className={`wf-frame${t.id === active.id ? '' : ' is-hidden'}`}
-                                    src={u}
+                                    src={src}
                                     title={`Web viewer tab ${tabLabel(u)}`}
-                                    referrerPolicy="no-referrer"
-                                    allow="fullscreen; clipboard-write"
+                                    /*
+                                     * Ordinary pages get no referrer at all. An official embed is
+                                     * the exception: YouTube checks the referring origin before it
+                                     * will play, and answers "Error 153 — video player
+                                     * configuration error" to a frame that sends none. "origin"
+                                     * discloses the bare scheme and host, never the page, and only
+                                     * for an embed we deliberately opted into.
+                                     */
+                                    referrerPolicy={src === u ? 'no-referrer' : 'origin'}
+                                    allow="fullscreen; clipboard-write; encrypted-media; picture-in-picture; autoplay"
                                     sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-modals"
                                     // load fires for a blocked page too, so this only ever means
                                     // "the browser stopped fetching", which is all it claims.
@@ -1008,6 +1016,49 @@ const WebFrame = ({ onClose }) => {
                                 />
                             )
                         })}
+
+                        {/*
+                          * A page that refuses framing used to leave a blank pane under a
+                          * one-line warning. This says what happened and offers the two
+                          * things that actually move it forward.
+                          */}
+                        {blocked && (
+                            <div className="wf-blocked" role="status">
+                                <span className="wf-blocked-icon" aria-hidden="true">🔒</span>
+                                <h2>{hostOf(current).replace(/^www\./, '')} won&apos;t open in here</h2>
+                                <p>
+                                    It sends a header telling browsers not to display it inside another
+                                    page. Every browser obeys that, so no site can embed it — this is the
+                                    site&apos;s choice, not a limit of the viewer.
+                                </p>
+                                <div className="wf-blocked-actions">
+                                    <a className="btn primary" href={current} target="_blank" rel="noreferrer noopener">
+                                        Open in a new tab ↗
+                                    </a>
+                                    {back && active.idx > 0 && (
+                                        <button type="button" className="btn ghost" onClick={back}>Go back</button>
+                                    )}
+                                </div>
+                                {/* Google Search is the usual way people land here. */}
+                                {/google\./i.test(hostOf(current)) && searchTermOf(current) && (
+                                    <p className="wf-blocked-alt">
+                                        Searching for <b>{searchTermOf(current)}</b>?{' '}
+                                        <button
+                                            type="button"
+                                            className="auth-link"
+                                            onClick={() => go(toUrl(searchTermOf(current), prefs.engine))}
+                                        >Run that search in here instead</button>
+                                    </p>
+                                )}
+                                {/(youtube|youtu\.be)/i.test(hostOf(current)) && (
+                                    <p className="wf-blocked-alt">
+                                        Individual YouTube <b>videos</b> do play in here — open one and it
+                                        switches to the embedded player automatically. Channels, search and
+                                        the home page cannot be embedded.
+                                    </p>
+                                )}
+                            </div>
+                        )}
 
                         {!current && (
                             <div

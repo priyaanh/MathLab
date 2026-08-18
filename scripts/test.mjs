@@ -19,7 +19,7 @@ import { normalCdf, binomPmf, binomCdf, poissonPmf, poissonCdf } from '../src/ut
 import { move, canMove, newGame, spawn, isValidBoard, normalizeBoard } from '../src/utils/game2048.js'
 import {
     toUrl, hostOf, blocksFraming, tabLabel, sanitizePrefs, sanitizeSession, sanitizeBookmarks,
-    hueFor, pruneRetiredDefaults, readableOn, sanitizeHistory, recordVisit, rankSuggestions, prettyPath, MAX_HISTORY,
+    hueFor, pruneRetiredDefaults, readableOn, embedUrl, isBlocked, searchTermOf, sanitizeHistory, recordVisit, rankSuggestions, prettyPath, MAX_HISTORY,
     ENGINES, DEFAULT_PREFS, MAX_BOOKMARKS, MAX_TABS, MAX_STACK, MIN_RAIL, MAX_RAIL
 } from '../src/utils/webframe.js'
 
@@ -411,6 +411,46 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
     ok('session: history length is capped',
         sanitizeSession({ tabs: [{ stack: Array.from({ length: 200 }, (_, i) => `https://a.com/${i}`), idx: 199 }] }).tabs[0].stack.length === MAX_STACK)
     ok('session: sanitizing is idempotent', JSON.stringify(sanitizeSession(sess)) === JSON.stringify(sess))
+
+
+    /* ---- official embeds for sites that refuse plain framing ---- */
+    ok('embed: a YouTube watch URL becomes the player',
+        embedUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ') === 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ')
+    ok('embed: a youtu.be short link works',
+        embedUrl('https://youtu.be/dQw4w9WgXcQ') === 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ')
+    ok('embed: a start time is carried over',
+        embedUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s') === 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?start=42')
+    ok('embed: shorts work', embedUrl('https://www.youtube.com/shorts/dQw4w9WgXcQ') === 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ')
+    ok('embed: a playlist becomes videoseries',
+        embedUrl('https://www.youtube.com/playlist?list=PL1234567890').includes('/embed/videoseries?list=PL1234567890'))
+    ok('embed: an existing embed URL passes through',
+        embedUrl('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ').includes('/embed/dQw4w9WgXcQ'))
+    ok('embed: YouTube search and channels have no embed',
+        embedUrl('https://www.youtube.com/results?search_query=cats') === null
+        && embedUrl('https://www.youtube.com/@someone') === null
+        && embedUrl('https://www.youtube.com') === null)
+    ok('embed: a junk video id is refused', embedUrl('https://www.youtube.com/watch?v=../evil') === null)
+
+    ok('embed: Google Search has no embed and stays blocked',
+        embedUrl('https://www.google.com/search?q=pi') === null && isBlocked('https://www.google.com/search?q=pi'))
+    ok('embed: Google Docs maps to /preview',
+        embedUrl('https://docs.google.com/document/d/abc123/edit') === 'https://docs.google.com/document/d/abc123/preview')
+    ok('embed: Drive files map to /preview',
+        embedUrl('https://drive.google.com/file/d/abc123/view') === 'https://drive.google.com/file/d/abc123/preview')
+    ok('embed: Google Maps uses the documented embed form',
+        embedUrl('https://www.google.com/maps/place/Eiffel+Tower/@48.85,2.29,17z').includes('output=embed'))
+
+    ok('embed: junk and non-http are refused',
+        embedUrl('not a url') === null && embedUrl('javascript:alert(1)') === null && embedUrl(null) === null)
+    ok('blocked: a YouTube video is no longer treated as blocked',
+        isBlocked('https://www.youtube.com/watch?v=dQw4w9WgXcQ') === false)
+    ok('blocked: an embeddable site was never blocked anyway',
+        isBlocked('https://en.wikipedia.org') === false && isBlocked('') === false)
+
+    ok('searchTermOf: pulls the query back out',
+        searchTermOf('https://www.google.com/search?q=pythagorean+theorem') === 'pythagorean theorem')
+    ok('searchTermOf: nothing to pull gives empty',
+        searchTermOf('https://example.com') === '' && searchTermOf('junk') === '')
 
     /* ---- visited history + address-bar suggestions ---- */
     ok('history: junk is filtered out',

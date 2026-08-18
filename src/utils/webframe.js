@@ -31,6 +31,83 @@ const BLOCKS_FRAMING = /^(www\.|m\.|old\.)?(google|youtube|bing|duckduckgo|githu
 
 export const hostOf = (url) => { try { return new URL(url).hostname } catch { return '' } }
 
+/**
+ * Map a page to an officially embeddable version of itself, or null.
+ *
+ * Several big sites refuse framing for the page a person lands on but publish a
+ * supported embed endpoint for the same content — YouTube's player, Google's
+ * map and document previews. Using those is the difference between showing the
+ * content and defeating a security control: X-Frame-Options exists to stop a
+ * page being framed and clickjacked, and the answer to it is the embed the site
+ * offers, never a proxy that strips the header off a session someone is logged
+ * into. Where no such endpoint exists — Google Search above all — this returns
+ * null and the viewer says so plainly instead of showing a blank pane.
+ *
+ * The real URL stays in the address bar, history and bookmarks; only what the
+ * frame is pointed at changes.
+ */
+const ytEmbed = (id, start) => {
+    if (!/^[\w-]{6,20}$/.test(id)) return null
+    // nocookie host, consistent with the viewer sending no referrer either
+    const t = start && /^\d+$/.test(String(start).replace(/s$/, '')) ? String(start).replace(/s$/, '') : ''
+    return `https://www.youtube-nocookie.com/embed/${id}${t ? `?start=${t}` : ''}`
+}
+
+export const embedUrl = (raw) => {
+    let u
+    try { u = new URL(String(raw || '')) } catch { return null }
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return null
+    const host = u.hostname.replace(/^(www|m)\./i, '').toLowerCase()
+
+    /* ---- YouTube: the player is designed to be embedded ---- */
+    if (host === 'youtu.be') {
+        const id = u.pathname.split('/').filter(Boolean)[0]
+        return id ? ytEmbed(id, u.searchParams.get('t')) : null
+    }
+    if (host === 'youtube.com' || host === 'youtube-nocookie.com') {
+        if (u.pathname.startsWith('/embed/')) return u.href      // already an embed
+        if (u.pathname === '/watch') return ytEmbed(u.searchParams.get('v') || '', u.searchParams.get('t'))
+        if (u.pathname.startsWith('/shorts/')) return ytEmbed(u.pathname.split('/')[2] || '')
+        if (u.pathname === '/playlist') {
+            const list = u.searchParams.get('list')
+            return list && /^[\w-]{2,64}$/.test(list)
+                ? `https://www.youtube-nocookie.com/embed/videoseries?list=${encodeURIComponent(list)}`
+                : null
+        }
+        return null // channels, search and the home page are not embeddable
+    }
+
+    /* ---- Google Docs, Sheets, Slides, Drive: /preview is the embed form ---- */
+    if (host === 'docs.google.com' || host === 'drive.google.com') {
+        const m = u.pathname.match(/^\/(document|spreadsheets|presentation|file)\/d\/([\w-]+)/)
+        if (m) return `https://${u.hostname}/${m[1]}/d/${m[2]}/preview`
+        return null
+    }
+
+    /* ---- Google Maps: the documented output=embed form ---- */
+    if (host === 'google.com' && u.pathname.startsWith('/maps')) {
+        const place = u.pathname.match(/\/maps\/place\/([^/]+)/)
+        const q = u.searchParams.get('q') || u.searchParams.get('query') || (place ? decodeURIComponent(place[1]) : '')
+        if (q) return `https://maps.google.com/maps?q=${encodeURIComponent(q)}&output=embed`
+        const at = u.pathname.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/)
+        if (at) return `https://maps.google.com/maps?q=${at[1]},${at[2]}&output=embed`
+        return null
+    }
+
+    return null
+}
+
+/** True when a page can only be reached by opening it outside the viewer. */
+export const isBlocked = (url) => !!url && blocksFraming(url) && !embedUrl(url)
+
+/** The query behind a search-results URL, so it can be re-run somewhere embeddable. */
+export const searchTermOf = (url) => {
+    try {
+        const p = new URL(url).searchParams
+        return (p.get('q') || p.get('query') || p.get('search') || '').trim().slice(0, 120)
+    } catch { return '' }
+}
+
 export const blocksFraming = (url) => {
     const host = hostOf(url)
     return !!host && (BLOCKS_FRAMING.test(host) || /(^|\.)x\.com$/i.test(host) || /(^|\.)google\./i.test(host))

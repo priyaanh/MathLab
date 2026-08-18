@@ -3439,3 +3439,22 @@ textarea:focus-visible,
     background: color-mix(in srgb, var(--danger, #e5484d) 10%, transparent);
 }
 .sync-conflict .hint { margin: 0.4rem 0 0; }
+/* a page that refuses to be framed */
+.wf-blocked {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 2rem 1.5rem;
+    text-align: center;
+    background: linear-gradient(165deg, color-mix(in srgb, var(--bg) 65%, var(--bg-2)), var(--surface));
+    overflow-y: auto;
+}
+.wf-blocked-icon { font-size: 2.2rem; }
+.wf-blocked h2 { margin: 0.2rem 0 0; font-size: 1.15rem; color: var(--text); }
+.wf-blocked p { margin: 0; max-width: 46ch; font-size: 0.84rem; color: var(--text-muted); }
+.wf-blocked-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: center; margin-top: 0.6rem; }
+.wf-blocked-alt { margin-top: 0.5rem !important; font-size: 0.8rem !important; }
