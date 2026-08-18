@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-    MIN_PASSWORD, STRENGTH_LABELS, createAccount, isWorkspaceEmpty, listAccounts, openAccount,
-    passwordProblem, passwordStrength, snapshotWorkspace, usernameProblem
+    MIN_PASSWORD, STRENGTH_LABELS, createAccount, importProfile, isWorkspaceEmpty, listAccounts,
+    openAccount, passwordProblem, passwordStrength, snapshotWorkspace, usernameProblem
 } from '../utils/accounts'
 
 /**
@@ -29,7 +29,9 @@ const ProfileAuth = ({ onSession }) => {
     const [adopt, setAdopt] = useState(true)
     const [busy, setBusy] = useState(false)
     const [error, setError] = useState('')
+    const [bundle, setBundle] = useState(null) // a profile file waiting for its password
     const nameRef = useRef(null)
+    const fileRef = useRef(null)
 
     const accounts = useMemo(listAccounts, [])
     // Only worth offering when there is in fact local progress to carry over.
@@ -48,9 +50,46 @@ const ProfileAuth = ({ onSession }) => {
 
     const strength = passwordStrength(password)
 
+    /** Read the chosen file now; the password that opens it is asked for next. */
+    const pickFile = async (e) => {
+        const file = e.target.files?.[0]
+        e.target.value = '' // let the same file be chosen again after an error
+        if (!file) return
+        setError('')
+        try {
+            const text = await file.text()
+            const parsed = JSON.parse(text)
+            setBundle({ text, display: parsed?.display || '' })
+            setUsername(parsed?.display || '')
+            setMode('import')
+            setPassword('')
+        } catch {
+            setError('That file could not be read as a MathLab profile.')
+        }
+    }
+
     const submit = async (e) => {
         e.preventDefault()
         if (busy) return
+
+        if (mode === 'import') {
+            if (!password) { setError('Enter the password for this profile.'); return }
+            setBusy(true)
+            setError('')
+            try {
+                // A clashing name is renamed rather than overwriting whoever is
+                // already here — two people share a device more often than not.
+                const taken = listAccounts().some(a => a.display.toLowerCase() === username.trim().toLowerCase())
+                const session = await importProfile(bundle.text, password, taken ? { rename: username.trim() } : {})
+                onSession(session, { adopted: false })
+            } catch (err) {
+                setError(err?.message || 'Could not import that profile.')
+                setPassword('')
+            } finally {
+                setBusy(false)
+            }
+            return
+        }
 
         const problem = mode === 'new'
             ? (usernameProblem(username) || passwordProblem(password) || (password !== confirm ? 'The two passwords do not match.' : null))
@@ -80,19 +119,25 @@ const ProfileAuth = ({ onSession }) => {
             <form className="auth-card" onSubmit={submit}>
                 <div className="auth-badge" aria-hidden="true">{username.trim() ? initials(username) : '🔒'}</div>
 
-                <h1 className="auth-title">{mode === 'new' ? 'Create your profile' : 'Welcome back'}</h1>
+                <h1 className="auth-title">
+                    {mode === 'new' ? 'Create your profile' : mode === 'import' ? 'Bring your profile here' : 'Welcome back'}
+                </h1>
                 <p className="auth-sub">
                     {mode === 'new'
                         ? 'Your progress is encrypted with your password and kept on this device.'
-                        : 'Sign in to unlock your progress, streak and achievements.'}
+                        : mode === 'import'
+                            ? <>Unlock <b>{bundle?.display || 'this profile'}</b> with the password it was made with.</>
+                            : 'Sign in to unlock your progress, streak and achievements.'}
                 </p>
 
-                <div className="auth-tabs" role="tablist" aria-label="Profile access">
-                    <button type="button" role="tab" aria-selected={mode === 'in'}
-                        className={`auth-tab${mode === 'in' ? ' is-on' : ''}`} onClick={() => switchMode('in')}>Sign in</button>
-                    <button type="button" role="tab" aria-selected={mode === 'new'}
-                        className={`auth-tab${mode === 'new' ? ' is-on' : ''}`} onClick={() => switchMode('new')}>Create account</button>
-                </div>
+                {mode !== 'import' && (
+                    <div className="auth-tabs" role="tablist" aria-label="Profile access">
+                        <button type="button" role="tab" aria-selected={mode === 'in'}
+                            className={`auth-tab${mode === 'in' ? ' is-on' : ''}`} onClick={() => switchMode('in')}>Sign in</button>
+                        <button type="button" role="tab" aria-selected={mode === 'new'}
+                            className={`auth-tab${mode === 'new' ? ' is-on' : ''}`} onClick={() => switchMode('new')}>Create account</button>
+                    </div>
+                )}
 
                 <label className="auth-field">
                     <span>Username</span>
@@ -171,8 +216,26 @@ const ProfileAuth = ({ onSession }) => {
                 <button type="submit" className="btn primary auth-submit" disabled={busy}>
                     {busy
                         ? <><span className="auth-spinner" aria-hidden="true" />Encrypting…</>
-                        : (mode === 'new' ? 'Create profile' : 'Unlock profile')}
+                        : mode === 'new' ? 'Create profile' : mode === 'import' ? 'Import profile' : 'Unlock profile'}
                 </button>
+
+                {/* Moving a profile between devices, since nothing syncs on its own. */}
+                <input
+                    ref={fileRef}
+                    type="file"
+                    accept="application/json,.json"
+                    onChange={pickFile}
+                    hidden
+                />
+                {mode === 'import' ? (
+                    <button type="button" className="btn ghost" onClick={() => { setBundle(null); setPassword(''); switchMode('in') }} disabled={busy}>
+                        Cancel import
+                    </button>
+                ) : (
+                    <button type="button" className="auth-link" onClick={() => fileRef.current?.click()} disabled={busy}>
+                        Coming from another device? Import a profile file
+                    </button>
+                )}
 
                 {/*
                   * Said plainly and up front. The page cannot honestly promise
@@ -192,7 +255,12 @@ const ProfileAuth = ({ onSession }) => {
                         MathLab is a site with no server, so this is not a login that verifies who you
                         are, and it cannot protect you from someone who modifies the site's own code.
                         There is <b>no password reset</b> — nothing saved on this device could recover
-                        your data — and profiles do not follow you to another browser.
+                        your data.
+                    </p>
+                    <p>
+                        For the same reason nothing syncs on its own. To use a profile on another
+                        device or browser, download it from <b>Profile &amp; security</b> and import the
+                        file here — it travels encrypted and opens with the same password.
                     </p>
                 </details>
             </form>

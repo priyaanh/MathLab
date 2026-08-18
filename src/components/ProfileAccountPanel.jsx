@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useSession } from '../profile/SessionContext'
-import { MIN_PASSWORD, changePassword, deleteAccount, passwordProblem } from '../utils/accounts'
+import {
+    MIN_PASSWORD, changePassword, deleteAccount, exportFilename, exportProfile, passwordProblem
+} from '../utils/accounts'
 
 /**
  * Account controls for an unlocked profile: save on demand, change the password,
@@ -25,6 +27,29 @@ const ProfileAccountPanel = ({ onFlash }) => {
         const okSaved = await persist()
         setBusy(false)
         onFlash?.(okSaved ? 'Profile encrypted and saved.' : 'Could not save — this profile may have been removed.')
+    }
+
+    /** Flush first, or the file would be a snapshot of the last autosave. */
+    const downloadProfile = async () => {
+        setBusy(true)
+        try {
+            await persist()
+            const blob = new Blob([exportProfile(session.key)], { type: 'application/json' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = exportFilename(session.display)
+            document.body.appendChild(a)
+            a.click()
+            a.remove()
+            // Revoked on a later tick so the download has taken the URL first.
+            setTimeout(() => URL.revokeObjectURL(url), 10000)
+            onFlash?.('Profile downloaded — import it on the other device with the same password.')
+        } catch (err) {
+            onFlash?.(err?.message || 'Could not export this profile.')
+        } finally {
+            setBusy(false)
+        }
     }
 
     const submitPassword = async (e) => {
@@ -79,7 +104,15 @@ const ProfileAccountPanel = ({ onFlash }) => {
                 <button className="btn ghost" onClick={() => { setOpen(o => !o); setError('') }} aria-expanded={open}>
                     Change password
                 </button>
+                <button className="btn ghost" onClick={downloadProfile} disabled={busy}>Download for another device</button>
             </div>
+
+            <p className="hint" style={{ marginTop: '0.6rem' }}>
+                MathLab has no server, so a profile does not follow you around by itself.
+                Download it here and import it on the other device with the same password —
+                the file stays encrypted, so it is safe to email to yourself or drop in a
+                shared folder.
+            </p>
 
             {open && (
                 <form className="acct-form" onSubmit={submitPassword}>

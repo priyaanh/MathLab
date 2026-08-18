@@ -3415,3 +3415,18 @@ textarea:focus-visible,
     animation: page-spin 0.7s linear infinite;
 }
 @media (prefers-reduced-motion: reduce) { .wf-tab-spin { animation-duration: 2.5s; } }
+/* plain-text action under the auth card's primary button */
+.auth-link {
+    margin-top: 0.1rem;
+    padding: 0.2rem;
+    border: 0;
+    background: none;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.76rem;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+}
+.auth-link:hover:not(:disabled) { color: var(--accent); }
+.auth-link:disabled { opacity: 0.5; cursor: default; }

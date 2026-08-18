@@ -34,9 +34,8 @@ export const PBKDF2_ITERATIONS = 210000
 export const MIN_PASSWORD = 8
 export const MAX_USERNAME = 24
 
-/* The live keys the rest of the app reads. Signing in swaps these; nothing else
-   in MathLab has to know accounts exist. */
-export const WORKSPACE_KEYS = ['mathlab-profile', 'mathlab-exercise-progress', 'mathlab-activity']
+/* WORKSPACE_KEYS — the live keys the rest of the app reads — is defined further
+   down, next to the version map that governs how they are restored. */
 
 const enc = new TextEncoder()
 const dec = new TextDecoder()
@@ -242,14 +241,131 @@ export const deleteAccount = (nameOrKey) => {
     saveAccounts(store)
 }
 
+/* ---- moving a profile between devices -----------------------------------
+ * There is no server to sync through, so a profile travels as a file. What is
+ * exported is exactly what is stored: salt, iterations, IV and ciphertext. It
+ * is still encrypted under the password, so it can be mailed to yourself or
+ * left in a shared drive without handing anyone your progress — and it is
+ * useless to whoever holds it without the password.
+ */
+
+export const EXPORT_FORMAT = 'mathlab-profile'
+export const EXPORT_VERSION = 1
+
+export const exportProfile = (nameOrKey) => {
+    const rec = loadAccounts().users[usernameKey(nameOrKey)]
+    if (!rec) throw new Error('That profile is not on this device.')
+    return JSON.stringify({
+        format: EXPORT_FORMAT,
+        version: EXPORT_VERSION,
+        display: rec.display,
+        salt: rec.salt,
+        iterations: rec.iterations,
+        iv: rec.iv,
+        ct: rec.ct,
+        exportedAt: Date.now()
+    }, null, 2)
+}
+
+/** A filename that says whose it is without leaking anything sensitive. */
+export const exportFilename = (display) =>
+    `mathlab-profile-${String(display || 'profile').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'profile'}.json`
+
+/**
+ * Bring a profile onto this device. The password is required up front: it both
+ * proves the file is really theirs and is the only way to know the bundle
+ * decrypts at all, so a corrupt file fails here rather than at next sign-in.
+ *
+ * `rename` lets an import land beside an existing profile of the same name
+ * instead of silently overwriting a different person's data.
+ */
+export const importProfile = async (text, password, { rename = '' } = {}) => {
+    let bundle
+    try { bundle = JSON.parse(String(text)) } catch { throw new Error('That does not look like a profile file.') }
+    if (!bundle || bundle.format !== EXPORT_FORMAT) throw new Error('That does not look like a MathLab profile file.')
+    if (Number(bundle.version) > EXPORT_VERSION) throw new Error('That profile was made by a newer version of MathLab.')
+    if (!bundle.salt || !bundle.iv || !bundle.ct) throw new Error('That profile file is incomplete.')
+
+    // Verify by decrypting: a wrong password cannot produce a usable payload.
+    let data
+    try {
+        const cryptoKey = await deriveKey(password, fromB64(bundle.salt), bundle.iterations || PBKDF2_ITERATIONS)
+        data = await decryptJSON(cryptoKey, bundle)
+    } catch {
+        throw new Error('That password does not open this profile file.')
+    }
+
+    const display = String(rename || bundle.display || 'profile').trim()
+    const problem = usernameProblem(display)
+    if (problem) throw new Error(problem)
+
+    const key = usernameKey(display)
+    const store = loadAccounts()
+    if (store.users[key] && !rename) {
+        throw new Error(`A profile called "${display}" already exists here — import it under a different name.`)
+    }
+
+    store.users[key] = {
+        display,
+        salt: bundle.salt,
+        iterations: bundle.iterations || PBKDF2_ITERATIONS,
+        iv: bundle.iv,
+        ct: bundle.ct,
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+    }
+    saveAccounts(store)
+
+    // Re-derive rather than reuse: the key above is scoped to this function and
+    // the caller needs one bound to the account as now stored.
+    const cryptoKey = await deriveKey(password, fromB64(bundle.salt), bundle.iterations || PBKDF2_ITERATIONS)
+    return { key, display, cryptoKey, data }
+}
+
 /* ---- workspace swapping -------------------------------------------------
  * The rest of MathLab reads fixed localStorage keys. Rather than rewrite every
  * page to be account-aware, signing in swaps what lives under those keys and
  * signing out puts the signed-out data back exactly as it was.
  */
 
+/**
+ * Every key a profile owns, mapped to the workspace version that introduced it.
+ *
+ * The version matters on restore. A key absent from a snapshot is normally
+ * cleared, so that one account's data cannot bleed into the next session — but
+ * a blob saved before a key existed is *also* missing it, and clearing on that
+ * basis would delete data the account had simply never been told about. The
+ * first sign-in after this list grows would have wiped the browser bookmarks.
+ * So a key is only cleared when the snapshot is new enough to have known it.
+ *
+ * Deliberately excluded: mathlab-frame-size (a window size belongs to the
+ * screen, not the person) and mathlab-frame-pruned (a one-time migration flag
+ * that must stay per-device or the migration re-runs or is wrongly skipped).
+ */
+const KEY_SINCE = {
+    'mathlab-profile': 1,
+    'mathlab-exercise-progress': 1,
+    'mathlab-activity': 1,
+    // v2 — everything else the person accumulates as they use the site
+    'mathlab-frame-bookmarks': 2,
+    'mathlab-frame-prefs': 2,
+    'mathlab-frame-session': 2,
+    'mathlab-frame-history': 2,
+    'mathlab-theme': 2,
+    'mathlab-calc-history': 2,
+    'mathlab-calc-memory': 2,
+    'mathlab-2048-best': 2,
+    'mathlab-2048-state': 2,
+    'mathlab-dino-highscore': 2,
+    'mathlab-nav-order': 2,
+    'mathlab-tool-order': 2
+}
+
+export const WORKSPACE_VERSION = 2
+export const WORKSPACE_KEYS = Object.keys(KEY_SINCE)
+
 export const snapshotWorkspace = () => {
-    const snap = {}
+    const snap = { __v: WORKSPACE_VERSION }
     for (const k of WORKSPACE_KEYS) {
         const v = localStorage.getItem(k)
         if (v !== null) snap[k] = v
@@ -259,12 +375,14 @@ export const snapshotWorkspace = () => {
 
 export const restoreWorkspace = (snap) => {
     const source = snap && typeof snap === 'object' ? snap : {}
+    // No marker means a blob written before versioning, i.e. v1.
+    const version = Number(source.__v) > 0 ? Number(source.__v) : 1
     for (const k of WORKSPACE_KEYS) {
         const v = source[k]
-        // A key absent from the snapshot must be cleared, or one account's
-        // progress would bleed through into the next session.
         if (typeof v === 'string') localStorage.setItem(k, v)
-        else localStorage.removeItem(k)
+        else if (version >= KEY_SINCE[k]) localStorage.removeItem(k)
+        // else: older than this key — leave whatever the device has, and the
+        // next save folds it into the profile.
     }
 }
 

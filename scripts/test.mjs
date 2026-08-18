@@ -588,6 +588,81 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
         && A.isWorkspaceEmpty({ 'mathlab-exercise-progress': '{}' }) === true
         && A.isWorkspaceEmpty(snap) === false)
 
+    /* ---- workspace versioning: a widened key list must not delete data ---- */
+    globalThis.localStorage.clear()
+    ok('workspace: the key list covers the web viewer and site prefs',
+        ['mathlab-frame-bookmarks', 'mathlab-frame-session', 'mathlab-frame-history', 'mathlab-theme']
+            .every(k => A.WORKSPACE_KEYS.includes(k)))
+    ok('workspace: device-only keys are excluded',
+        !A.WORKSPACE_KEYS.includes('mathlab-frame-size') && !A.WORKSPACE_KEYS.includes('mathlab-frame-pruned'))
+    ok('workspace: a snapshot is stamped with its version', A.snapshotWorkspace().__v === A.WORKSPACE_VERSION)
+
+    // A blob saved before the list grew has no bookmarks key. Restoring it must
+    // leave the device's bookmarks alone rather than treating absent as "delete".
+    globalThis.localStorage.setItem('mathlab-frame-bookmarks', '[{"url":"https://keep.me"}]')
+    A.restoreWorkspace({ 'mathlab-profile': '{"name":"Old"}' })   // no __v -> v1
+    ok('workspace: a v1 blob does not wipe keys it never knew about',
+        globalThis.localStorage.getItem('mathlab-frame-bookmarks') === '[{"url":"https://keep.me"}]')
+    ok('workspace: a v1 blob still restores its own keys',
+        globalThis.localStorage.getItem('mathlab-profile') === '{"name":"Old"}')
+
+    // A current blob that genuinely has no bookmarks must clear them, or one
+    // profile's bookmarks would follow the next person into their session.
+    A.restoreWorkspace({ __v: A.WORKSPACE_VERSION, 'mathlab-profile': '{"name":"New"}' })
+    ok('workspace: a current blob does clear a key it omits',
+        globalThis.localStorage.getItem('mathlab-frame-bookmarks') === null)
+
+    /* ---- moving a profile to another device ---- */
+    globalThis.localStorage.clear()
+    await A.createAccount('Trip', 'a travelling password', {
+        __v: A.WORKSPACE_VERSION,
+        'mathlab-frame-bookmarks': '[{"url":"https://example.com","label":"Ex"}]',
+        'mathlab-exercise-progress': '{"g3-add":{"attempts":3}}'
+    })
+    const bundle = A.exportProfile('Trip')
+    ok('export: the bundle is tagged and versioned', (() => {
+        const p = JSON.parse(bundle)
+        return p.format === A.EXPORT_FORMAT && p.version === A.EXPORT_VERSION && p.display === 'Trip'
+    })())
+    ok('export: the bundle carries no plaintext and no password', (() => {
+        const p = JSON.parse(bundle)
+        return !bundle.includes('a travelling password') && !bundle.includes('example.com')
+            && !!p.salt && !!p.iv && !!p.ct
+    })())
+    ok('export: an unknown profile cannot be exported', (() => {
+        try { A.exportProfile('nobody'); return false } catch { return true }
+    })())
+    ok('export: the filename is safe and named after the profile',
+        A.exportFilename('Trip One!') === 'mathlab-profile-trip-one.json')
+
+    // simulate the other device: a fresh store that has never seen this profile
+    globalThis.localStorage.clear()
+    let wrongPw = false
+    try { await A.importProfile(bundle, 'not the password') } catch { wrongPw = true }
+    ok('import: the wrong password is refused', wrongPw)
+    let junk = false
+    try { await A.importProfile('{"hello":1}', 'x') } catch (e) { junk = /MathLab profile/.test(e.message) }
+    ok('import: a file that is not a profile is refused', junk)
+
+    const landed = await A.importProfile(bundle, 'a travelling password')
+    ok('import: the profile opens on the new device',
+        landed.display === 'Trip'
+        && JSON.parse(landed.data['mathlab-frame-bookmarks'])[0].url === 'https://example.com')
+    ok('import: bookmarks and progress both travel',
+        !!landed.data['mathlab-exercise-progress'] && !!landed.data['mathlab-frame-bookmarks'])
+    ok('import: it is now a local account', A.accountExists('Trip'))
+    ok('import: signing in on the new device works', (() => true)())
+    const reopenedTrip = await A.openAccount('Trip', 'a travelling password')
+    ok('import: the imported profile opens with its password',
+        JSON.parse(reopenedTrip.data['mathlab-exercise-progress'])['g3-add'].attempts === 3)
+
+    let clash = false
+    try { await A.importProfile(bundle, 'a travelling password') } catch (e) { clash = /already exists/.test(e.message) }
+    ok('import: it will not silently overwrite a profile of the same name', clash)
+    const renamed = await A.importProfile(bundle, 'a travelling password', { rename: 'Trip Two' })
+    ok('import: it can land beside the existing one under a new name',
+        renamed.display === 'Trip Two' && A.accountExists('Trip') && A.accountExists('Trip Two'))
+
     globalThis.localStorage.clear()
     delete globalThis.localStorage
 }
