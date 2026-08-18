@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom'
 import NavBar from './NavBar'
 import MathKeypad from './MathKeypad'
 import ErrorBoundary from './ErrorBoundary'
+import useSecretCode from '../hooks/useSecretCode'
 
 /*
  * Footer popups — lazy so their code only ships when opened.
@@ -63,11 +64,28 @@ const PageLoading = () => (
     </div>
 )
 
+/*
+ * The way in. Nothing in the UI hints these exist — type the word anywhere that
+ * isn't a text field and the panel opens. Colossal Cave's magic words, because
+ * they are memorable and nobody types them by accident.
+ *
+ *   xyzzy  → Dino Run        plugh → 2048        plover → the web viewer
+ */
+const SECRET_CODES = {
+    xyzzy: 'dino',
+    plugh: '2048',
+    plover: 'web'
+}
+
 const Layout = () => {
     const { pathname } = useLocation()
-    const [secretGame, setSecretGame] = useState(null) // 'dino' | '2048' | null
+    const [secretGame, setSecretGame] = useState(null) // 'dino' | '2048' | 'web' | null
     useEffect(() => { document.title = titleFor(pathname) }, [pathname])
     const closeGame = () => setSecretGame(null)
+
+    // Typing a word toggles its panel — the same word closes it again, so there
+    // is a way back out that does not depend on finding the × button.
+    useSecretCode(SECRET_CODES, (id) => setSecretGame(cur => (cur === id ? null : id)))
 
     return (
         <div className="site">
@@ -80,35 +98,13 @@ const Layout = () => {
                     </Suspense>
                 </ErrorBoundary>
             </main>
+            {/*
+              * No buttons here any more. The three panels are reachable only by
+              * typing their word (see SECRET_CODES) — an emoji in the footer,
+              * however faint, is still something to notice and click.
+              */}
             <footer className="footer">
-                <button
-                    type="button"
-                    className="dino-secret is-left"
-                    title="?"
-                    aria-label="Web viewer"
-                    onClick={() => setSecretGame('web')}
-                >
-                    🌐
-                </button>
                 MathLab · built with React · a stylish home for calculators &amp; graphing tools
-                <button
-                    type="button"
-                    className="dino-secret"
-                    title="?"
-                    aria-label="Secret game"
-                    onClick={() => setSecretGame('dino')}
-                >
-                    🦕
-                </button>
-                <button
-                    type="button"
-                    className="dino-secret"
-                    title="?"
-                    aria-label="Another secret game"
-                    onClick={() => setSecretGame('2048')}
-                >
-                    🔢
-                </button>
             </footer>
             <MathKeypad />
             {/*
