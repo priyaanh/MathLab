@@ -413,6 +413,113 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
     ok('session: sanitizing is idempotent', JSON.stringify(sanitizeSession(sess)) === JSON.stringify(sess))
 }
 
+
+// --- 9. profile accounts (WebCrypto) --------------------------------------
+{
+    /*
+     * A localStorage stub, so the account store can be exercised in Node. The
+     * crypto itself is the real WebCrypto the browser uses — these tests are
+     * about the encryption actually round-tripping and, more importantly, about
+     * a wrong password genuinely failing to open the data.
+     */
+    const mem = new Map()
+    globalThis.localStorage = {
+        getItem: (k) => (mem.has(k) ? mem.get(k) : null),
+        setItem: (k, v) => mem.set(k, String(v)),
+        removeItem: (k) => mem.delete(k),
+        clear: () => mem.clear()
+    }
+
+    const A = await import('../src/utils/accounts.js')
+
+    ok('accounts: username keys are case- and space-insensitive',
+        A.usernameKey('  Priyaan  ') === 'priyaan' && A.usernameKey('PRIYAAN') === 'priyaan')
+    ok('accounts: bad usernames are rejected',
+        !!A.usernameProblem('') && !!A.usernameProblem('a') && !!A.usernameProblem('x'.repeat(99)) && !!A.usernameProblem('bad/name'))
+    ok('accounts: good usernames pass',
+        A.usernameProblem('priyaan') === null && A.usernameProblem('ada_l 1') === null)
+    ok('accounts: short passwords are rejected',
+        !!A.passwordProblem('short') && A.passwordProblem('longenough1') === null)
+    ok('accounts: strength rises with length',
+        A.passwordStrength('') === 0 && A.passwordStrength('abcdefgh') >= 1
+        && A.passwordStrength('abcdefghijklmnop1A!') === 4)
+    ok('accounts: base64 round-trips binary safely', (() => {
+        const bytes = new Uint8Array(1000).map((_, i) => i % 256)
+        const back = A.fromB64(A.toB64(bytes))
+        return back.length === bytes.length && back.every((b, i) => b === bytes[i])
+    })())
+
+    const PAYLOAD = { 'mathlab-profile': JSON.stringify({ name: 'Ada', grade: '8' }) }
+    const created = await A.createAccount('Ada', 'correct horse battery', PAYLOAD)
+    ok('accounts: creating returns a usable session', created.key === 'ada' && created.display === 'Ada')
+
+    // The whole point: the stored form must not contain the data or the password.
+    const raw = globalThis.localStorage.getItem('mathlab-accounts')
+    ok('accounts: the password is never written to storage', !raw.includes('correct horse battery'))
+    ok('accounts: the payload is not stored in the clear', !raw.includes('Ada') || !raw.includes('grade'))
+    ok('accounts: stored record keeps only salt/iv/ciphertext', (() => {
+        const rec = JSON.parse(raw).users.ada
+        return !!rec.salt && !!rec.iv && !!rec.ct && rec.iterations >= 200000 && rec.password === undefined
+    })())
+
+    const opened = await A.openAccount('ADA', 'correct horse battery')
+    ok('accounts: the right password opens the data',
+        opened.data['mathlab-profile'] === PAYLOAD['mathlab-profile'])
+
+    let refused = false
+    try { await A.openAccount('Ada', 'wrong password!') } catch { refused = true }
+    ok('accounts: a wrong password cannot open it', refused)
+
+    let unknown = false
+    try { await A.openAccount('nobody', 'whatever123') } catch (e) { unknown = /do not match/.test(e.message) }
+    ok('accounts: an unknown user gives the same error as a bad password', unknown)
+
+    let dupe = false
+    try { await A.createAccount('ada', 'another password') } catch { dupe = true }
+    ok('accounts: usernames cannot be taken twice', dupe)
+
+    await A.saveAccountData(opened, { 'mathlab-profile': JSON.stringify({ name: 'Ada L' }) })
+    const reopened = await A.openAccount('Ada', 'correct horse battery')
+    ok('accounts: saved data survives a re-open',
+        JSON.parse(reopened.data['mathlab-profile']).name === 'Ada L')
+
+    const rotated = await A.changePassword(reopened, 'correct horse battery', 'a brand new secret')
+    const afterRotate = await A.openAccount('Ada', 'a brand new secret')
+    ok('accounts: the new password opens the data after a change',
+        JSON.parse(afterRotate.data['mathlab-profile']).name === 'Ada L' && !!rotated.cryptoKey)
+    let oldRefused = false
+    try { await A.openAccount('Ada', 'correct horse battery') } catch { oldRefused = true }
+    ok('accounts: the old password stops working after a change', oldRefused)
+
+    // Two accounts must not be able to read each other.
+    await A.createAccount('Bob', 'bobs long password', { 'mathlab-profile': JSON.stringify({ name: 'Bob' }) })
+    let crossed = false
+    try { await A.openAccount('Bob', 'a brand new secret') } catch { crossed = true }
+    ok('accounts: one profile cannot be opened with another profile password', crossed)
+    ok('accounts: listing shows both', A.listAccounts().length === 2)
+
+    A.deleteAccount('bob')
+    ok('accounts: deleting removes it', !A.accountExists('Bob') && A.accountExists('Ada'))
+
+    // workspace swapping — a key missing from a snapshot must be cleared, or one
+    // profile's progress bleeds into the next session
+    globalThis.localStorage.setItem('mathlab-exercise-progress', '{"a":1}')
+    const snap = A.snapshotWorkspace()
+    ok('accounts: snapshot captures live keys', snap['mathlab-exercise-progress'] === '{"a":1}')
+    A.restoreWorkspace({})
+    ok('accounts: restoring an empty snapshot clears the keys',
+        globalThis.localStorage.getItem('mathlab-exercise-progress') === null)
+    A.restoreWorkspace(snap)
+    ok('accounts: restoring puts them back', globalThis.localStorage.getItem('mathlab-exercise-progress') === '{"a":1}')
+    ok('accounts: isWorkspaceEmpty sees real work',
+        A.isWorkspaceEmpty({}) === true
+        && A.isWorkspaceEmpty({ 'mathlab-exercise-progress': '{}' }) === true
+        && A.isWorkspaceEmpty(snap) === false)
+
+    globalThis.localStorage.clear()
+    delete globalThis.localStorage
+}
+
 // --- report ---------------------------------------------------------------
 console.log(`\n${passed} passed, ${failed} failed  (${TOTAL_SKILLS} skills exercised)`)
 if (failed) {

@@ -1,6 +1,7 @@
 import { lazy } from 'react'
 import { HashRouter, Routes, Route } from 'react-router-dom'
 import { ThemeProvider } from './theme/ThemeContext'
+import { SessionProvider } from './profile/SessionContext'
 import Layout from './components/Layout'
 import './styles/site.css'
 
@@ -44,6 +45,8 @@ const ProbabilityPage = lazy(() => import('./pages/ProbabilityPage'))
 function App() {
   return (
     <ThemeProvider>
+      {/* Above the router on purpose — an unlocked profile must survive navigation. */}
+      <SessionProvider>
       <HashRouter>
         <Routes>
           <Route path="/" element={<Layout />}>
@@ -80,6 +83,7 @@ function App() {
           </Route>
         </Routes>
       </HashRouter>
+      </SessionProvider>
     </ThemeProvider>
   )
 }

@@ -1,16 +1,22 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ALL_SKILLS, TOPICS, TOTAL_SKILLS, GRADES } from '../exercises'
 import { evaluateAchievements } from '../utils/achievements'
 import { loadActivity, currentStreak, longestStreak, recentDays, setGoal as persistGoal } from '../utils/activity'
+import { useSession } from '../profile/SessionContext'
+import ProfileAuth from '../components/ProfileAuth'
+import ProfileAccountPanel from '../components/ProfileAccountPanel'
 
 /**
  * Profile — a local identity and progress hub.
  *
  * Everything MathLab remembers (exercise progress, name, grade, streak,
  * tab/tool order, theme) lives entirely in this browser's localStorage — no
- * account, no server. This page lets you set a display name and grade, see
- * your stats and achievements, and reset progress deliberately.
+ * server is involved.
+ *
+ * The page is locked behind a profile. Signing in swaps the shared progress keys
+ * to that account's decrypted data, so the rest of the site keeps reading the
+ * same keys and needs to know nothing about accounts.
  */
 
 const PROFILE_KEY = 'mathlab-profile'
@@ -33,11 +39,29 @@ const loadProfile = () => loadObject(PROFILE_KEY)
 const loadProgress = () => loadObject(PROGRESS_KEY)
 
 const ProfilePage = () => {
+    const { session, signIn } = useSession()
+
+    // Nothing below is meaningful without an unlocked profile — and the shared
+    // keys still hold the signed-out data until one is opened.
+    if (!session) return <ProfileAuth onSession={(s, meta) => signIn(s, meta)} />
+    return <ProfileBody key={session.key} />
+}
+
+const ProfileBody = () => {
+    const { session, signOut } = useSession()
     const [profile, setProfile] = useState(loadProfile)
     const [progress, setProgress] = useState(loadProgress)
     const [activity, setActivity] = useState(loadActivity)
     const [flash, setFlash] = useState('')
     const navigate = useNavigate()
+
+    // Practice happens on other pages, so re-read on mount rather than trusting
+    // the state this component was first constructed with.
+    useEffect(() => {
+        setProfile(loadProfile())
+        setProgress(loadProgress())
+        setActivity(loadActivity())
+    }, [])
 
     // Persist a single profile field, keeping the rest intact.
     const patchProfile = (patch) => {
@@ -107,13 +131,29 @@ const ProfilePage = () => {
         flashMsg('Progress reset.')
     }
 
-    const greeting = profile.name ? `Hi, ${profile.name}` : 'Your profile'
+    const displayName = profile.name || session.display
+    const greeting = `Hi, ${displayName}`
+    const initials = String(displayName).trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?'
 
     return (
         <div className="page">
+            <div className="profile-bar">
+                <div className="profile-id">
+                    <span className="profile-avatar" aria-hidden="true">{initials}</span>
+                    <span className="profile-id-text">
+                        <b>{displayName}</b>
+                        <span className="profile-id-sub">
+                            <span className="profile-lock" aria-hidden="true">🔒</span>
+                            Unlocked · signed in as {session.display}
+                        </span>
+                    </span>
+                </div>
+                <button className="btn ghost" onClick={() => signOut()}>Lock &amp; sign out</button>
+            </div>
+
             <div className="page-head">
                 <h1>{greeting}</h1>
-                <p>Your progress is saved in this browser. Back it up so you never lose it — and restore it anywhere.</p>
+                <p>Your progress is encrypted under your password and saved in this browser. Back it up so you never lose it.</p>
             </div>
 
             <div className="profile-grid">
@@ -296,6 +336,10 @@ const ProfilePage = () => {
                     ))}
                 </div>
             </div>
+
+            {/* Account management sits last, the way settings usually do — the
+                identity and the way out are already up in the profile bar. */}
+            <ProfileAccountPanel onFlash={flashMsg} />
         </div>
     )
 }
