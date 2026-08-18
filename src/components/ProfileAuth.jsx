@@ -100,7 +100,7 @@ const ProfileAuth = ({ onSession }) => {
                         ref={nameRef}
                         value={username}
                         onChange={edit(setUsername)}
-                        placeholder="e.g. priyaan"
+                        placeholder="e.g. John"
                         autoComplete="username"
                         spellCheck="false"
                         list={mode === 'in' && accounts.length ? 'auth-known' : undefined}

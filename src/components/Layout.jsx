@@ -98,13 +98,37 @@ const Layout = () => {
                     </Suspense>
                 </ErrorBoundary>
             </main>
-            {/*
-              * No buttons here any more. The three panels are reachable only by
-              * typing their word (see SECRET_CODES) — an emoji in the footer,
-              * however faint, is still something to notice and click.
-              */}
+            {/* Faint footer buttons open the three panels; the typed words in
+                SECRET_CODES still work as a second way in. */}
             <footer className="footer">
+                <button
+                    type="button"
+                    className="dino-secret is-left"
+                    title="?"
+                    aria-label="Web viewer"
+                    onClick={() => setSecretGame('web')}
+                >
+                    🌐
+                </button>
                 MathLab · built with React · a stylish home for calculators &amp; graphing tools
+                <button
+                    type="button"
+                    className="dino-secret"
+                    title="?"
+                    aria-label="Secret game"
+                    onClick={() => setSecretGame('dino')}
+                >
+                    🦕
+                </button>
+                <button
+                    type="button"
+                    className="dino-secret"
+                    title="?"
+                    aria-label="Another secret game"
+                    onClick={() => setSecretGame('2048')}
+                >
+                    🔢
+                </button>
             </footer>
             <MathKeypad />
             {/*
