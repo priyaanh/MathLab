@@ -1,0 +1,13 @@
+{
+  "name": "mathlab-sync-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Zero-knowledge profile sync for MathLab — stores encrypted blobs it cannot read",
+  "type": "module",
+  "main": "sync-server.mjs",
+  "scripts": {
+    "start": "node sync-server.mjs",
+    "test": "node sync-server.test.mjs"
+  },
+  "engines": { "node": ">=18.0.0" }
+}

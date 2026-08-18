@@ -3430,3 +3430,12 @@ textarea:focus-visible,
 }
 .auth-link:hover:not(:disabled) { color: var(--accent); }
 .auth-link:disabled { opacity: 0.5; cursor: default; }
+/* sync conflict callout */
+.sync-conflict {
+    margin-top: 0.9rem;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid color-mix(in srgb, var(--danger, #e5484d) 45%, transparent);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--danger, #e5484d) 10%, transparent);
+}
+.sync-conflict .hint { margin: 0.4rem 0 0; }

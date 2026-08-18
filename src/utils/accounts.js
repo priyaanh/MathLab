@@ -241,6 +241,40 @@ export const deleteAccount = (nameOrKey) => {
     saveAccounts(store)
 }
 
+/** The stored record as-is — ciphertext and its parameters, nothing decrypted. */
+export const getAccountRecord = (nameOrKey) => loadAccounts().users[usernameKey(nameOrKey)] || null
+
+/**
+ * Replace a profile's stored ciphertext with one fetched from the sync server.
+ * The blob is only adopted if it actually opens with this session's password —
+ * otherwise a wrong or corrupt payload would lock the profile out of its own
+ * data with no way back.
+ */
+export const adoptRemoteBlob = async (session, blob, password) => {
+    const store = loadAccounts()
+    const rec = store.users[session.key]
+    if (!rec) throw new Error('That profile is no longer on this device.')
+
+    const cryptoKey = await deriveKey(password, fromB64(blob.salt), blob.iterations || PBKDF2_ITERATIONS)
+    let data
+    try {
+        data = await decryptJSON(cryptoKey, blob)
+    } catch {
+        throw new Error('The profile on the server does not open with this password.')
+    }
+
+    store.users[session.key] = {
+        ...rec,
+        salt: blob.salt,
+        iterations: blob.iterations || PBKDF2_ITERATIONS,
+        iv: blob.iv,
+        ct: blob.ct,
+        updatedAt: Date.now()
+    }
+    saveAccounts(store)
+    return { ...session, cryptoKey, data }
+}
+
 /* ---- moving a profile between devices -----------------------------------
  * There is no server to sync through, so a profile travels as a file. What is
  * exported is exactly what is stored: salt, iterations, IV and ciphertext. It

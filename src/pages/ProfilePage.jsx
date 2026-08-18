@@ -6,6 +6,7 @@ import { loadActivity, currentStreak, longestStreak, recentDays, setGoal as pers
 import { useSession } from '../profile/SessionContext'
 import ProfileAuth from '../components/ProfileAuth'
 import ProfileAccountPanel from '../components/ProfileAccountPanel'
+import ProfileSyncPanel from '../components/ProfileSyncPanel'
 
 /**
  * Profile — a local identity and progress hub.
@@ -44,7 +45,9 @@ const ProfilePage = () => {
     // Nothing below is meaningful without an unlocked profile — and the shared
     // keys still hold the signed-out data until one is opened.
     if (!session) return <ProfileAuth onSession={(s, meta) => signIn(s, meta)} />
-    return <ProfileBody key={session.key} />
+    // The revision changes when a sync pull replaces the data underneath, which
+    // remounts the body so it re-reads storage instead of showing stale state.
+    return <ProfileBody key={`${session.key}:${session.revision || 0}`} />
 }
 
 const ProfileBody = () => {
@@ -340,6 +343,7 @@ const ProfileBody = () => {
             {/* Account management sits last, the way settings usually do — the
                 identity and the way out are already up in the profile bar. */}
             <ProfileAccountPanel onFlash={flashMsg} />
+            <ProfileSyncPanel onFlash={flashMsg} />
         </div>
     )
 }
