@@ -21,6 +21,7 @@ import {
     toUrl, hostOf, blocksFraming, tabLabel, sanitizePrefs, sanitizeSession, sanitizeBookmarks,
     hueFor, pruneRetiredDefaults, readableOn, embedUrl, isBlocked, searchTermOf, sanitizeHistory, recordVisit, rankSuggestions, prettyPath, MAX_HISTORY,
     ENGINES, DEFAULT_PREFS, MAX_BOOKMARKS, MAX_TABS, MAX_STACK, MIN_RAIL, MAX_RAIL, BLOCKED_CHOICES,
+    sanitizeEngines, allEngines, MAX_CUSTOM_ENGINES,
     ZOOM_LEVELS, clampZoom, stepZoom, sanitizeZooms, zoomFor, setZoomFor, waybackUrl,
     moveItem, withPinnedFirst, tabTitle, topSites, dayLabel, groupHistory,
     clampWindow, sanitizePos, resizeBox, parseOpenSearch, mergeSuggestions, suggestUrl, KEEP_ON_SCREEN,
@@ -864,6 +865,39 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
         sanitizePrefs(null).confirmOpen === false
         && sanitizePrefs({ confirmOpen: true }).confirmOpen === true
         && sanitizePrefs({ confirmOpen: 'yes' }).confirmOpen === false)
+
+    /* custom search engines */
+    {
+        const good = [
+            { name: 'Google', url: 'https://www.google.com/search?q=%s' },
+            { name: 'DuckDuckGo', url: 'https://duckduckgo.com/?q=%s' }
+        ]
+        ok('engines: valid custom engines are kept', sanitizeEngines(good).length === 2)
+        ok('engines: each gets a stable id', sanitizeEngines(good).map(e => e.id).join(',') === 'custom-0,custom-1')
+        ok('engines: http (non-https) is refused', sanitizeEngines([{ name: 'X', url: 'http://x.com/%s' }]).length === 0)
+        ok('engines: a template without %s is refused', sanitizeEngines([{ name: 'X', url: 'https://x.com/' }]).length === 0)
+        ok('engines: a nameless engine is refused', sanitizeEngines([{ name: '', url: 'https://x.com/%s' }]).length === 0)
+        ok('engines: duplicate templates fold together', sanitizeEngines([good[0], { name: 'G2', url: good[0].url }]).length === 1)
+        ok('engines: the count is capped', sanitizeEngines(Array.from({ length: MAX_CUSTOM_ENGINES + 4 }, (_, i) => ({ name: `E${i}`, url: `https://e${i}.com/%s` }))).length === MAX_CUSTOM_ENGINES)
+        ok('engines: junk gives an empty list', sanitizeEngines(null).length === 0 && sanitizeEngines('x').length === 0)
+
+        const combined = allEngines(good)
+        ok('engines: allEngines appends custom after built-ins',
+            combined.length === ENGINES.length + 2 && combined[combined.length - 1].id === 'custom-1')
+        ok('engines: a custom engine builds and encodes the query',
+            toUrl('a b', 'custom-0', combined) === 'https://www.google.com/search?q=a%20b')
+        ok('engines: a built-in still works with the combined list',
+            toUrl('pi', 'wikipedia', combined).startsWith('https://en.wikipedia.org/'))
+        ok('engines: an unknown id falls back to the first engine',
+            toUrl('x', 'nope', combined) === combined[0].q('x'))
+        ok('engines: toUrl with no list still uses the built-ins', toUrl('pi', 'oeis').startsWith('https://oeis.org/'))
+
+        ok('prefs: a custom engine can be selected and is kept',
+            sanitizePrefs({ engine: 'custom-0', customEngines: good }).engine === 'custom-0')
+        ok('prefs: choosing a custom engine that is not saved falls back',
+            sanitizePrefs({ engine: 'custom-3', customEngines: good }).engine === DEFAULT_PREFS.engine)
+        ok('prefs: customEngines default to empty', sanitizePrefs(null).customEngines.length === 0)
+    }
 
     /* command palette ranking */
     {

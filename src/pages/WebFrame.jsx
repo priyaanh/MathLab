@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-    DEFAULT_PREFS, ENGINES, MAX_BOOKMARKS, MAX_CLOSED, MAX_RAIL, MAX_TABS, MIN_RAIL, clampRail,
+    DEFAULT_PREFS, ENGINES, allEngines, MAX_BOOKMARKS, MAX_CLOSED, MAX_CUSTOM_ENGINES, MAX_RAIL, MAX_TABS, MIN_RAIL, clampRail,
     embedUrl, groupHistory, hostOf, hueFor, isBlocked, moveItem, pruneRetiredDefaults,
     rankSuggestions, readableOn, recordVisit, sanitizeBookmarks, sanitizeHistory, sanitizePrefs,
     sanitizePos, sanitizeSession, sanitizeZooms, searchTermOf, setZoomFor, stepZoom, tabLabel,
@@ -211,6 +211,9 @@ const WebFrame = ({ onClose }) => {
     const [clock, setClock] = useState(() => Date.now())  // ticks only on the new-tab page
     const [backupIo, setBackupIo] = useState('')
     const [backupMsg, setBackupMsg] = useState('')
+    const [engineName, setEngineName] = useState('')  // add-a-search-engine form
+    const [engineUrl, setEngineUrl] = useState('')
+    const [engineMsg, setEngineMsg] = useState('')
 
     const shellRef = useRef(null)
     const urlRef = useRef(null)
@@ -242,6 +245,11 @@ const WebFrame = ({ onClose }) => {
 
     const patchActive = (fn) => setTabs(ts => ts.map(t => (t.id === active.id ? fn(t) : t)))
     const patchPrefs = (patch) => setPrefs(p => sanitizePrefs({ ...p, ...patch }))
+
+    // Built-in search engines plus the reader's own, for the address bar and the
+    // engine picker. Recomputed from prefs, so an added engine is usable at once.
+    const engines = allEngines(prefs.customEngines)
+    const search = (text) => toUrl(text, prefs.engine, engines)
 
     /*
      * Page zoom. A cross-origin frame's own zoom is out of reach, so the frame
@@ -380,9 +388,9 @@ const WebFrame = ({ onClose }) => {
         // address bar does; otherwise it treats the text as typed.
         const chosen = sugg >= 0 && suggestions[sugg]
         if (chosen) { chooseSuggestion(chosen); return }
-        go(toUrl(input, prefs.engine))
+        go(search(input))
     }
-    const submitNtp = (e) => { e.preventDefault(); go(toUrl(ntpQuery, prefs.engine)) }
+    const submitNtp = (e) => { e.preventDefault(); go(search(ntpQuery)) }
     const back = () => {
         if (active.idx <= 0) return
         setHandedOff('')  // the hand-off notice belongs to that one navigation
@@ -1111,7 +1119,7 @@ const WebFrame = ({ onClose }) => {
         // shortcut pointing at a results page is never what was meant. So accept
         // only what is already an address, and leave the form up otherwise.
         const isAddress = /^https?:\/\//i.test(typed) || /^[^\s/]+\.[a-z]{2,}([/?#]|$)/i.test(typed)
-        const url = isAddress ? toUrl(typed, prefs.engine) : null
+        const url = isAddress ? toUrl(typed, prefs.engine, engines) : null
         if (!url) return
         patchPrefs({ bookmarks: [...prefs.bookmarks, { label: draft.label.trim() || tabLabel(url), url }] })
         setDraft(null)
@@ -1678,8 +1686,47 @@ const WebFrame = ({ onClose }) => {
                                                 <span>Search with</span>
                                                 <select value={prefs.engine} onChange={(e) => patchPrefs({ engine: e.target.value })}>
                                                     {ENGINES.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                                                    {prefs.customEngines.length > 0 && (
+                                                        <optgroup label="Your engines">
+                                                            {prefs.customEngines.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                                                        </optgroup>
+                                                    )}
                                                 </select>
                                             </label>
+
+                                            <div className="wf-set-list">
+                                                <span className="wf-set-title">Your search engines</span>
+                                                <p className="hint">
+                                                    Add any engine — put <code>%s</code> where the query goes, e.g.
+                                                    <code> https://duckduckgo.com/?q=%s</code>. Big engines like Google can&apos;t be
+                                                    embedded, so their results open by your &ldquo;sites that refuse embedding&rdquo; choice above.
+                                                </p>
+                                                {prefs.customEngines.map(e => (
+                                                    <div key={e.id} className="wf-set-row">
+                                                        <span className="wf-set-name">{e.name}</span>
+                                                        <span className="hint" style={{ flex: '2 1 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.url}</span>
+                                                        <button type="button" className="wf-icon" onClick={() => patchPrefs({ customEngines: prefs.customEngines.filter(x => x.id !== e.id) })} aria-label={`Remove ${e.name}`} title="Remove engine">×</button>
+                                                    </div>
+                                                ))}
+                                                {prefs.customEngines.length < MAX_CUSTOM_ENGINES && (
+                                                    <form
+                                                        className="wf-set-actions"
+                                                        onSubmit={(ev) => {
+                                                            ev.preventDefault()
+                                                            const name = engineName.trim()
+                                                            const url = engineUrl.trim()
+                                                            if (!name || !/^https:\/\/\S*%s\S*$/i.test(url)) { setEngineMsg('Needs a name and an https URL containing %s.'); return }
+                                                            patchPrefs({ customEngines: [...prefs.customEngines, { name, url }] })
+                                                            setEngineName(''); setEngineUrl(''); setEngineMsg('')
+                                                        }}
+                                                    >
+                                                        <input type="text" value={engineName} onChange={(e) => { setEngineName(e.target.value); setEngineMsg('') }} placeholder="Name" aria-label="Engine name" style={{ flex: '1 1 6rem' }} maxLength={24} />
+                                                        <input type="text" value={engineUrl} onChange={(e) => { setEngineUrl(e.target.value); setEngineMsg('') }} placeholder="https://…/search?q=%s" aria-label="Engine URL template" spellCheck="false" style={{ flex: '2 1 10rem' }} />
+                                                        <button type="submit" className="btn">Add</button>
+                                                    </form>
+                                                )}
+                                                {engineMsg && <span className="hint" role="status">{engineMsg}</span>}
+                                            </div>
                                             <label className="wf-set is-check">
                                                 <input type="checkbox" checked={prefs.newTabOpensHome} disabled={!prefs.home} onChange={(e) => patchPrefs({ newTabOpensHome: e.target.checked })} />
                                                 <span>New tabs open the start page</span>
@@ -2303,7 +2350,7 @@ const WebFrame = ({ onClose }) => {
                                         <button
                                             type="button"
                                             className="auth-link"
-                                            onClick={() => go(toUrl(searchTermOf(current), prefs.engine))}
+                                            onClick={() => go(search(searchTermOf(current)))}
                                         >Run that search in here instead</button>
                                     </p>
                                 )}

@@ -289,15 +289,54 @@ export const blocksFraming = (url) => {
  * someone typing "apple.com" is asking to go to Apple and not to read about it.
  * The dot has to be followed by letters, so "what is 3.5 rounded" stays a search.
  */
-export const toUrl = (raw, engineId) => {
+export const toUrl = (raw, engineId, engines = ENGINES) => {
     const text = String(raw ?? '').trim()
     if (!text) return null
     if (/^https?:\/\//i.test(text)) return text
     if (/^javascript:/i.test(text)) return null // never hand the frame a script URL
     if (/^[^\s/]+\.[a-z]{2,}(:\d{1,5})?([/?#]|$)/i.test(text)) return `https://${text}`
-    const engine = ENGINES.find(e => e.id === engineId) || ENGINES[0]
+    const list = Array.isArray(engines) && engines.length ? engines : ENGINES
+    const engine = list.find(e => e.id === engineId) || list[0]
     return engine.q(text)
 }
+
+/* ---- custom search engines ---------------------------------------------- */
+
+export const MAX_CUSTOM_ENGINES = 8
+
+/**
+ * User-added search engines. The URL is a template with a `%s` where the query
+ * goes — the same convention every browser uses — and must be https, since the
+ * query (which can be anything typed) is written straight into it.
+ *
+ * Unlike the built-in list, a custom engine may well refuse framing (Google,
+ * DuckDuckGo): that is fine now, because a search that can't be embedded flows
+ * through the same blocked-site handling as any other page — popup, ask, or the
+ * archive — per the reader's choice.
+ */
+export const sanitizeEngines = (raw) => {
+    const seen = new Set()
+    const out = []
+    for (const e of Array.isArray(raw) ? raw : []) {
+        if (!e || typeof e !== 'object') continue
+        const name = String(e.name || '').trim().slice(0, 24)
+        const url = String(e.url || '').trim()
+        // https, and a %s placeholder so there is somewhere to put the query
+        if (!name || !/^https:\/\/\S*%s\S*$/i.test(url)) continue
+        const key = url.toLowerCase()
+        if (seen.has(key)) continue
+        seen.add(key)
+        out.push({ id: `custom-${out.length}`, name, url })
+        if (out.length >= MAX_CUSTOM_ENGINES) break
+    }
+    return out
+}
+
+/** A custom engine as a runnable {id,name,q}, matching the built-in shape. */
+const asEngine = (e) => ({ id: e.id, name: e.name, q: (s) => e.url.replace(/%s/gi, encodeURIComponent(String(s ?? ''))) })
+
+/** The built-in engines followed by the reader's own, ready for toUrl/selects. */
+export const allEngines = (custom) => [...ENGINES, ...sanitizeEngines(custom).map(asEngine)]
 
 /** A short tab label — the bare host, without the www. */
 export const tabLabel = (url) => {
@@ -312,6 +351,7 @@ export const TILE_SIZES = ['small', 'medium', 'large']
 export const DEFAULT_PREFS = {
     home: '',
     engine: 'marginalia',
+    customEngines: [],
     closeKey: '`',
     density: 'normal',
     newTabOpensHome: false,
@@ -778,7 +818,10 @@ export const sanitizePrefs = (raw) => {
 
     const url = (v, fallback) => (/^https?:\/\/\S+$/i.test(String(v || '')) ? String(v).trim() : fallback)
     const home = url(p.home, DEFAULT_PREFS.home) // '' means the new-tab page
-    const engine = ENGINES.some(e => e.id === p.engine) ? p.engine : DEFAULT_PREFS.engine
+    const customEngines = sanitizeEngines(p.customEngines)
+    // the chosen engine may be a built-in or one of the reader's own
+    const engineIds = [...ENGINES.map(e => e.id), ...customEngines.map(e => e.id)]
+    const engine = engineIds.includes(p.engine) ? p.engine : DEFAULT_PREFS.engine
     const closeKey = typeof p.closeKey === 'string' && [...p.closeKey].length === 1
         ? p.closeKey
         : DEFAULT_PREFS.closeKey
@@ -798,6 +841,7 @@ export const sanitizePrefs = (raw) => {
     return {
         home,
         engine,
+        customEngines,
         closeKey,
         density,
         newTabOpensHome: p.newTabOpensHome === true && !!home,
