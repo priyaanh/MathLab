@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "test": "node scripts/test.mjs",
+    "sync": "node server/sync-server.mjs",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
     "lint:check": "eslint . --ext .js,.jsx,.ts,.tsx",
     "preview": "vite preview",

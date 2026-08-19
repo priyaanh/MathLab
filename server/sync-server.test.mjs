@@ -115,6 +115,15 @@ try {
     ok('preflight allows the methods the client uses',
         /PUT/.test(pre.headers.get('access-control-allow-methods') || ''))
 
+    // Private Network Access: a public https page reaching this local server must
+    // be granted, or Chrome blocks it and the client sees "could not reach".
+    const pna = await fetch(`${BASE}/v1/profile/ada`, {
+        method: 'OPTIONS',
+        headers: { Origin: 'https://example.com', 'Access-Control-Request-Method': 'PUT', 'Access-Control-Request-Private-Network': 'true' }
+    })
+    ok('preflight grants private-network access when asked',
+        pna.headers.get('access-control-allow-private-network') === 'true')
+
     /* ---- delete really removes it ---- */
     r = await req('/v1/profile/ada', { method: 'DELETE', token: 'ada-token' })
     ok('the owner can delete it', r.status === 200 && r.deleted === true)

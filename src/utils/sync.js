@@ -154,6 +154,22 @@ export const deriveAuthToken = async (password, usernameKey, iterations = PBKDF2
     return toB64(new Uint8Array(bits))
 }
 
+/**
+ * The most useful message for a fetch that never got a response — the two things
+ * that actually go wrong are the server not running, and the browser refusing an
+ * http server from an https page. Exposed so the settings panel can show the same
+ * guidance before anything is even attempted.
+ */
+export const reachError = (base) => {
+    const pageHttps = (() => { try { return typeof location !== 'undefined' && location.protocol === 'https:' } catch { return false } })()
+    const serverHttp = /^http:\/\//i.test(String(base || ''))
+    const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(String(base || ''))
+    if (pageHttps && serverHttp && !isLocal) {
+        return 'Could not reach the sync server. This page is secure (https) but the server address is plain http, which browsers block. Give the server an https address, or open MathLab from http://localhost while you set it up.'
+    }
+    return 'Could not reach the sync server. Check the address, and make sure the server is running — start it with "npm run sync" in the project.'
+}
+
 /* ---- transport ----------------------------------------------------------- */
 
 const call = async (path, { method = 'GET', token, body, timeoutMs = 15000 } = {}) => {
@@ -174,9 +190,11 @@ const call = async (path, { method = 'GET', token, body, timeoutMs = 15000 } = {
             body: body ? JSON.stringify(body) : undefined
         })
     } catch (e) {
-        // A dead server and a blocked request look the same from here; say the
-        // useful thing rather than surfacing "Failed to fetch".
-        throw new Error(e.name === 'AbortError' ? 'The sync server did not respond.' : 'Could not reach the sync server.')
+        // A dead server and a browser-blocked request look identical from here
+        // ("Failed to fetch"), so guess at the usual causes and say something
+        // actionable rather than a bare "could not reach".
+        if (e.name === 'AbortError') throw new Error('The sync server did not respond — it may be starting up, or the address is wrong.')
+        throw new Error(reachError(base))
     } finally {
         clearTimeout(timer)
     }

@@ -147,7 +147,19 @@ const bearer = (req) => {
 
 const handle = async (req, res) => {
     const origin = req.headers.origin || ''
-    if (req.method === 'OPTIONS') { res.writeHead(204, corsHeaders(origin)); res.end(); return }
+    if (req.method === 'OPTIONS') {
+        const h = corsHeaders(origin)
+        // Private Network Access: a public https page reaching a local/LAN server
+        // (the common "run it on my machine" case) triggers a preflight that asks
+        // permission to touch the private network. Without this header Chrome
+        // blocks the real request and the client just sees "could not reach".
+        if (req.headers['access-control-request-private-network'] === 'true') {
+            h['Access-Control-Allow-Private-Network'] = 'true'
+        }
+        res.writeHead(204, h)
+        res.end()
+        return
+    }
 
     const ip = req.socket.remoteAddress || 'unknown'
     if (rateLimited(ip)) return send(res, origin, 429, { error: 'Too many requests. Wait a minute.' })

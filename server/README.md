@@ -28,9 +28,19 @@ The practical consequences:
 ## Run it
 
 ```bash
-cd server
-npm start                 # http://localhost:8787
+npm run sync              # from the project root — http://localhost:8787
+# or:  cd server && npm start
 ```
+
+Then, in MathLab → Profile → **Sync across devices**, set the server address to
+`http://localhost:8787` and turn sync on.
+
+**"Could not reach the sync server"?** Two usual causes:
+- The server isn't running — start it with `npm run sync`.
+- A secure (https) MathLab can't call a plain `http://` server on the network.
+  Use `http://localhost:8787` on the same machine, or give the server an https
+  address (a reverse proxy with a certificate). A public https page reaching a
+  local server also needs Private Network Access, which this server now grants.
 
 Configuration is all environment variables:
 

@@ -185,7 +185,13 @@ const ProfileSyncPanel = ({ onFlash }) => {
                 </p>
                 <p>
                     Because of that, the server cannot reset a forgotten password either. Run it
-                    yourself; <code>server/README.md</code> in the repo has the steps.
+                    yourself — <code>npm run sync</code> in the project starts it on port 8787; then
+                    put its address above. <code>server/README.md</code> has the details.
+                </p>
+                <p>
+                    If a secure (https) MathLab can&apos;t reach a server at <code>http://…</code>,
+                    that&apos;s the browser blocking it: use <code>http://localhost:8787</code> on the
+                    same machine, or give the server an https address.
                 </p>
             </details>
         </div>

@@ -29,7 +29,7 @@ import {
     sanitizeHostList, hostListed, toggleHost, MAX_POPUP_HOSTS, sameLocation, greeting,
     packBackup, parseBackup
 } from '../src/utils/webframe.js'
-import { syncDecision, hashContent } from '../src/utils/sync.js'
+import { syncDecision, hashContent, reachError } from '../src/utils/sync.js'
 
 let passed = 0
 let failed = 0
@@ -1304,6 +1304,17 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
     ok('sync: the content hash changes when content does',
         (await hashContent({ a: '1' })) !== (await hashContent({ a: '2' })))
     ok('sync: junk hashes without throwing', typeof (await hashContent(null)) === 'string')
+
+    /* the "could not reach" message actually diagnoses the cause */
+    ok('reach: with no page context it points at running the server',
+        /npm run sync/.test(reachError('http://localhost:8787')))
+    try {
+        globalThis.location = { protocol: 'https:' }
+        ok('reach: https page + http LAN server explains the mixed-content block',
+            /https/.test(reachError('http://192.168.1.10:8787')) && /block/i.test(reachError('http://192.168.1.10:8787')))
+        ok('reach: https page + http localhost is not blamed on mixed content',
+            !/block/i.test(reachError('http://localhost:8787')))
+    } finally { delete globalThis.location }
 
     globalThis.localStorage.clear()
     delete globalThis.localStorage
