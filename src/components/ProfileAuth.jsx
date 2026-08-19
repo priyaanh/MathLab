@@ -1,12 +1,56 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-    MIN_PASSWORD, STRENGTH_LABELS, createAccount, importProfile, installProfileFromBlob,
-    isWorkspaceEmpty, listAccounts, openAccount, passwordProblem, passwordStrength,
-    snapshotWorkspace, usernameKey, usernameProblem
+    MIN_PASSWORD, STRENGTH_LABELS, adoptRemoteBlob, createAccount, getAccountRecord, importProfile,
+    installProfileFromBlob, isWorkspaceEmpty, listAccounts, openAccount, passwordProblem,
+    passwordStrength, snapshotWorkspace, usernameKey, usernameProblem
 } from '../utils/accounts'
 import {
-    deriveAuthToken, getSyncUrl, normaliseUrl, pullProfile, setLastVersion, setSyncOn, setSyncUrl
+    deriveAuthToken, getSyncUrl, hashContent, isSyncOn, lastContentHash, lastVersion, normaliseUrl,
+    pullProfile, pushProfile, setLastContentHash, setLastVersion, setSyncOn, setSyncUrl, syncDecision
 } from '../utils/sync'
+
+/**
+ * Sync as part of signing in, when it's turned on. Signing in is the one moment
+ * the password is in hand, so this is where an automatic pull or push can happen
+ * without holding a token in memory afterwards.
+ *
+ * It never overwrites unsynced local work: syncDecision only returns "pull" when
+ * this device has no changes the server hasn't seen. A conflict (both sides moved)
+ * or an offline server just leaves the local profile as-is to sync later — signing
+ * in must not fail because a server was unreachable.
+ *
+ * Returns the session to actually sign in with (the adopted one after a pull).
+ */
+const syncOnSignIn = async (session, password) => {
+    if (!isSyncOn() || !getSyncUrl()) return session
+    const key = session.key
+    try {
+        const token = await deriveAuthToken(password, key)
+        const localChanged = (await hashContent(session.data)) !== lastContentHash(key)
+        let remote = null
+        let hasRemote = true
+        try { remote = await pullProfile({ key, token }) } catch (e) {
+            if (e?.status === 404) hasRemote = false; else throw e
+        }
+        const decision = syncDecision({
+            hasRemote, serverVersion: remote?.version || 0, seenVersion: lastVersion(key), localChanged
+        })
+        if (decision === 'pull') {
+            const next = await adoptRemoteBlob(session, remote.blob, password)
+            setLastVersion(key, remote.version)
+            setLastContentHash(key, await hashContent(next.data))
+            return next
+        }
+        if (decision === 'push') {
+            await pushProfile({ key, record: getAccountRecord(key), token })
+            setLastContentHash(key, await hashContent(session.data))
+        }
+        // 'conflict' / 'inSync': keep local; a real conflict is resolved in the Sync panel
+        return session
+    } catch {
+        return session // offline or server down — sign in locally, sync another time
+    }
+}
 
 /**
  * The sign-in / create-account card shown when no profile is unlocked.
@@ -91,9 +135,11 @@ const ProfileAuth = ({ onSession }) => {
                 const token = await deriveAuthToken(password, key)
                 const remote = await pullProfile({ key, token })
                 const session = await installProfileFromBlob(username, password, remote.blob)
-                // Remember the server, mark this device in sync at the pulled version.
+                // Remember the server, mark this device in sync at the pulled version so
+                // future sign-ins here sync automatically instead of re-asking.
                 setSyncOn(true)
                 setLastVersion(key, remote.version)
+                setLastContentHash(key, await hashContent(session.data))
                 onSession(session, { adopted: false })
             } catch (err) {
                 setError(err?.status === 404
@@ -133,12 +179,18 @@ const ProfileAuth = ({ onSession }) => {
         setBusy(true)
         setError('')
         try {
-            const session = mode === 'new'
+            if (mode === 'new') {
                 // A new account can adopt whatever this device already has, so
                 // work done before signing up is not thrown away.
-                ? await createAccount(username, password, adopt && hasLocalWork ? snapshotWorkspace() : {})
-                : await openAccount(username, password)
-            onSession(session, { adopted: mode === 'new' && adopt && hasLocalWork })
+                const session = await createAccount(username, password, adopt && hasLocalWork ? snapshotWorkspace() : {})
+                onSession(session, { adopted: adopt && hasLocalWork })
+            } else {
+                // Signing in: unlock locally, then let sync bring the latest down
+                // (or push this device up) automatically while the password is here.
+                const opened = await openAccount(username, password)
+                const session = await syncOnSignIn(opened, password)
+                onSession(session, { adopted: false })
+            }
         } catch (err) {
             setError(err?.message || 'Something went wrong.')
             setPassword('')
@@ -325,9 +377,11 @@ const ProfileAuth = ({ onSession }) => {
                         your data.
                     </p>
                     <p>
-                        For the same reason nothing syncs on its own. To use a profile on another
-                        device or browser, download it from <b>Profile &amp; security</b> and import the
-                        file here — it travels encrypted and opens with the same password.
+                        To use a profile on another device, turn on <b>Sync</b> (you run the small
+                        server yourself). After that, just sign in with your username and password —
+                        the newest copy comes down and your changes go up automatically, still
+                        encrypted end to end. No file to carry, though export/import is still there
+                        if you prefer it.
                     </p>
                 </details>
             </form>

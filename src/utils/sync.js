@@ -13,7 +13,7 @@
  * away.
  */
 
-import { PBKDF2_ITERATIONS, toB64 } from './accounts'
+import { PBKDF2_ITERATIONS, toB64 } from './accounts.js'
 
 const URL_KEY = 'mathlab-sync-url'
 const ON_KEY = 'mathlab-sync-on'
@@ -78,6 +78,50 @@ export const setLastVersion = (key, v) => {
         all[key] = Number(v) || 0
         localStorage.setItem(VERSION_KEY, JSON.stringify(all))
     } catch { /* storage unavailable */ }
+}
+
+/* ---- knowing whether this device has unsynced changes -------------------
+ * A fingerprint of the workspace as it was at the last successful sync, per
+ * profile. Comparing it to the current workspace tells auto-sync whether this
+ * device has edits the server hasn't seen — the one thing that makes an
+ * automatic pull unsafe. It is a hash of the CONTENT, not of the ciphertext,
+ * so simply re-saving (which re-encrypts with a fresh IV) doesn't look like a
+ * change; only real edits do.
+ */
+const CONTENT_KEY = 'mathlab-sync-content'
+const contentMap = () => {
+    try { return JSON.parse(localStorage.getItem(CONTENT_KEY) || '{}') || {} } catch { return {} }
+}
+export const lastContentHash = (key) => String(contentMap()[key] || '')
+export const setLastContentHash = (key, hash) => {
+    try {
+        const all = contentMap()
+        all[key] = String(hash || '')
+        localStorage.setItem(CONTENT_KEY, JSON.stringify(all))
+    } catch { /* storage unavailable */ }
+}
+
+/** A stable SHA-256 of a workspace snapshot — keys sorted so order can't matter. */
+export const hashContent = async (data) => {
+    const obj = data && typeof data === 'object' ? data : {}
+    const canonical = JSON.stringify(obj, Object.keys(obj).sort())
+    const buf = await subtle().digest('SHA-256', enc.encode(canonical))
+    return toB64(new Uint8Array(buf))
+}
+
+/**
+ * What a sign-in should do about sync, given four facts. Pure, so the policy is
+ * testable in isolation:
+ *   - no profile on the server yet     -> push (first upload)
+ *   - server is ahead, we're unchanged -> pull  (bring the newer copy down)
+ *   - server is ahead AND we changed    -> conflict (both moved; ask, never clobber)
+ *   - server is not ahead, we changed   -> push
+ *   - otherwise                         -> inSync (nothing to do)
+ */
+export const syncDecision = ({ hasRemote, serverVersion = 0, seenVersion = 0, localChanged = false }) => {
+    if (!hasRemote) return 'push'
+    if (serverVersion > seenVersion) return localChanged ? 'conflict' : 'pull'
+    return localChanged ? 'push' : 'inSync'
 }
 
 /* ---- auth token ---------------------------------------------------------- */

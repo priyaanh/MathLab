@@ -29,6 +29,7 @@ import {
     sanitizeHostList, hostListed, toggleHost, MAX_POPUP_HOSTS, sameLocation, greeting,
     packBackup, parseBackup
 } from '../src/utils/webframe.js'
+import { syncDecision, hashContent } from '../src/utils/sync.js'
 
 let passed = 0
 let failed = 0
@@ -1284,6 +1285,25 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
     const reopenRider = await A.openAccount('Rider', 'cross device pass')
     ok('server sign-in: the installed account reopens with its password',
         JSON.parse(reopenRider.data['mathlab-exercise-progress'])['alg1-x'].attempts === 7)
+
+    /* ---- auto-sync-on-sign-in policy (the "just sign in" behaviour) ---- */
+    ok('sync: nothing on the server yet means push (first upload)',
+        syncDecision({ hasRemote: false }) === 'push')
+    ok('sync: server ahead and this device unchanged means pull',
+        syncDecision({ hasRemote: true, serverVersion: 3, seenVersion: 2, localChanged: false }) === 'pull')
+    ok('sync: server ahead AND local changed is a conflict (never clobber)',
+        syncDecision({ hasRemote: true, serverVersion: 3, seenVersion: 2, localChanged: true }) === 'conflict')
+    ok('sync: local changed and server not ahead means push',
+        syncDecision({ hasRemote: true, serverVersion: 2, seenVersion: 2, localChanged: true }) === 'push')
+    ok('sync: nothing changed on either side is a no-op',
+        syncDecision({ hasRemote: true, serverVersion: 2, seenVersion: 2, localChanged: false }) === 'inSync')
+    // the content fingerprint: order-independent, and it moves only on real edits
+    const hA = await hashContent({ b: '2', a: '1' })
+    const hB = await hashContent({ a: '1', b: '2' })
+    ok('sync: the content hash ignores key order', hA === hB)
+    ok('sync: the content hash changes when content does',
+        (await hashContent({ a: '1' })) !== (await hashContent({ a: '2' })))
+    ok('sync: junk hashes without throwing', typeof (await hashContent(null)) === 'string')
 
     globalThis.localStorage.clear()
     delete globalThis.localStorage

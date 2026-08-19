@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useSession } from '../profile/SessionContext'
-import { adoptRemoteBlob, getAccountRecord, restoreWorkspace } from '../utils/accounts'
+import { adoptRemoteBlob, getAccountRecord, restoreWorkspace, snapshotWorkspace } from '../utils/accounts'
 import {
-    checkServer, deriveAuthToken, getSyncUrl, isSyncOn, lastVersion, normaliseUrl,
-    pullProfile, pushProfile, setLastVersion, setSyncOn, setSyncUrl
+    checkServer, deriveAuthToken, getSyncUrl, hashContent, isSyncOn, lastVersion, normaliseUrl,
+    pullProfile, pushProfile, setLastContentHash, setLastVersion, setSyncOn, setSyncUrl
 } from '../utils/sync'
 
 /**
@@ -64,8 +64,10 @@ const ProfileSyncPanel = ({ onFlash }) => {
             setLastVersion(session.key, remote.version)
         }
         await pushProfile({ key: session.key, record: getAccountRecord(session.key), token })
+        // record this device as in sync, so a later sign-in doesn't re-push
+        setLastContentHash(session.key, await hashContent(snapshotWorkspace()))
         setConflict(null)
-        onFlash?.('Profile uploaded. Sign in on the other device to pull it down.')
+        onFlash?.('Profile uploaded. It will now come down automatically when you sign in elsewhere.')
     })
 
     const doPull = () => withPassword('pull', async ({ token }) => {
@@ -77,6 +79,7 @@ const ProfileSyncPanel = ({ onFlash }) => {
         // had done nothing even though the new data was already in storage.
         replaceSession({ ...next, revision: (session.revision || 0) + 1 })
         setLastVersion(session.key, remote.version)
+        setLastContentHash(session.key, await hashContent(next.data))
         setConflict(null)
         onFlash?.('Pulled the newest profile from the server.')
     })
@@ -93,9 +96,11 @@ const ProfileSyncPanel = ({ onFlash }) => {
             <h2>Sync across devices</h2>
 
             <p className="hint">
-                Point this at your own sync server and the profile can be pulled down on any
-                other device. Only the encrypted profile is uploaded — the server never receives
-                your password or anything that could open it.
+                Point this at your own sync server. Once it&apos;s on, signing in on any device
+                syncs on its own — the newest copy comes down and your changes go up, using the
+                password you type at sign-in. Only the encrypted profile is uploaded; the server
+                never receives your password or anything that could open it. The buttons below are
+                for a manual sync or to settle a conflict.
             </p>
 
             <label className="field" style={{ marginTop: '0.9rem' }}>
