@@ -2457,7 +2457,7 @@ a.topic-card {
     position: absolute;
     inset: 0;
     display: flex;
-    align-items: center;
+    align-items: safe center;
     justify-content: center;
     padding: 1.5rem;
     overflow-y: auto;
@@ -3800,3 +3800,93 @@ textarea:focus-visible,
 
 /* profile auth: stacked alternative sign-in links */
 .auth-alts { display: flex; flex-direction: column; gap: 0.35rem; align-items: center; margin-top: 0.2rem; }
+
+/* ====================================================================== */
+/* Lumen — the web viewer's visual identity                               */
+/* ====================================================================== */
+
+/* The brand gradient: a luminous violet→cyan sweep, independent of the user's
+   chosen accent so the identity stays constant while the accent still themes
+   controls. Defined on the shell so every Lumen surface can reach it. */
+.wf-shell {
+    --lumen-1: #f59e0b;   /* amber */
+    --lumen-2: #fde047;   /* gold  */
+    --lumen-3: #fb923c;   /* warm orange highlight, for a sunrise aurora */
+    --lumen-grad: linear-gradient(115deg, var(--lumen-1), var(--lumen-2));
+}
+
+/* ---- wordmark in the tab rail head ---- */
+.wf-rail-head { gap: 0.4rem; padding-left: 0.15rem; }
+.wf-brand { display: inline-flex; align-items: center; gap: 0.4rem; min-width: 0; user-select: none; }
+.wf-brand-orb {
+    flex: none; width: 15px; height: 15px; border-radius: 50%;
+    background: var(--lumen-grad);
+    box-shadow: 0 0 10px -1px color-mix(in srgb, var(--lumen-1) 70%, transparent),
+                inset 0 0 0 1.5px color-mix(in srgb, #fff 22%, transparent);
+}
+.wf-brand-name {
+    font-size: 0.92rem; font-weight: 800; letter-spacing: -0.01em;
+    background: var(--lumen-grad); -webkit-background-clip: text; background-clip: text; color: transparent;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ---- cleaner toolbar: group the window controls off to the right ---- */
+.wf-bar { gap: 0.25rem; }
+/* a hairline before the maximize / fullscreen / close cluster so the bar reads
+   as [ navigate ] [ address ] [ actions ] · [ window ] */
+.wf-bar .wf-icon[aria-label="Maximize"],
+.wf-bar .wf-icon[aria-label="Restore size"] {
+    margin-left: 0.35rem;
+    border-left: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+    padding-left: 0.5rem;
+    border-radius: 0 9px 9px 0;
+}
+.wf-close { margin-left: 0.05rem; }
+/* the accent-following controls (settings/history/ask) pick up a soft brand tint
+   when active, tying the chrome to the identity */
+.wf-icon.is-on { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent); }
+
+/* ---- splashier new-tab page ---- */
+.wf-ntp-aurora {
+    position: absolute; inset: 0; pointer-events: none; overflow: hidden;
+    /* three drifting luminous pools in the Lumen colours */
+    background:
+        radial-gradient(38% 42% at 22% 18%, color-mix(in srgb, var(--lumen-1) 45%, transparent), transparent 70%),
+        radial-gradient(34% 40% at 82% 26%, color-mix(in srgb, var(--lumen-2) 40%, transparent), transparent 70%),
+        radial-gradient(50% 45% at 50% 108%, color-mix(in srgb, var(--lumen-3) 26%, transparent), transparent 72%);
+    filter: blur(14px) saturate(1.15);
+    opacity: 0.9;
+    animation: lumen-drift 22s ease-in-out infinite alternate;
+}
+@keyframes lumen-drift {
+    from { transform: translate3d(-2%, -1%, 0) scale(1.02); }
+    to   { transform: translate3d(3%, 2%, 0) scale(1.08); }
+}
+@media (prefers-reduced-motion: reduce) { .wf-ntp-aurora { animation: none; } }
+/* keep the viewer's own content above the aurora */
+.wf-ntp-inner { position: relative; z-index: 1; }
+
+/* the brand orb, larger, floating above the wordmark */
+.wf-ntp-orb {
+    width: 46px; height: 46px; border-radius: 50%; margin: 0 auto 0.1rem;
+    background: var(--lumen-grad);
+    box-shadow:
+        0 0 34px -2px color-mix(in srgb, var(--lumen-1) 65%, transparent),
+        0 0 12px -1px color-mix(in srgb, var(--lumen-2) 70%, transparent),
+        inset 0 0 0 2px color-mix(in srgb, #fff 26%, transparent);
+    animation: lumen-pulse 6s ease-in-out infinite;
+}
+@keyframes lumen-pulse {
+    0%, 100% { transform: scale(1); filter: brightness(1); }
+    50% { transform: scale(1.06); filter: brightness(1.12); }
+}
+@media (prefers-reduced-motion: reduce) { .wf-ntp-orb { animation: none; } }
+
+/* the wordmark now wears the Lumen gradient + a soft glow, not the accent */
+.wf-ntp-word {
+    background: var(--lumen-grad);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 2px 18px color-mix(in srgb, var(--lumen-1) 34%, transparent));
+}
+/* over a user background image the orb + gradient text would fight the photo */
+.wf-ntp.has-bg .wf-ntp-orb { display: none; }

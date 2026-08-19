@@ -1385,6 +1385,12 @@ const WebFrame = ({ onClose }) => {
                                 aria-expanded={railOpen}
                                 title={railOpen ? 'Collapse tabs' : 'Expand tabs'}
                             >☰</button>
+                            {railOpen && (
+                                <span className="wf-brand" aria-hidden="true">
+                                    <span className="wf-brand-orb" />
+                                    <span className="wf-brand-name">Lumen</span>
+                                </span>
+                            )}
                         </div>
                         {tabList}
                         {/* fills whatever is left of the rail, purely to be grabbable */}
@@ -2316,7 +2322,11 @@ const WebFrame = ({ onClose }) => {
                                 className={`wf-ntp tile-${prefs.tileSize}${prefs.newTabBg ? ' has-bg' : ''}`}
                                 style={prefs.newTabBg ? { backgroundImage: `url("${prefs.newTabBg}")` } : undefined}
                             >
+                                {/* Lumen aurora — the brand glow behind the page; hidden when a
+                                    custom background image is set so it never fights it. */}
+                                {!prefs.newTabBg && <div className="wf-ntp-aurora" aria-hidden="true" />}
                                 <div className="wf-ntp-inner">
+                                    {prefs.ntpTitle && <div className="wf-ntp-orb" aria-hidden="true" />}
                                     {prefs.showNtpClock && (
                                         <div className="wf-ntp-clock">
                                             <span className="wf-ntp-time">{new Date(clock).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>

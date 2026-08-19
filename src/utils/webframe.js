@@ -320,7 +320,7 @@ export const DEFAULT_PREFS = {
     railWidth: 210,
     newTabBg: '',
     accent: '',
-    ntpTitle: 'MathLab',
+    ntpTitle: 'Lumen',
     tileSize: 'medium',
     showNtpSearch: true,
     showNtpNote: true,
