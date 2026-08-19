@@ -357,12 +357,11 @@ const WebFrame = ({ onClose }) => {
                 // is on screen — a snapshot, not the site
                 target = archived
                 say(`${tabLabel(url)} can't be embedded — showing the archived copy`)
-            } else if (mode === 'popup') {
-                sentOut = openPopup(url)
-                if (sentOut) say(`${tabLabel(url)} can't be embedded — opened in a popup window`)
-            } else if (mode === 'tab') {
-                sentOut = openExternally(url)
-                if (sentOut) say(`${tabLabel(url)} can't be embedded — opened in a new browser tab`)
+            } else if ((mode === 'popup' || mode === 'tab') && !prefs.confirmOpen) {
+                // "open immediately" — the default. With confirmOpen on we skip this
+                // and let the blocked screen ask first, its buttons being the answer.
+                sentOut = mode === 'popup' ? openPopup(url) : openExternally(url)
+                if (sentOut) say(`${tabLabel(url)} can't be embedded — opened ${mode === 'popup' ? 'in a popup window' : 'in a new browser tab'}`)
             }
         }
         setHandedOff(sentOut ? target : '')
@@ -424,7 +423,7 @@ const WebFrame = ({ onClose }) => {
             const mode = hostListed(popupHosts, url) ? 'popup' : prefs.onBlocked
             const archived = mode === 'archive' ? waybackUrl(url) : null
             if (archived) target = archived
-            else if (mode === 'popup' || mode === 'tab') {
+            else if ((mode === 'popup' || mode === 'tab') && !prefs.confirmOpen) {
                 const opened = mode === 'popup' ? openPopup(url) : openExternally(url)
                 if (opened) {
                     say(`${tabLabel(url)} can't be embedded — opened ${mode === 'popup' ? 'in a popup window' : 'in a new browser tab'}`)
@@ -1516,6 +1515,22 @@ const WebFrame = ({ onClose }) => {
                             aria-expanded={showHistory}
                             title={`History (${MOD_LABEL}Y)`}
                         >◷</button>
+                        <button
+                            type="button"
+                            className={`wf-icon${prefs.confirmOpen ? ' is-on' : ''}`}
+                            onClick={() => {
+                                const next = !prefs.confirmOpen
+                                patchPrefs({ confirmOpen: next })
+                                say(next
+                                    ? 'Will ask before opening a page in a new window'
+                                    : 'Will open pages immediately')
+                            }}
+                            aria-label="Ask before opening pages in a new window"
+                            aria-pressed={prefs.confirmOpen}
+                            title={prefs.confirmOpen
+                                ? 'Asking before opening a page in a new window — click to open immediately'
+                                : 'Opening pages immediately — click to ask first'}
+                        >{prefs.confirmOpen ? '?' : '⚡'}</button>
                         <button type="button" className={`wf-icon${showSettings ? ' is-on' : ''}`} onClick={() => { setShowHistory(false); setShowSettings(s => !s) }} aria-label="Settings" aria-expanded={showSettings} title="Settings">⚙</button>
                         <button
                             type="button"
@@ -1679,6 +1694,16 @@ const WebFrame = ({ onClose }) => {
                                                 top-level window, so the framing header doesn&apos;t apply to it. <b>The archived
                                                 copy</b> stays in the pane but is the Internet Archive&apos;s snapshot rather than
                                                 the live page. Whichever you pick, the blocked screen still offers all of them.
+                                            </p>
+                                            <label className="wf-set is-check">
+                                                <input type="checkbox" checked={prefs.confirmOpen} onChange={(e) => patchPrefs({ confirmOpen: e.target.checked })} />
+                                                <span>Ask before opening a page in a new window</span>
+                                            </label>
+                                            <p className="hint">
+                                                Off, a site that can&apos;t be embedded opens right away in whatever you chose
+                                                above. On, the viewer stops and asks first — you get the choice screen and open
+                                                it yourself. The <kbd>{prefs.confirmOpen ? '?' : '⚡'}</kbd> button in the toolbar
+                                                flips this too.
                                             </p>
                                             {popupHosts.length > 0 && (
                                                 <div className="wf-set-list">

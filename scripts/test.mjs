@@ -860,6 +860,10 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
     ok('prefs: every blocked-site answer is accepted',
         BLOCKED_CHOICES.every(c => sanitizePrefs({ onBlocked: c }).onBlocked === c))
     ok('prefs: the popup answer is one of them', BLOCKED_CHOICES.includes('popup'))
+    ok('prefs: "ask before opening" defaults off and toggles on',
+        sanitizePrefs(null).confirmOpen === false
+        && sanitizePrefs({ confirmOpen: true }).confirmOpen === true
+        && sanitizePrefs({ confirmOpen: 'yes' }).confirmOpen === false)
 
     /* command palette ranking */
     {

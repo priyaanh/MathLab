@@ -328,6 +328,7 @@ export const DEFAULT_PREFS = {
     showNtpClock: true,
     webSuggest: false,
     onBlocked: 'archive',
+    confirmOpen: false,
     bookmarks: [
         { label: 'Wikipedia', url: 'https://en.wikipedia.org' },
         { label: 'Khan Academy', url: 'https://www.khanacademy.org' },
@@ -814,6 +815,7 @@ export const sanitizePrefs = (raw) => {
         // off unless explicitly turned on: see suggestUrl for why
         webSuggest: p.webSuggest === true,
         onBlocked: blockedChoice(p),
+        confirmOpen: p.confirmOpen === true,
         bookmarks
     }
 }
