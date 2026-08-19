@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-    MIN_PASSWORD, STRENGTH_LABELS, createAccount, importProfile, isWorkspaceEmpty, listAccounts,
-    openAccount, passwordProblem, passwordStrength, snapshotWorkspace, usernameProblem
+    MIN_PASSWORD, STRENGTH_LABELS, createAccount, importProfile, installProfileFromBlob,
+    isWorkspaceEmpty, listAccounts, openAccount, passwordProblem, passwordStrength,
+    snapshotWorkspace, usernameKey, usernameProblem
 } from '../utils/accounts'
+import {
+    deriveAuthToken, getSyncUrl, normaliseUrl, pullProfile, setLastVersion, setSyncOn, setSyncUrl
+} from '../utils/sync'
 
 /**
  * The sign-in / create-account card shown when no profile is unlocked.
@@ -30,6 +34,7 @@ const ProfileAuth = ({ onSession }) => {
     const [busy, setBusy] = useState(false)
     const [error, setError] = useState('')
     const [bundle, setBundle] = useState(null) // a profile file waiting for its password
+    const [serverUrl, setServerUrl] = useState(getSyncUrl) // for the "from server" path
     const nameRef = useRef(null)
     const fileRef = useRef(null)
 
@@ -71,6 +76,35 @@ const ProfileAuth = ({ onSession }) => {
     const submit = async (e) => {
         e.preventDefault()
         if (busy) return
+
+        if (mode === 'server') {
+            const clean = normaliseUrl(serverUrl)
+            if (!username.trim() || !password) { setError('Enter your username and password.'); return }
+            if (!clean) { setError('Enter your sync server address.'); return }
+            setBusy(true)
+            setError('')
+            try {
+                setSyncUrl(clean)
+                const key = usernameKey(username)
+                // The token proves ownership to the server; the password also
+                // decrypts the blob it returns. Both come from what was just typed.
+                const token = await deriveAuthToken(password, key)
+                const remote = await pullProfile({ key, token })
+                const session = await installProfileFromBlob(username, password, remote.blob)
+                // Remember the server, mark this device in sync at the pulled version.
+                setSyncOn(true)
+                setLastVersion(key, remote.version)
+                onSession(session, { adopted: false })
+            } catch (err) {
+                setError(err?.status === 404
+                    ? 'No profile with that username is on this server yet — upload it from your other device first.'
+                    : (err?.message || 'Could not sign in from the server.'))
+                setPassword('')
+            } finally {
+                setBusy(false)
+            }
+            return
+        }
 
         if (mode === 'import') {
             if (!password) { setError('Enter the password for this profile.'); return }
@@ -120,17 +154,22 @@ const ProfileAuth = ({ onSession }) => {
                 <div className="auth-badge" aria-hidden="true">{username.trim() ? initials(username) : '🔒'}</div>
 
                 <h1 className="auth-title">
-                    {mode === 'new' ? 'Create your profile' : mode === 'import' ? 'Bring your profile here' : 'Welcome back'}
+                    {mode === 'new' ? 'Create your profile'
+                        : mode === 'import' ? 'Bring your profile here'
+                            : mode === 'server' ? 'Sign in from your server'
+                                : 'Welcome back'}
                 </h1>
                 <p className="auth-sub">
                     {mode === 'new'
                         ? 'Your progress is encrypted with your password and kept on this device.'
                         : mode === 'import'
                             ? <>Unlock <b>{bundle?.display || 'this profile'}</b> with the password it was made with.</>
-                            : 'Sign in to unlock your progress, streak and achievements.'}
+                            : mode === 'server'
+                                ? 'Enter the username and password from your other device — your profile downloads and opens here.'
+                                : 'Sign in to unlock your progress, streak and achievements.'}
                 </p>
 
-                {mode !== 'import' && (
+                {(mode === 'in' || mode === 'new') && (
                     <div className="auth-tabs" role="tablist" aria-label="Profile access">
                         <button type="button" role="tab" aria-selected={mode === 'in'}
                             className={`auth-tab${mode === 'in' ? ' is-on' : ''}`} onClick={() => switchMode('in')}>Sign in</button>
@@ -179,6 +218,22 @@ const ProfileAuth = ({ onSession }) => {
                     </div>
                 </label>
 
+                {mode === 'server' && (
+                    <label className="auth-field">
+                        <span>Sync server</span>
+                        <input
+                            type="text"
+                            value={serverUrl}
+                            onChange={edit(setServerUrl)}
+                            onBlur={() => setServerUrl(u => normaliseUrl(u))}
+                            placeholder="https://your-sync-server.example"
+                            spellCheck="false"
+                            autoComplete="off"
+                            disabled={busy}
+                        />
+                    </label>
+                )}
+
                 {mode === 'new' && (
                     <>
                         <div className="auth-strength" aria-hidden="true">
@@ -215,8 +270,11 @@ const ProfileAuth = ({ onSession }) => {
 
                 <button type="submit" className="btn primary auth-submit" disabled={busy}>
                     {busy
-                        ? <><span className="auth-spinner" aria-hidden="true" />Encrypting…</>
-                        : mode === 'new' ? 'Create profile' : mode === 'import' ? 'Import profile' : 'Unlock profile'}
+                        ? <><span className="auth-spinner" aria-hidden="true" />{mode === 'server' ? 'Downloading…' : 'Encrypting…'}</>
+                        : mode === 'new' ? 'Create profile'
+                            : mode === 'import' ? 'Import profile'
+                                : mode === 'server' ? 'Sign in & download'
+                                    : 'Unlock profile'}
                 </button>
 
                 {/* Moving a profile between devices, since nothing syncs on its own. */}
@@ -231,10 +289,19 @@ const ProfileAuth = ({ onSession }) => {
                     <button type="button" className="btn ghost" onClick={() => { setBundle(null); setPassword(''); switchMode('in') }} disabled={busy}>
                         Cancel import
                     </button>
-                ) : (
-                    <button type="button" className="auth-link" onClick={() => fileRef.current?.click()} disabled={busy}>
-                        Coming from another device? Import a profile file
+                ) : mode === 'server' ? (
+                    <button type="button" className="btn ghost" onClick={() => { setPassword(''); switchMode('in') }} disabled={busy}>
+                        Back
                     </button>
+                ) : (
+                    <div className="auth-alts">
+                        <button type="button" className="auth-link" onClick={() => { setPassword(''); switchMode('server') }} disabled={busy}>
+                            Coming from another device? Sign in from your sync server
+                        </button>
+                        <button type="button" className="auth-link" onClick={() => fileRef.current?.click()} disabled={busy}>
+                            …or import a profile file
+                        </button>
+                    </div>
                 )}
 
                 {/*

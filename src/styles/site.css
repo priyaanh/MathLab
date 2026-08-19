@@ -3797,3 +3797,6 @@ textarea:focus-visible,
 .wf-ntp-greet { font-size: 0.82rem; color: var(--text-muted); }
 .wf-ntp.has-bg .wf-ntp-time { color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,0.6); }
 .wf-ntp.has-bg .wf-ntp-greet { color: #fff; text-shadow: 0 1px 6px rgba(0,0,0,0.6); }
+
+/* profile auth: stacked alternative sign-in links */
+.auth-alts { display: flex; flex-direction: column; gap: 0.35rem; align-items: center; margin-top: 0.2rem; }

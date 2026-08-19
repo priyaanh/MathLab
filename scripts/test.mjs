@@ -1192,6 +1192,59 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
     ok('import: it can land beside the existing one under a new name',
         renamed.display === 'Trip Two' && A.accountExists('Trip') && A.accountExists('Trip Two'))
 
+    /* ---- the profile snapshot really does save everything ---- */
+    ok('workspace: the version advanced to 3', A.WORKSPACE_VERSION === 3)
+    ok('workspace: the later web-viewer keys are now saved',
+        ['mathlab-frame-saved', 'mathlab-frame-zoom', 'mathlab-frame-popup-hosts'].every(k => A.WORKSPACE_KEYS.includes(k)))
+    ok('workspace: window geometry stays device-local',
+        !A.WORKSPACE_KEYS.includes('mathlab-frame-size') && !A.WORKSPACE_KEYS.includes('mathlab-frame-pos'))
+    globalThis.localStorage.clear()
+    globalThis.localStorage.setItem('mathlab-frame-saved', '[{"name":"Set"}]')
+    globalThis.localStorage.setItem('mathlab-frame-zoom', '{"a.com":1.25}')
+    globalThis.localStorage.setItem('mathlab-frame-popup-hosts', '["google.com"]')
+    const fullSnap = A.snapshotWorkspace()
+    ok('workspace: a snapshot now carries tab sets, zoom and site rules',
+        fullSnap['mathlab-frame-saved'] === '[{"name":"Set"}]'
+        && fullSnap['mathlab-frame-zoom'] === '{"a.com":1.25}'
+        && fullSnap['mathlab-frame-popup-hosts'] === '["google.com"]')
+
+    // an older (v2) blob must not wipe the new keys it never knew about
+    globalThis.localStorage.clear()
+    globalThis.localStorage.setItem('mathlab-frame-zoom', '{"kept.com":1.5}')
+    A.restoreWorkspace({ __v: 2, 'mathlab-profile': '{"name":"V2"}' })
+    ok('workspace: a v2 profile leaves the newer keys untouched',
+        globalThis.localStorage.getItem('mathlab-frame-zoom') === '{"kept.com":1.5}')
+
+    /* ---- signing in on a new device straight from the server ---- */
+    // Device A makes an account; its stored record is exactly the encrypted blob
+    // the sync server would hold and hand back.
+    globalThis.localStorage.clear()
+    await A.createAccount('Rider', 'cross device pass', {
+        __v: A.WORKSPACE_VERSION,
+        'mathlab-exercise-progress': '{"alg1-x":{"attempts":7}}',
+        'mathlab-frame-saved': '[{"name":"Homework"}]'
+    })
+    const serverBlob = A.getAccountRecord('Rider')  // salt/iterations/iv/ct — what pullProfile returns
+
+    // Device B: a fresh machine that has never seen this account.
+    globalThis.localStorage.clear()
+    let badPw = false
+    try { await A.installProfileFromBlob('Rider', 'wrong pass', serverBlob) } catch { badPw = true }
+    ok('server sign-in: a wrong password is refused', badPw && !A.accountExists('Rider'))
+    let badBlob = false
+    try { await A.installProfileFromBlob('Rider', 'cross device pass', { salt: 'x' }) } catch { badBlob = true }
+    ok('server sign-in: an incomplete blob is refused', badBlob)
+
+    const arrived = await A.installProfileFromBlob('Rider', 'cross device pass', serverBlob)
+    ok('server sign-in: the profile installs and opens on the new device',
+        arrived.display === 'Rider' && A.accountExists('Rider'))
+    ok('server sign-in: all the work came down',
+        JSON.parse(arrived.data['mathlab-exercise-progress'])['alg1-x'].attempts === 7
+        && JSON.parse(arrived.data['mathlab-frame-saved'])[0].name === 'Homework')
+    const reopenRider = await A.openAccount('Rider', 'cross device pass')
+    ok('server sign-in: the installed account reopens with its password',
+        JSON.parse(reopenRider.data['mathlab-exercise-progress'])['alg1-x'].attempts === 7)
+
     globalThis.localStorage.clear()
     delete globalThis.localStorage
 }

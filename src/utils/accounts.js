@@ -275,6 +275,52 @@ export const adoptRemoteBlob = async (session, blob, password) => {
     return { ...session, cryptoKey, data }
 }
 
+/**
+ * Install a profile pulled from the sync server as a local account on this
+ * device, verifying the password by actually decrypting the blob.
+ *
+ * This is what makes "sign in on a new device and everything comes back" work
+ * without carrying a file over: the caller fetches the encrypted blob from the
+ * server with a token derived from the same password, and this turns it into a
+ * real local account and opens it.
+ *
+ * Unlike importProfile, which refuses to clobber a *different* person's profile
+ * of the same name, this is the same profile coming home from the server, so it
+ * replaces any local copy — the server's is the shared source of truth.
+ */
+export const installProfileFromBlob = async (display, password, blob) => {
+    const problem = usernameProblem(display)
+    if (problem) throw new Error(problem)
+    if (!blob || !blob.salt || !blob.iv || !blob.ct) throw new Error('The server did not return a usable profile.')
+
+    // Decrypt to prove the password is right; a wrong one must not install a
+    // profile this device could never open.
+    let data
+    try {
+        const probe = await deriveKey(password, fromB64(blob.salt), blob.iterations || PBKDF2_ITERATIONS)
+        data = await decryptJSON(probe, blob)
+    } catch {
+        throw new Error('That username and password do not match the profile on the server.')
+    }
+
+    const key = usernameKey(display)
+    const store = loadAccounts()
+    store.users[key] = {
+        display: String(display).trim(),
+        salt: blob.salt,
+        iterations: blob.iterations || PBKDF2_ITERATIONS,
+        iv: blob.iv,
+        ct: blob.ct,
+        createdAt: store.users[key]?.createdAt || Date.now(),
+        updatedAt: Date.now()
+    }
+    saveAccounts(store)
+
+    // A fresh key bound to the account as now stored, matching openAccount.
+    const cryptoKey = await deriveKey(password, fromB64(blob.salt), blob.iterations || PBKDF2_ITERATIONS)
+    return { key, display: store.users[key].display, cryptoKey, data }
+}
+
 /* ---- moving a profile between devices -----------------------------------
  * There is no server to sync through, so a profile travels as a file. What is
  * exported is exactly what is stored: salt, iterations, IV and ciphertext. It
@@ -372,9 +418,13 @@ export const importProfile = async (text, password, { rename = '' } = {}) => {
  * first sign-in after this list grows would have wiped the browser bookmarks.
  * So a key is only cleared when the snapshot is new enough to have known it.
  *
- * Deliberately excluded: mathlab-frame-size (a window size belongs to the
- * screen, not the person) and mathlab-frame-pruned (a one-time migration flag
+ * Deliberately excluded, because they belong to the device rather than the
+ * person: mathlab-frame-size and mathlab-frame-pos (a window's size and place
+ * suit the screen it is on — and a position saved on a wide monitor can land
+ * off-screen on a laptop), and mathlab-frame-pruned (a one-time migration flag
  * that must stay per-device or the migration re-runs or is wrongly skipped).
+ * Also excluded: the sync settings themselves (mathlab-sync-*) and the account
+ * store (mathlab-accounts), which are device configuration, not workspace.
  */
 const KEY_SINCE = {
     'mathlab-profile': 1,
@@ -392,10 +442,15 @@ const KEY_SINCE = {
     'mathlab-2048-state': 2,
     'mathlab-dino-highscore': 2,
     'mathlab-nav-order': 2,
-    'mathlab-tool-order': 2
+    'mathlab-tool-order': 2,
+    // v3 — later web-viewer additions, which the earlier list never captured, so
+    // a profile that predates them keeps its device copy until its next save
+    'mathlab-frame-saved': 3,
+    'mathlab-frame-zoom': 3,
+    'mathlab-frame-popup-hosts': 3
 }
 
-export const WORKSPACE_VERSION = 2
+export const WORKSPACE_VERSION = 3
 export const WORKSPACE_KEYS = Object.keys(KEY_SINCE)
 
 export const snapshotWorkspace = () => {
