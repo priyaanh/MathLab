@@ -20,7 +20,13 @@ import { move, canMove, newGame, spawn, isValidBoard, normalizeBoard } from '../
 import {
     toUrl, hostOf, blocksFraming, tabLabel, sanitizePrefs, sanitizeSession, sanitizeBookmarks,
     hueFor, pruneRetiredDefaults, readableOn, embedUrl, isBlocked, searchTermOf, sanitizeHistory, recordVisit, rankSuggestions, prettyPath, MAX_HISTORY,
-    ENGINES, DEFAULT_PREFS, MAX_BOOKMARKS, MAX_TABS, MAX_STACK, MIN_RAIL, MAX_RAIL
+    ENGINES, DEFAULT_PREFS, MAX_BOOKMARKS, MAX_TABS, MAX_STACK, MIN_RAIL, MAX_RAIL, BLOCKED_CHOICES,
+    ZOOM_LEVELS, clampZoom, stepZoom, sanitizeZooms, zoomFor, setZoomFor, waybackUrl,
+    moveItem, withPinnedFirst, tabTitle, topSites, dayLabel, groupHistory,
+    clampWindow, sanitizePos, resizeBox, parseOpenSearch, mergeSuggestions, suggestUrl, KEEP_ON_SCREEN,
+    rankPalette, scorePalette, sanitizeSavedSets, saveSet, removeSet, MAX_SAVED_SETS,
+    sanitizeHostList, hostListed, toggleHost, MAX_POPUP_HOSTS, sameLocation, greeting,
+    packBackup, parseBackup
 } from '../src/utils/webframe.js'
 
 let passed = 0
@@ -253,10 +259,14 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
     ok('webframe: host + path gets https', toUrl('wikipedia.org/wiki/Pi') === 'https://wikipedia.org/wiki/Pi')
     ok('webframe: blank input is null', toUrl('  ') === null && toUrl('') === null && toUrl(null) === null)
     ok('webframe: javascript: URLs are refused', toUrl('javascript:alert(1)') === null)
-    ok('webframe: prose becomes a search', toUrl('why is pi irrational').startsWith('https://search.marginalia.nu/search?query='))
+    // Derived from the list, not hardcoded: the default engine has already changed
+    // domain once, and a test that pins the URL only breaks the next time it moves.
+    const defaultEngine = ENGINES.find(e => e.id === DEFAULT_PREFS.engine)
+    ok('webframe: prose becomes a search', toUrl('why is pi irrational') === defaultEngine.q('why is pi irrational'))
     ok('webframe: search terms are encoded', toUrl('a b&c').endsWith('a%20b%26c'), toUrl('a b&c'))
     ok('webframe: engine choice is honoured', toUrl('pi', 'wikipedia').startsWith('https://en.wikipedia.org/w/index.php?search='))
-    ok('webframe: an unknown engine falls back', toUrl('pi', 'nope').startsWith('https://search.marginalia.nu/'))
+    ok('webframe: an unknown engine falls back', toUrl('pi', 'nope') === ENGINES[0].q('pi'))
+    ok('webframe: the first engine is the default one', ENGINES[0].id === DEFAULT_PREFS.engine)
     /*
      * The engine list is the one place a dead URL makes the whole viewer look
      * broken: a search just lands on a blank pane. These guard the shape of it —
@@ -286,7 +296,13 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
             'https://github.com', 'https://x.com/home', 'https://duckduckgo.com'].every(blocksFraming))
     ok('webframe: leaves frameable hosts alone',
         ['https://en.wikipedia.org', 'https://www.khanacademy.org', 'https://archive.org',
-            'https://searx.be/search?q=pi'].every(u => !blocksFraming(u)))
+            'https://web.archive.org/web/3000/https://x.com', 'https://oeis.org/search?q=1',
+            // the list says wolframalpha, never wolfram: MathWorld allows framing
+            'https://mathworld.wolfram.com/Pi.html', 'https://searx.be/search?q=pi'].every(u => !blocksFraming(u)))
+    ok('webframe: a subdomain of a refusing site is caught too',
+        ['https://search.brave.com/search?q=pi', 'https://docs.github.com', 'https://www.arxiv.org/abs/1'].every(blocksFraming))
+    ok('webframe: a host that merely contains the word is left alone',
+        ['https://notgoogle.com', 'https://redditlike.org'].every(u => !blocksFraming(u)))
 
     ok('webframe: tabLabel drops the www', tabLabel('https://www.khanacademy.org/x') === 'khanacademy.org')
     ok('webframe: tabLabel names a blank tab', tabLabel(null) === 'New tab' && tabLabel('') === 'New tab')
@@ -525,6 +541,479 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
 }
 
 
+
+// --- 8b. web viewer: zoom, tab strip, history panel ------------------------
+{
+    /* zoom is written into a style attribute and read back from localStorage, so
+       every value that reaches it has to land on a known step */
+    ok('zoom: the ladder passes through 1', ZOOM_LEVELS.includes(1))
+    ok('zoom: the ladder is sorted and unique',
+        ZOOM_LEVELS.every((z, i) => i === 0 || z > ZOOM_LEVELS[i - 1]))
+    ok('zoom: junk clamps to 100%', [null, undefined, NaN, 'big', {}, [], '', 0, -3, true].every(v => clampZoom(v) === 1))
+    ok('zoom: an odd number snaps to the nearest step', clampZoom(1.03) === 1 && clampZoom(1.2) === 1.25)
+    ok('zoom: stepping in and out returns to where it started', stepZoom(stepZoom(1, 1), -1) === 1)
+    ok('zoom: the ends of the ladder hold',
+        stepZoom(ZOOM_LEVELS[0], -1) === ZOOM_LEVELS[0]
+        && stepZoom(ZOOM_LEVELS[ZOOM_LEVELS.length - 1], 1) === ZOOM_LEVELS[ZOOM_LEVELS.length - 1])
+    ok('zoom: a stored 100% is dropped rather than kept', !('a.com' in sanitizeZooms({ 'a.com': 1 })))
+    ok('zoom: a bogus host key is dropped', !('not a host' in sanitizeZooms({ 'not a host': 2 })))
+    ok('zoom: a good entry survives a round trip', sanitizeZooms({ 'en.wikipedia.org': 1.25 })['en.wikipedia.org'] === 1.25)
+    ok('zoom: it is read back per host, not per page',
+        zoomFor({ 'en.wikipedia.org': 1.5 }, 'https://en.wikipedia.org/wiki/Anything') === 1.5)
+    ok('zoom: an unzoomed site reads as 100%', zoomFor({}, 'https://example.com') === 1 && zoomFor(null, 'https://example.com') === 1)
+    ok('zoom: setting a level keys it on the host',
+        setZoomFor({}, 'https://en.wikipedia.org/wiki/Pi', 1.25)['en.wikipedia.org'] === 1.25)
+    ok('zoom: back to 100% removes the entry',
+        Object.keys(setZoomFor({ 'a.com': 2 }, 'https://a.com/x', 1)).length === 0)
+    ok('zoom: a junk URL changes nothing', Object.keys(setZoomFor({}, 'nonsense', 2)).length === 0)
+
+    /* the archived copy is the one honest way into a site that refuses framing */
+    ok('wayback: it wraps a real page', waybackUrl('https://x.com/a') === 'https://web.archive.org/web/3000/https://x.com/a')
+    ok('wayback: the archive is never archived', waybackUrl('https://web.archive.org/web/3000/https://x.com') === null)
+    ok('wayback: junk gives nothing back', [null, '', 'javascript:alert(1)', 'ftp://a.com'].every(u => waybackUrl(u) === null))
+    ok('wayback: the archive itself can be framed', !blocksFraming('https://web.archive.org/web/3000/https://x.com'))
+
+    /* tab strip */
+    ok('tabs: an item moves and the rest close up', moveItem([1, 2, 3, 4], 0, 2).join('') === '2314')
+    ok('tabs: moving backwards works too', moveItem([1, 2, 3, 4], 3, 1).join('') === '1423')
+    ok('tabs: an out-of-range move is a no-op',
+        moveItem([1, 2], 5, 0).join('') === '12' && moveItem([1, 2], 0, 9).join('') === '12' && moveItem([1, 2], 1, 1).join('') === '12')
+    ok('tabs: the input array is never mutated', (() => {
+        const a = [1, 2, 3]
+        moveItem(a, 0, 2)
+        return a.join('') === '123'
+    })())
+    ok('tabs: pinned ones come first, order otherwise kept',
+        withPinnedFirst([{ id: 1 }, { id: 2, pinned: true }, { id: 3 }, { id: 4, pinned: true }])
+            .map(t => t.id).join('') === '2413')
+    ok('tabs: junk in the list does not throw', withPinnedFirst([null, { id: 1 }]).length === 2 && withPinnedFirst(null).length === 0)
+    ok('tabs: a pinned tab survives a restart',
+        sanitizeSession({ tabs: [{ stack: ['https://a.com'], idx: 0, pinned: true }], active: 0 }).tabs[0].pinned === true)
+    ok('tabs: pinned is never inherited from junk',
+        sanitizeSession({ tabs: [{ stack: ['https://a.com'], idx: 0, pinned: 'yes' }], active: 0 }).tabs[0].pinned === false)
+
+    /* tab titles stand in for a <title> no cross-origin frame will hand over */
+    ok('tabs: a real page names itself', tabTitle('https://en.wikipedia.org/wiki/Pythagorean_theorem') === 'Pythagorean theorem')
+    ok('tabs: a generic segment falls back to the host',
+        tabTitle('https://marginalia-search.com/search?query=pi') === 'marginalia-search.com'
+        && tabTitle('https://a.com/index.html') === 'a.com')
+    ok('tabs: a bare host is its own title', tabTitle('https://example.com') === 'example.com')
+    ok('tabs: a short article name still beats the host', tabTitle('https://en.wikipedia.org/wiki/Pi') === 'Pi')
+    ok('tabs: a bare id is not a title', tabTitle('https://a.com/12345') === 'a.com')
+    ok('tabs: a blank tab is still "New tab"', tabTitle(null) === 'New tab' && tabTitle('') === 'New tab')
+    ok('tabs: a very long title is cut, not left to overflow', tabTitle(`https://a.com/${'x'.repeat(90)}`).length <= 34)
+
+    /* home screen: one tile per site, and never one already on the shelf */
+    const hist = [
+        { url: 'https://en.wikipedia.org/wiki/Pi', visits: 9, last: 500 },
+        { url: 'https://en.wikipedia.org/wiki/E', visits: 2, last: 900 },
+        { url: 'https://oeis.org/A000045', visits: 4, last: 400 },
+        { url: 'https://archive.org', visits: 1, last: 100 }
+    ]
+    const top = topSites(hist)
+    ok('home: one tile per site', top.filter(t => hostOf(t.url) === 'en.wikipedia.org').length === 1)
+    ok('home: the most-opened page wins its site', top[0].url === 'https://en.wikipedia.org/wiki/Pi')
+    ok('home: tiles are ordered by how often they were opened', top.map(t => t.visits).join(',') === '9,4,1')
+    ok('home: an existing shortcut is not shown twice',
+        topSites(hist, { exclude: ['https://en.wikipedia.org/wiki/Pi'] })[0].url !== 'https://en.wikipedia.org/wiki/Pi')
+    ok('home: the limit is honoured', topSites(hist, { limit: 2 }).length === 2)
+    ok('home: no history gives no tiles', topSites([]).length === 0 && topSites(null).length === 0)
+
+    /* history panel */
+    const noon = new Date(2026, 6, 15, 12, 0, 0).getTime()
+    ok('history: today and yesterday are named', dayLabel(noon, noon) === 'Today' && dayLabel(noon - 86400000, noon) === 'Yesterday')
+    ok('history: an older day gets a written date', /\d/.test(dayLabel(noon - 86400000 * 40, noon)))
+    ok('history: an unreadable stamp does not throw', dayLabel(NaN, noon) === 'Earlier')
+
+    const rows = [
+        { url: 'https://en.wikipedia.org/wiki/Pi', visits: 3, last: noon },
+        { url: 'https://oeis.org/A000045', visits: 1, last: noon - 60000 },
+        { url: 'https://example.com/old', visits: 1, last: noon - 86400000 * 3 }
+    ]
+    const groups = groupHistory(rows, { now: noon })
+    ok('history: rows are grouped by day, newest first', groups.length === 2 && groups[0].label === 'Today' && groups[0].items.length === 2)
+    ok('history: the filter matches the address', groupHistory(rows, { query: 'oeis', now: noon }).flatMap(g => g.items).length === 1)
+    ok('history: the filter matches the readable title too',
+        groupHistory(rows, { query: 'pi', now: noon }).flatMap(g => g.items)[0].url === 'https://en.wikipedia.org/wiki/Pi')
+    ok('history: a filter that matches nothing leaves no empty headings', groupHistory(rows, { query: 'zzz', now: noon }).length === 0)
+    ok('history: junk gives an empty list', groupHistory(null).length === 0)
+    ok('history: the input list is not re-ordered in place', (() => {
+        const a = [{ url: 'https://a.com', visits: 1, last: 1 }, { url: 'https://b.com', visits: 1, last: 9 }]
+        groupHistory(a)
+        return a[0].url === 'https://a.com'
+    })())
+
+    ok('prefs: the frequently-visited row defaults on and can be turned off',
+        sanitizePrefs(null).showNtpTop === true && sanitizePrefs({ showNtpTop: false }).showNtpTop === false)
+}
+
+// --- 8c. web viewer: window geometry and suggestions -----------------------
+{
+    const view = { width: 1200, height: 800 }
+    const win = { w: 800, h: 600 }
+
+    /* a window can hang off an edge, but never far enough to lose its toolbar */
+    ok('window: a position inside the screen is left alone',
+        JSON.stringify(clampWindow({ x: 100, y: 60 }, win, view)) === JSON.stringify({ x: 100, y: 60 }))
+    ok('window: dragged off the left, a strip stays grabbable',
+        clampWindow({ x: -5000, y: 10 }, win, view).x === KEEP_ON_SCREEN - win.w)
+    ok('window: dragged off the right, a strip stays grabbable',
+        clampWindow({ x: 5000, y: 10 }, win, view).x === view.width - KEEP_ON_SCREEN)
+    ok('window: it can never go above the top', clampWindow({ x: 10, y: -400 }, win, view).y === 0)
+    ok('window: it can never fall past the bottom',
+        clampWindow({ x: 10, y: 5000 }, win, view).y === view.height - KEEP_ON_SCREEN)
+    ok('window: a window smaller than the margin is still fully placeable',
+        clampWindow({ x: 0, y: 0 }, { w: 40, h: 30 }, view).x === 0)
+    ok('window: junk coordinates do not produce NaN',
+        Number.isFinite(clampWindow({ x: undefined, y: 'x' }, win, view).x))
+
+    ok('window: a saved position round-trips', JSON.stringify(sanitizePos({ x: 12.4, y: 7.6 })) === JSON.stringify({ x: 12, y: 8 }))
+    ok('window: never-moved reads as null',
+        [null, undefined, [], 'x', { x: 1 }, { x: NaN, y: 0 }].every(v => sanitizePos(v) === null))
+
+    /* resizing: the edge you did not grab must not move */
+    const start = { x: 100, y: 100, w: 800, h: 600 }
+    ok('resize: the south-east corner grows without moving the window',
+        JSON.stringify(resizeBox('se', start, 50, 40)) === JSON.stringify({ x: 100, y: 100, w: 850, h: 640 }))
+    ok('resize: pulling the top edge down keeps the bottom edge still', (() => {
+        const b = resizeBox('n', start, 0, 50)
+        return b.y === 150 && b.h === 550 && b.y + b.h === start.y + start.h
+    })())
+    ok('resize: pulling the left edge keeps the right edge still', (() => {
+        const b = resizeBox('w', start, 60, 0)
+        return b.x === 160 && b.w === 740 && b.x + b.w === start.x + start.w
+    })())
+    ok('resize: a corner moves both of its edges', (() => {
+        const b = resizeBox('nw', start, 30, 20)
+        return b.x === 130 && b.y === 120 && b.w === 770 && b.h === 580
+    })())
+    ok('resize: the minimum size holds, and the anchored edge stays put', (() => {
+        const b = resizeBox('nw', start, 5000, 5000, { w: 520, h: 360 })
+        return b.w === 520 && b.h === 360 && b.x + b.w === start.x + start.w && b.y + b.h === start.y + start.h
+    })())
+    ok('resize: "move" changes place and not size', (() => {
+        const b = resizeBox('move', start, -40, 25)
+        return b.x === 60 && b.y === 125 && b.w === start.w && b.h === start.h
+    })())
+
+    /* article suggestions */
+    ok('suggest: the endpoint asks for CORS and encodes the query',
+        suggestUrl('a b').includes('origin=*') && suggestUrl('a b').endsWith('a%20b'))
+    ok('suggest: a very long query is cut before it is sent', suggestUrl('x'.repeat(400)).length < 300)
+    const os = ['pi', ['Pi', 'Pion', 'Bad'], ['', '', ''], ['https://en.wikipedia.org/wiki/Pi', 'https://en.wikipedia.org/wiki/Pion', 'not-a-url']]
+    ok('suggest: well-formed rows are kept', parseOpenSearch(os).length === 2)
+    ok('suggest: a row without a usable URL is dropped', !parseOpenSearch(os).some(r => r.label === 'Bad'))
+    ok('suggest: rows are labelled as articles', parseOpenSearch(os).every(r => r.kind === 'article'))
+    ok('suggest: the limit is honoured', parseOpenSearch(os, 1).length === 1)
+    ok('suggest: a broken reply gives nothing rather than throwing',
+        [null, undefined, {}, [], ['pi'], 'nope', [1, 2, 3, 4]].every(v => parseOpenSearch(v).length === 0))
+
+    const local = [{ url: 'https://a.com', kind: 'bookmark' }, { url: 'https://b.com', kind: 'history' }]
+    const remote = [{ url: 'https://a.com', kind: 'article' }, { url: 'https://c.com', kind: 'article' }]
+    ok('suggest: local rows come first and are never displaced',
+        mergeSuggestions(local, remote).slice(0, 2).every((r, i) => r.url === local[i].url))
+    ok('suggest: a page already suggested locally is not repeated',
+        mergeSuggestions(local, remote).filter(r => r.url === 'https://a.com').length === 1)
+    ok('suggest: the merged list respects its limit', mergeSuggestions(local, remote, 2).length === 2)
+
+    /* an open tab is offered as "switch to it", not as a second copy */
+    const openTabs = [{ id: 7, url: 'https://en.wikipedia.org/wiki/Pi' }]
+    const withOpen = rankSuggestions('wikipedia', {
+        bookmarks: [{ url: 'https://en.wikipedia.org/wiki/Pi', label: 'Pi' }],
+        history: [{ url: 'https://en.wikipedia.org/wiki/Pi', visits: 4, last: 9 }],
+        open: openTabs
+    })
+    ok('suggest: an open page is offered once, as a tab', withOpen.length === 1 && withOpen[0].kind === 'tab')
+    ok('suggest: the tab row carries the id needed to raise it', withOpen[0].tabId === 7)
+    ok('suggest: it outranks the same page as a bookmark', (() => {
+        const two = rankSuggestions('e', {
+            bookmarks: [{ url: 'https://example.org', label: 'example' }],
+            open: [{ id: 3, url: 'https://en.wikipedia.org/wiki/Euler' }]
+        })
+        return two[0].kind === 'tab'
+    })())
+    ok('suggest: no open tabs still works', rankSuggestions('wiki', { history: [{ url: 'https://en.wikipedia.org/wiki/Pi', visits: 1, last: 1 }] }).length === 1)
+
+    /*
+     * The blocklist decides whether a typed address loads or is sent to a browser
+     * tab, so a wrong entry is felt directly: a frameable site turned away looks
+     * like the viewer is refusing to go where it was told. These were all read off
+     * the sites' own headers.
+     */
+    ok('framing: hosts that really do refuse are caught',
+        ['https://www.apple.com', 'https://www.google.com', 'https://github.com', 'https://www.roblox.com',
+            'https://slack.com', 'https://www.dropbox.com', 'https://www.canva.com', 'https://chatgpt.com',
+            'https://www.amazon.com/dp/B0'].every(blocksFraming))
+    ok('framing: hosts that send no such header are left alone',
+        ['https://www.microsoft.com', 'https://zoom.us', 'https://www.baidu.com', 'https://www.imdb.com',
+            'https://www.ebay.com', 'https://outlook.live.com'].every(u => !blocksFraming(u)),
+        JSON.stringify(['https://www.microsoft.com', 'https://zoom.us', 'https://www.baidu.com',
+            'https://www.imdb.com', 'https://www.ebay.com', 'https://outlook.live.com'].filter(blocksFraming)))
+    ok('framing: a bare domain typed in the bar becomes that site, not a search',
+        toUrl('apple.com') === 'https://apple.com' && toUrl('microsoft.com') === 'https://microsoft.com')
+    ok('webframe: a domain keeps its path, query and fragment',
+        toUrl('apple.com/iphone?x=1#top') === 'https://apple.com/iphone?x=1#top')
+    ok('webframe: a port is part of the address', toUrl('example.com:8080/x') === 'https://example.com:8080/x')
+    ok('webframe: a decimal or a ratio is still a search',
+        !toUrl('3.5').startsWith('https://3.5') && toUrl('what is 3.5:1').includes('search'))
+
+    /*
+     * Official embed endpoints. These are the only honest way to show a site that
+     * refuses page framing: the endpoint is published by the site for exactly this,
+     * so nothing is being circumvented. Each URL below was fetched and confirmed to
+     * come back without an X-Frame-Options that would stop it.
+     */
+    /*
+     * A site whose page refuses framing but whose content has an embed is listed in
+     * FRAMING_REFUSED *and* mapped here. The pair has to stay in step: the mapping
+     * without the listing leaves the surrounding pages showing a blank pane, and the
+     * listing without the mapping walls off the very thing worth opening.
+     */
+    ok('embed: a PhET simulation opens as the runnable sim',
+        embedUrl('https://phet.colorado.edu/en/simulations/graphing-lines')
+        === 'https://phet.colorado.edu/sims/html/graphing-lines/latest/graphing-lines_en.html')
+    ok('embed: a sim URL is already the right thing',
+        embedUrl('https://phet.colorado.edu/sims/html/graphing-lines/latest/graphing-lines_en.html') !== null)
+    ok('embed: so a sim opens but the rest of PhET is walled',
+        !isBlocked('https://phet.colorado.edu/en/simulations/graphing-lines')
+        && isBlocked('https://phet.colorado.edu/en/about'))
+
+    ok('embed: a TED talk becomes its embed',
+        embedUrl('https://www.ted.com/talks/ken_robinson_says_schools_kill_creativity')
+        === 'https://embed.ted.com/talks/ken_robinson_says_schools_kill_creativity')
+    ok('embed: the rest of TED has none', embedUrl('https://www.ted.com/about/our-organization') === null)
+
+    ok('embed: an Observable notebook becomes its embed',
+        embedUrl('https://observablehq.com/@d3/bar-chart') === 'https://observablehq.com/embed/@d3/bar-chart')
+    ok('embed: an Observable listing has none', embedUrl('https://observablehq.com/explore') === null)
+
+    ok('embed: a Google Form gets the documented embedded flag',
+        embedUrl('https://docs.google.com/forms/d/e/1FAIpQLSabc/viewform') === 'https://docs.google.com/forms/d/e/1FAIpQLSabc/viewform?embedded=true')
+    ok('embed: a form already flagged is unchanged in meaning',
+        embedUrl('https://docs.google.com/forms/d/e/1FAIpQLSabc/viewform?embedded=true').includes('embedded=true'))
+    ok('embed: Docs, Sheets and Slides still map to /preview',
+        embedUrl('https://docs.google.com/document/d/abc123/edit') === 'https://docs.google.com/document/d/abc123/preview')
+
+    ok('embed: an arXiv abstract opens as the paper itself',
+        embedUrl('https://arxiv.org/abs/1706.03762') === 'https://arxiv.org/pdf/1706.03762')
+    ok('embed: a versioned id is kept', embedUrl('https://arxiv.org/abs/2301.00001v2') === 'https://arxiv.org/pdf/2301.00001v2')
+    ok('embed: a PDF link is already the right thing', embedUrl('https://arxiv.org/pdf/2301.00001') === 'https://arxiv.org/pdf/2301.00001')
+    ok('embed: an arXiv listing has no paper to show', embedUrl('https://arxiv.org/list/math.NT/recent') === null)
+    ok('embed: so a paper is reachable but a listing is not',
+        !isBlocked('https://arxiv.org/abs/1706.03762') && isBlocked('https://arxiv.org/list/math.NT/recent'))
+
+    ok('embed: a Google Books edition becomes the viewer',
+        embedUrl('https://www.google.com/books/edition/_/zyTCAlFPjgYC') === 'https://books.google.com/books?id=zyTCAlFPjgYC&output=embed')
+    ok('embed: the older books.google.com form works too',
+        embedUrl('https://books.google.com/books?id=zyTCAlFPjgYC') === 'https://books.google.com/books?id=zyTCAlFPjgYC&output=embed')
+    ok('embed: a book with no id is refused', embedUrl('https://books.google.com/books') === null)
+
+    ok('embed: an Archive item opens in its reader',
+        embedUrl('https://archive.org/details/AlicesAdventuresInWonderland') === 'https://archive.org/embed/AlicesAdventuresInWonderland')
+    ok('embed: a SoundCloud track becomes its player',
+        embedUrl('https://soundcloud.com/artist/track-name').startsWith('https://w.soundcloud.com/player/?url='))
+    ok('embed: a SoundCloud profile is not a track', embedUrl('https://soundcloud.com/artist') === null)
+    ok('embed: a Dailymotion video becomes its player',
+        embedUrl('https://www.dailymotion.com/video/x8abcde') === 'https://geo.dailymotion.com/player.html?video=x8abcde')
+    ok('embed: only Google Calendar\'s own embed view is used',
+        embedUrl('https://calendar.google.com/calendar/embed?src=x') !== null
+        && embedUrl('https://calendar.google.com/calendar/u/0/r') === null)
+
+    ok('embed: a Spotify track becomes the published player',
+        embedUrl('https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT') === 'https://open.spotify.com/embed/track/4cOdK2wGLETKBW3PvgPWqT')
+    ok('embed: a playlist works and its tracking query is dropped',
+        embedUrl('https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=x') === 'https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M')
+    ok('embed: an already-embedded Spotify URL is left alone',
+        embedUrl('https://open.spotify.com/embed/track/4cOdK2wGLETKBW3PvgPWqT') === 'https://open.spotify.com/embed/track/4cOdK2wGLETKBW3PvgPWqT')
+    ok('embed: a Spotify home page has no embed', embedUrl('https://open.spotify.com/') === null)
+
+    ok('embed: a Reddit post becomes the post embed',
+        embedUrl('https://www.reddit.com/r/math/comments/1abcdef/some_title/') === 'https://embed.reddit.com/r/math/comments/1abcdef/')
+    ok('embed: old.reddit posts work the same', embedUrl('https://old.reddit.com/r/math/comments/1abcdef/x/') !== null)
+    ok('embed: a subreddit listing has no embed', embedUrl('https://www.reddit.com/r/math/') === null)
+    ok('embed: so a listing is still reported as blocked', isBlocked('https://www.reddit.com/r/math/'))
+    ok('embed: but a post is not', !isBlocked('https://www.reddit.com/r/math/comments/1abcdef/x/'))
+
+    const osm = embedUrl('https://www.openstreetmap.org/#map=15/51.5074/-0.1278')
+    ok('embed: a map position becomes the export view', osm.startsWith('https://www.openstreetmap.org/export/embed.html?bbox='))
+    ok('embed: the marker keeps the place it was centred on', osm.includes('marker=51.5074,-0.1278'))
+    ok('embed: the box brackets that point', (() => {
+        const [w, s2, e, n] = new URL(osm).searchParams.get('bbox').split(',').map(Number)
+        return w < -0.1278 && e > -0.1278 && s2 < 51.5074 && n > 51.5074
+    })())
+    ok('embed: a closer zoom gives a tighter box', (() => {
+        const box = (z) => new URL(embedUrl(`https://www.openstreetmap.org/#map=${z}/51.5/-0.1`)).searchParams.get('bbox').split(',').map(Number)
+        const [w1, , e1] = box(12)
+        const [w2, , e2] = box(17)
+        return (e2 - w2) < (e1 - w1)
+    })())
+    ok('embed: the older ?mlat/?mlon marker form works too',
+        embedUrl('https://www.openstreetmap.org/?mlat=48.8584&mlon=2.2945').includes('marker=48.8584,2.2945'))
+    ok('embed: a map with no position is not guessed at',
+        embedUrl('https://www.openstreetmap.org/') === null && embedUrl('https://www.openstreetmap.org/about') === null)
+    ok('embed: nonsense coordinates are refused',
+        embedUrl('https://www.openstreetmap.org/?mlat=999&mlon=0') === null
+        && embedUrl('https://www.openstreetmap.org/?mlat=abc&mlon=1') === null)
+
+    ok('prefs: a refused site shows the archived copy by default',
+        sanitizePrefs(null).onBlocked === 'archive')
+    ok('prefs: every blocked-site answer is accepted',
+        BLOCKED_CHOICES.every(c => sanitizePrefs({ onBlocked: c }).onBlocked === c))
+    ok('prefs: the popup answer is one of them', BLOCKED_CHOICES.includes('popup'))
+
+    /* command palette ranking */
+    {
+        const items = [
+            { key: 't', title: 'Pythagorean theorem', subtitle: 'en.wikipedia.org', keywords: ['en.wikipedia.org'], base: 100 },
+            { key: 'n', title: 'New tab', keywords: ['open', 'create'], base: 60 },
+            { key: 's', title: 'Settings', keywords: ['preferences', 'options'], base: 60 },
+            { key: 'k', title: 'Khan Academy', subtitle: 'khanacademy.org', keywords: ['khanacademy.org'], base: 30 }
+        ]
+        ok('palette: empty query keeps everything in base order',
+            rankPalette('', items).map(i => i.key).join('') === 'tnsk')
+        ok('palette: a title-prefix match wins', rankPalette('new', items)[0].key === 'n')
+        ok('palette: a keyword finds an action', rankPalette('options', items)[0].key === 's')
+        ok('palette: a subsequence still matches ("nt" -> New tab)', rankPalette('nt', items).some(i => i.key === 'n'))
+        ok('palette: a non-match drops out', rankPalette('zzzz', items).length === 0)
+        ok('palette: a title prefix outscores a mere substring', (() => {
+            const two = [{ key: 'a', title: 'Tab overflow', base: 1 }, { key: 'b', title: 'About tabs', base: 1 }]
+            return rankPalette('tab', two)[0].key === 'a'
+        })())
+        ok('palette: base breaks ties so a tab beats a bookmark at equal match', (() => {
+            const two = [
+                { key: 'bm', title: 'Wikipedia', base: 30 },
+                { key: 'tab', title: 'Wikipedia', base: 100 }
+            ]
+            return rankPalette('wiki', two)[0].key === 'tab'
+        })())
+        ok('palette: the limit is honoured', rankPalette('', items, 2).length === 2)
+        ok('palette: junk inputs do not throw',
+            rankPalette('x', null).length === 0 && scorePalette('x', null) === 0 && scorePalette(null, items[0]) === items[0].base)
+    }
+
+    /* saved tab sets (workspaces) */
+    {
+        const tab = (url) => ({ stack: [url], idx: 0, pinned: false })
+        let list = saveSet([], 'Research', [tab('https://en.wikipedia.org/wiki/Pi'), tab('https://oeis.org/A1')], 100)
+        list = saveSet(list, 'Reading', [tab('https://archive.org')], 200)
+        ok('sets: a set is saved with its tabs', list.find(s => s.name === 'Research').tabs.length === 2)
+        ok('sets: the newest is first', list[0].name === 'Reading')
+        list = saveSet(list, 'research', [tab('https://a.com')], 300)
+        ok('sets: the same name (case-insensitive) replaces, not duplicates',
+            list.filter(s => s.name.toLowerCase() === 'research').length === 1 && list[0].name === 'research' && list[0].tabs.length === 1)
+        ok('sets: removing one by name works', removeSet(list, 'Reading').every(s => s.name !== 'Reading'))
+        ok('sets: an empty name or no tabs saves nothing',
+            saveSet([], '', [tab('https://x.com')], 0).length === 0 && saveSet([], 'x', [], 0).length === 0)
+        ok('sets: a hand-edited blob is cleaned up', (() => {
+            const cleaned = sanitizeSavedSets([
+                { name: 'Good', tabs: [tab('https://x.com')] },
+                { name: '', tabs: [tab('https://y.com')] },      // no name
+                { name: 'Empty', tabs: [] },                     // no tabs
+                { name: 'Good', tabs: [tab('https://z.com')] },  // duplicate name
+                null
+            ])
+            return cleaned.length === 1 && cleaned[0].name === 'Good'
+        })())
+        ok('sets: only http(s) tabs survive a set', (() => {
+            const s = saveSet([], 'Mixed', [tab('https://ok.com'), { stack: ['javascript:1'], idx: 0 }], 0)
+            return s[0].tabs.length === 1
+        })())
+        ok('sets: the count is capped', (() => {
+            let big = []
+            for (let i = 0; i < MAX_SAVED_SETS + 5; i++) big = saveSet(big, `set${i}`, [tab('https://x.com')], i + 1)
+            return big.length === MAX_SAVED_SETS
+        })())
+        ok('sets: junk gives an empty list', sanitizeSavedSets(null).length === 0 && sanitizeSavedSets('x').length === 0)
+    }
+
+    /* per-site "always open in a popup" rules */
+    {
+        let list = toggleHost([], 'https://www.google.com/search?q=x', true)
+        list = toggleHost(list, 'https://github.com', true)
+        ok('rules: a host is added without its www', list.includes('google.com') && list.includes('github.com'))
+        ok('rules: a www variant of a listed host still matches', hostListed(list, 'https://google.com/anything'))
+        ok('rules: an unlisted host does not match', !hostListed(list, 'https://apple.com'))
+        ok('rules: adding the same host twice does not duplicate',
+            toggleHost(list, 'https://www.github.com', true).filter(h => h === 'github.com').length === 1)
+        ok('rules: a host can be removed', !hostListed(toggleHost(list, 'https://github.com', false), 'https://github.com'))
+        ok('rules: a hand-edited blob is validated', (() => {
+            const c = sanitizeHostList(['not a host', 'GOOGLE.com', 'www.google.com', 'x.io', 5, null])
+            return c.length === 2 && c.includes('google.com') && c.includes('x.io')
+        })())
+        ok('rules: the list is capped', (() => {
+            const many = Array.from({ length: MAX_POPUP_HOSTS + 10 }, (_, i) => `h${i}.com`)
+            return sanitizeHostList(many).length === MAX_POPUP_HOSTS
+        })())
+        ok('rules: junk gives an empty list and never throws',
+            sanitizeHostList(null).length === 0 && hostListed(null, 'https://x.com') === false && toggleHost(null, 'nonsense', true).length === 0)
+    }
+
+    /* switch-to-open-tab matching, and the new-tab greeting */
+    {
+        ok('sameLocation: identical URLs match', sameLocation('https://a.com/x', 'https://a.com/x'))
+        ok('sameLocation: a trailing slash is ignored', sameLocation('https://a.com', 'https://a.com/') && sameLocation('https://a.com/x/', 'https://a.com/x'))
+        ok('sameLocation: the host is case-insensitive', sameLocation('https://A.com/x', 'https://a.com/x'))
+        ok('sameLocation: a different path does not match', !sameLocation('https://a.com/x', 'https://a.com/y'))
+        ok('sameLocation: the query and fragment count', !sameLocation('https://a.com/?a=1', 'https://a.com/?a=2') && !sameLocation('https://a.com/#a', 'https://a.com/#b'))
+        ok('sameLocation: a case-sensitive path is respected', !sameLocation('https://a.com/X', 'https://a.com/x'))
+        ok('sameLocation: junk never matches or throws', !sameLocation('nonsense', 'https://a.com') && !sameLocation(null, undefined))
+
+        ok('greeting: morning / afternoon / evening / night by hour',
+            greeting(8) === 'Good morning' && greeting(14) === 'Good afternoon' && greeting(19) === 'Good evening' && greeting(2) === 'Good night')
+        ok('greeting: the boundaries land on the right side',
+            greeting(5) === 'Good morning' && greeting(11) === 'Good morning' && greeting(12) === 'Good afternoon' && greeting(17) === 'Good evening' && greeting(22) === 'Good night')
+        ok('greeting: a bad hour falls back to a plain hello', greeting(NaN) === 'Hello' && greeting('x') === 'Hello')
+
+        ok('prefs: the clock defaults on and can be turned off',
+            sanitizePrefs(null).showNtpClock === true && sanitizePrefs({ showNtpClock: false }).showNtpClock === false)
+    }
+
+    /* full backup & restore */
+    {
+        const source = {
+            prefs: { accent: '#12a150', density: 'compact' },
+            bookmarks: [{ url: 'https://a.com', label: 'A' }],
+            savedSets: [{ name: 'Work', tabs: [{ stack: ['https://x.com'], idx: 0 }] }],
+            popupHosts: ['google.com'],
+            zooms: { 'a.com': 1.25 }
+        }
+        const packed = packBackup(source)
+        ok('backup: it is tagged as a viewer backup', packed.app === 'mathlab-web-viewer' && packed.version >= 1)
+        const round = parseBackup(JSON.stringify(packed))
+        ok('backup: a round trip keeps every section',
+            round.prefs.accent === '#12a150' && round.bookmarks.length === 1
+            && round.savedSets.length === 1 && round.popupHosts[0] === 'google.com' && round.zooms['a.com'] === 1.25)
+        ok('backup: parse accepts the object form too', parseBackup(packed).prefs.density === 'compact')
+        ok('backup: a foreign or broken blob is rejected',
+            parseBackup('{"app":"something-else"}') === null && parseBackup('not json') === null
+            && parseBackup('[]') === null && parseBackup(null) === null)
+        ok('backup: a partial backup restores only what it holds', (() => {
+            const p = parseBackup(JSON.stringify({ app: 'mathlab-web-viewer', bookmarks: [{ url: 'https://b.com', label: 'B' }] }))
+            return Object.keys(p).join(',') === 'bookmarks' && p.bookmarks.length === 1
+        })())
+        ok('backup: a hand-edited backup is still sanitised on the way in',
+            parseBackup(JSON.stringify({ app: 'mathlab-web-viewer', popupHosts: ['ok.com', 'not a host', 5] })).popupHosts.join(',') === 'ok.com')
+        ok('backup: history and open tabs are never included', !('history' in packed) && !('tabs' in packed) && !('session' in packed))
+    }
+    ok('prefs: an unknown answer falls back to the default',
+        sanitizePrefs({ onBlocked: 'proxy' }).onBlocked === 'archive'
+        && sanitizePrefs({ onBlocked: 7 }).onBlocked === 'archive')
+    /*
+     * This was a boolean before it was a choice, so a settings blob written by the
+     * older build has to land somewhere sensible rather than silently reverting the
+     * reader's decision to the new default.
+     */
+    ok('prefs: the old boolean migrates to the matching choice',
+        sanitizePrefs({ handOffBlocked: true }).onBlocked === 'tab'
+        && sanitizePrefs({ handOffBlocked: false }).onBlocked === 'explain')
+    ok('prefs: an explicit new choice beats a stale boolean',
+        sanitizePrefs({ handOffBlocked: true, onBlocked: 'archive' }).onBlocked === 'archive')
+
+    ok('prefs: article suggestions are off unless asked for',
+        sanitizePrefs(null).webSuggest === false
+        && sanitizePrefs({ webSuggest: true }).webSuggest === true
+        && sanitizePrefs({ webSuggest: 'yes' }).webSuggest === false)
+}
 
 // --- 9. profile accounts (WebCrypto) --------------------------------------
 {

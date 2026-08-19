@@ -6,10 +6,14 @@
  * Search engines that allow being framed. Google/Bing/DuckDuckGo all refuse.
  *
  * An entry has to be reachable AND frameable AND free of a bot wall, or a search
- * lands on a blank pane and the viewer looks broken. Three failed one of those
- * and are gone: search.disroot.org answers 429 to public traffic,
- * old.search.marginalia.nu no longer resolves, and searx.be serves an "automated
- * verification" interstitial instead of results.
+ * lands on a blank pane and the viewer looks broken. Each one here was checked by
+ * reading its response headers: no X-Frame-Options, no frame-ancestors.
+ *
+ * Several failed one of those and are gone: search.disroot.org answers 429 to
+ * public traffic, old.search.marginalia.nu no longer resolves, searx.be serves an
+ * "automated verification" interstitial, and every public SearXNG/4get instance
+ * checked sends frame-ancestors 'self'. Mojeek, Startpage, Ecosia, Qwant and
+ * Brave Search all refuse framing outright.
  *
  * Deleting the id is the point, not just dropping it down the list. sanitizePrefs
  * keeps any id still named here, so a saved pref pointing at a broken engine
@@ -18,16 +22,56 @@
  * those prefs fall back to the default on the next read.
  */
 export const ENGINES = [
-    { id: 'marginalia', name: 'Marginalia', q: (s) => `https://search.marginalia.nu/search?query=${encodeURIComponent(s)}` },
+    // marginalia moved house: search.marginalia.nu now 302s here, and a redirect
+    // inside the frame is a round trip for nothing.
+    { id: 'marginalia', name: 'Marginalia', q: (s) => `https://marginalia-search.com/search?query=${encodeURIComponent(s)}` },
     { id: 'wikipedia', name: 'Wikipedia', q: (s) => `https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(s)}` },
+    // two the rest of the web can't match on a maths site, and both allow framing
+    { id: 'mathworld', name: 'MathWorld', q: (s) => `https://mathworld.wolfram.com/search/?query=${encodeURIComponent(s)}` },
+    { id: 'oeis', name: 'OEIS (sequences)', q: (s) => `https://oeis.org/search?q=${encodeURIComponent(s)}` },
     { id: 'wiby', name: 'Wiby', q: (s) => `https://wiby.me/?q=${encodeURIComponent(s)}` }
 ]
 
 /**
- * Hosts that send X-Frame-Options / frame-ancestors. Nothing on the page can
+ * Sites that send X-Frame-Options / frame-ancestors. Nothing on the page can
  * override those headers, so we warn instead of showing a blank frame.
+ *
+ * Written as names rather than one long regex so the list stays readable and an
+ * entry can be justified. Each is matched as a whole domain label, so a
+ * subdomain is covered (search.brave.com, docs.github.com) while a host that
+ * merely contains the word is not (mathworld.wolfram.com is frameable and must
+ * keep working, which is why the list says wolframalpha and never wolfram).
+ *
+ * Every name here was confirmed by reading the site's own response headers. That
+ * standard matters in both directions: a site left off shows a blank pane, but a
+ * site listed by guesswork is turned away from a frame it would have accepted,
+ * which is the more annoying failure because it looks deliberate. Six names that
+ * had been guessed rather than measured — microsoft, zoom, baidu, imdb, ebay and
+ * live — send no such header at all and have been dropped. Amazon stays: its
+ * front page sends nothing, but product pages send SAMEORIGIN, and a product page
+ * is where people actually land.
  */
-const BLOCKS_FRAMING = /^(www\.|m\.|old\.)?(google|youtube|bing|duckduckgo|github|stackoverflow|reddit|instagram|facebook|twitter|amazon|netflix|tiktok|discord|roblox|linkedin|openstreetmap|wolframalpha|startpage|ecosia|qwant|mojeek)\.[a-z.]+$/i
+const FRAMING_REFUSED = [
+    // search
+    'google', 'bing', 'duckduckgo', 'startpage', 'ecosia', 'qwant', 'mojeek',
+    'brave', 'yandex',
+    // social
+    'reddit', 'instagram', 'facebook', 'twitter', 'threads', 'tiktok', 'linkedin',
+    'pinterest', 'discord', 'telegram', 'whatsapp',
+    // code + reference
+    'github', 'gitlab', 'stackoverflow', 'stackexchange', 'arxiv', 'medium',
+    'quora', 'wolframalpha', 'openstreetmap',
+    // these refuse the page a reader lands on but publish an embed for the thing
+    // itself, so embedUrl maps them and only the surrounding pages are walled
+    'ted', 'observablehq', 'phet',
+    // media + shopping
+    'youtube', 'netflix', 'spotify', 'twitch', 'amazon', 'roblox',
+    // apps + accounts
+    'chatgpt', 'openai', 'claude', 'anthropic', 'notion', 'canva', 'figma',
+    'dropbox', 'apple', 'office', 'slack', 'paypal'
+]
+
+const BLOCKS_FRAMING = new RegExp(`(^|\\.)(${FRAMING_REFUSED.join('|')})\\.[a-z.]{2,}$`, 'i')
 
 export const hostOf = (url) => { try { return new URL(url).hostname } catch { return '' } }
 
@@ -35,13 +79,23 @@ export const hostOf = (url) => { try { return new URL(url).hostname } catch { re
  * Map a page to an officially embeddable version of itself, or null.
  *
  * Several big sites refuse framing for the page a person lands on but publish a
- * supported embed endpoint for the same content — YouTube's player, Google's
- * map and document previews. Using those is the difference between showing the
- * content and defeating a security control: X-Frame-Options exists to stop a
- * page being framed and clickjacked, and the answer to it is the embed the site
- * offers, never a proxy that strips the header off a session someone is logged
- * into. Where no such endpoint exists — Google Search above all — this returns
- * null and the viewer says so plainly instead of showing a blank pane.
+ * supported embed endpoint for the same content — YouTube's player, Google's map
+ * and document previews, Spotify's player, OpenStreetMap's export view, Reddit's
+ * post embed.
+ *
+ * Using those is the difference between showing the content and defeating a
+ * security control. X-Frame-Options exists to stop a page being framed and
+ * clickjacked, and it is enforced by the browser, not by this file: nothing a
+ * page can write overrides it. The only thing that would is a server that
+ * refetches the site and strips the header before serving it from this origin,
+ * and that is worse than it sounds — the content would no longer carry the
+ * reader's cookies, so they would be logged out of everything, and the only way
+ * to restore that is to have them type the site's password into our server. The
+ * answer to a refused frame is the embed the site publishes, or a browser tab of
+ * its own; never a proxy standing in the middle of somebody's session.
+ *
+ * Where no such endpoint exists — Google Search above all — this returns null and
+ * the viewer says so plainly instead of showing a blank pane.
  *
  * The real URL stays in the address bar, history and bookmarks; only what the
  * frame is pointed at changes.
@@ -81,7 +135,121 @@ export const embedUrl = (raw) => {
     if (host === 'docs.google.com' || host === 'drive.google.com') {
         const m = u.pathname.match(/^\/(document|spreadsheets|presentation|file)\/d\/([\w-]+)/)
         if (m) return `https://${u.hostname}/${m[1]}/d/${m[2]}/preview`
+        // Forms are the exception in the family: no /preview path, but a documented
+        // ?embedded=true that drops the surrounding Google chrome
+        if (/^\/forms\/d\/(e\/)?[\w-]+\/viewform/.test(u.pathname)) {
+            u.searchParams.set('embedded', 'true')
+            return u.href
+        }
         return null
+    }
+
+    /* ---- PhET: the description page refuses framing, the simulation does not ---- */
+    if (host === 'phet.colorado.edu') {
+        if (u.pathname.startsWith('/sims/')) return u.href   // already the runnable sim
+        // /en/simulations/graphing-lines -> /sims/html/graphing-lines/latest/graphing-lines_en.html
+        const m = u.pathname.match(/^\/[a-z]{2}\/simulations?\/([a-z0-9-]+)/i)
+        return m ? `https://phet.colorado.edu/sims/html/${m[1]}/latest/${m[1]}_en.html` : null
+    }
+
+    /* ---- TED: talks have a published embed host, the rest of the site does not ---- */
+    if (host === 'embed.ted.com') return u.href
+    if (host === 'ted.com') {
+        const m = u.pathname.match(/^\/talks\/([a-z0-9_]+)/i)
+        return m ? `https://embed.ted.com/talks/${m[1]}` : null
+    }
+
+    /* ---- Observable: /embed/@user/notebook is the published form ---- */
+    if (host === 'observablehq.com') {
+        if (u.pathname.startsWith('/embed/')) return u.href
+        const m = u.pathname.match(/^\/(@[\w-]+\/[\w-]+)/)
+        return m ? `https://observablehq.com/embed/${m[1]}` : null
+    }
+
+    /* ---- arXiv: the abstract page refuses framing, the PDF does not ---- */
+    if (host === 'arxiv.org') {
+        // /abs/2301.00001v2 and /pdf/2301.00001v2 carry the same id, and the PDF
+        // is the whole paper — which is what following a citation was for anyway
+        const m = u.pathname.match(/^\/(?:abs|pdf)\/([\w.\-/]+?)(?:\.pdf)?$/)
+        return m ? `https://arxiv.org/pdf/${m[1]}` : null
+    }
+
+    /* ---- Google Books: output=embed is the documented viewer ---- */
+    if (host === 'books.google.com') {
+        if (u.searchParams.get('output') === 'embed') return u.href
+        const id = u.searchParams.get('id')
+        return id && /^[\w-]{6,20}$/.test(id) ? `https://books.google.com/books?id=${id}&output=embed` : null
+    }
+    if (host === 'google.com' && u.pathname.startsWith('/books/edition/')) {
+        // /books/edition/<title-or-underscore>/<id> — four segments, id is the last
+        const id = u.pathname.split('/').filter(Boolean)[3]
+        return id && /^[\w-]{6,20}$/.test(id) ? `https://books.google.com/books?id=${id}&output=embed` : null
+    }
+
+    /* ---- Google Calendar: only its published embed view ---- */
+    if (host === 'calendar.google.com') {
+        return u.pathname.startsWith('/calendar/embed') ? u.href : null
+    }
+
+    /* ---- SoundCloud and Dailymotion: their published players ---- */
+    if (host === 'soundcloud.com') {
+        // the player takes the track's own page address as its argument
+        return u.pathname.split('/').filter(Boolean).length >= 2
+            ? `https://w.soundcloud.com/player/?url=${encodeURIComponent(u.href)}&visual=true`
+            : null
+    }
+    if (host === 'dailymotion.com' || host === 'dai.ly') {
+        const id = host === 'dai.ly'
+            ? u.pathname.split('/').filter(Boolean)[0]
+            : (u.pathname.match(/^\/video\/([a-z0-9]+)/i) || [])[1]
+        return id && /^[a-z0-9]{5,20}$/i.test(id) ? `https://geo.dailymotion.com/player.html?video=${id}` : null
+    }
+
+    /* ---- Internet Archive: /embed/<item> is its reader ---- */
+    if (host === 'archive.org') {
+        if (u.pathname.startsWith('/embed/')) return u.href
+        const m = u.pathname.match(/^\/details\/([\w.-]+)/)
+        return m ? `https://archive.org/embed/${m[1]}` : null
+    }
+
+    /* ---- Spotify: /embed/<kind>/<id> is the published player ---- */
+    if (host === 'open.spotify.com') {
+        if (u.pathname.startsWith('/embed/')) return u.href
+        const m = u.pathname.match(/^\/(track|album|playlist|artist|episode|show)\/([A-Za-z0-9]{10,40})/)
+        return m ? `https://open.spotify.com/embed/${m[1]}/${m[2]}` : null
+    }
+
+    /* ---- Reddit: a single post has an embed host; nothing else does ---- */
+    if (host === 'embed.reddit.com') return u.href
+    if (/^(old\.|new\.|np\.)?reddit\.com$/.test(host)) {
+        const m = u.pathname.match(/^\/r\/([A-Za-z0-9_]{2,30})\/comments\/([a-z0-9]{4,12})/i)
+        return m ? `https://embed.reddit.com/r/${m[1]}/comments/${m[2]}/` : null
+    }
+
+    /* ---- OpenStreetMap: the documented export/embed.html view ---- */
+    if (host === 'openstreetmap.org') {
+        if (u.pathname === '/export/embed.html') return u.href
+        // the viewport lives in the fragment — #map=zoom/lat/lon — with ?mlat/?mlon
+        // as the older marker form
+        const at = /#?map=(\d{1,2})\/(-?\d+\.?\d*)\/(-?\d+\.?\d*)/.exec(u.hash)
+        // read the raw strings first: Number(null) is 0, which would silently turn
+        // a plain openstreetmap.org into a pin in the Atlantic at 0°N 0°E
+        const rawLat = at ? at[2] : u.searchParams.get('mlat')
+        const rawLon = at ? at[3] : u.searchParams.get('mlon')
+        if (rawLat === null || rawLon === null || rawLat === '' || rawLon === '') return null
+        const lat = Number(rawLat)
+        const lon = Number(rawLon)
+        if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return null
+        const zoom = at ? Math.min(19, Math.max(1, Number(at[1]))) : 15
+        // embed.html wants a box rather than a centre, so turn the zoom back into
+        // a span: each level halves the width of the world on screen
+        const lonSpan = 360 / (2 ** zoom)
+        const round = (n) => Math.round(n * 1e5) / 1e5
+        const bbox = [
+            round(lon - lonSpan), round(lat - lonSpan / 2),
+            round(lon + lonSpan), round(lat + lonSpan / 2)
+        ].join(',')
+        return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${round(lat)},${round(lon)}`
     }
 
     /* ---- Google Maps: the documented output=embed form ---- */
@@ -113,13 +281,20 @@ export const blocksFraming = (url) => {
     return !!host && (BLOCKS_FRAMING.test(host) || /(^|\.)x\.com$/i.test(host) || /(^|\.)google\./i.test(host))
 }
 
-/** "wikipedia.org/wiki/Pi" -> a URL; "why is pi irrational" -> a search. */
+/**
+ * "wikipedia.org/wiki/Pi" -> a URL; "why is pi irrational" -> a search.
+ *
+ * Anything shaped like a host — a dotted name, optionally with a port, a path, a
+ * query or a fragment — is taken at face value and https:// is filled in, because
+ * someone typing "apple.com" is asking to go to Apple and not to read about it.
+ * The dot has to be followed by letters, so "what is 3.5 rounded" stays a search.
+ */
 export const toUrl = (raw, engineId) => {
     const text = String(raw ?? '').trim()
     if (!text) return null
     if (/^https?:\/\//i.test(text)) return text
     if (/^javascript:/i.test(text)) return null // never hand the frame a script URL
-    if (/^[^\s/]+\.[a-z]{2,}([/?#]|$)/i.test(text)) return `https://${text}`
+    if (/^[^\s/]+\.[a-z]{2,}(:\d{1,5})?([/?#]|$)/i.test(text)) return `https://${text}`
     const engine = ENGINES.find(e => e.id === engineId) || ENGINES[0]
     return engine.q(text)
 }
@@ -149,6 +324,10 @@ export const DEFAULT_PREFS = {
     tileSize: 'medium',
     showNtpSearch: true,
     showNtpNote: true,
+    showNtpTop: true,
+    showNtpClock: true,
+    webSuggest: false,
+    onBlocked: 'archive',
     bookmarks: [
         { label: 'Wikipedia', url: 'https://en.wikipedia.org' },
         { label: 'Khan Academy', url: 'https://www.khanacademy.org' },
@@ -250,7 +429,7 @@ export const prettyPath = (url) => {
  * equal match quality, and a frequently visited page climbs within history.
  * Returns [] for a blank query so the dropdown stays shut until it is useful.
  */
-export const rankSuggestions = (query, { bookmarks = [], history = [] } = {}, limit = 6) => {
+export const rankSuggestions = (query, { bookmarks = [], history = [], open = [] } = {}, limit = 6) => {
     const q = String(query ?? '').trim().toLowerCase()
     if (!q) return []
 
@@ -284,10 +463,80 @@ export const rankSuggestions = (query, { bookmarks = [], history = [] } = {}, li
         else out.set(h.url, { url: h.url, label: title, kind: 'history', score: total })
     }
 
+    /*
+     * A page that is already open is offered as "switch to it" rather than as a
+     * tenth copy of itself — the same call every browser makes, and the reason it
+     * outranks the bookmark and history rows for the same URL instead of joining
+     * them: reopening something you are already looking at is never the intent.
+     */
+    for (const t of Array.isArray(open) ? open : []) {
+        if (!t || !t.url) continue
+        const s = Math.max(score(t.url, tabLabel(t.url)), score(t.url, prettyPath(t.url)))
+        if (!s) continue
+        const prev = out.get(t.url)
+        out.set(t.url, {
+            url: t.url,
+            label: prettyPath(t.url) || tabLabel(t.url),
+            kind: 'tab',
+            tabId: t.id,
+            score: Math.max(s, prev ? prev.score : 0) + 40
+        })
+    }
+
     return [...out.values()]
         .sort((a, b) => b.score - a.score || a.url.localeCompare(b.url))
         .slice(0, Math.max(0, limit))
 }
+
+/* ---- command palette ---------------------------------------------------- */
+
+/** All of q's characters appear in text, in order — the loosest useful match. */
+const isSubsequence = (q, text) => {
+    let i = 0
+    for (let j = 0; j < text.length && i < q.length; j++) if (text[j] === q[i]) i++
+    return i === q.length
+}
+
+/**
+ * Score one palette entry against the query. An entry is anything with a title,
+ * an optional subtitle and keywords, and a `base` weight used to order the list
+ * before anything is typed (so open tabs sit above bookmarks, and so on).
+ *
+ * Ordering favours a title that starts with the query, then one that contains it,
+ * then a keyword or subtitle hit, and finally a loose subsequence — enough that
+ * "nt" finds "New tab" without matching everything.
+ */
+export const scorePalette = (query, item) => {
+    if (!item) return 0
+    const q = String(query ?? '').trim().toLowerCase()
+    if (!q) return item.base || 1
+    const title = String(item.title || '').toLowerCase()
+    const subtitle = String(item.subtitle || '').toLowerCase()
+    const keywords = (Array.isArray(item.keywords) ? item.keywords : []).join(' ').toLowerCase()
+    let s = 0
+    if (title.startsWith(q)) s += 60
+    else if (title.includes(q)) s += 35
+    if (keywords.includes(q)) s += 20
+    if (subtitle.includes(q)) s += 12
+    if (!s && (isSubsequence(q, title) || isSubsequence(q, subtitle))) s += 6
+    return s
+}
+
+/**
+ * Rank palette entries for a query. With no query, everything is kept in base
+ * order; with one, only entries that match survive. `base` breaks score ties so
+ * a tab and a bookmark that match equally well still come back tab-first.
+ */
+export const rankPalette = (query, items, limit = 9) => {
+    const q = String(query ?? '').trim()
+    return (Array.isArray(items) ? items : [])
+        .map(it => ({ it, s: scorePalette(q, it) }))
+        .filter(x => (q ? x.s > 0 : true))
+        .sort((a, b) => b.s - a.s || (b.it.base || 0) - (a.it.base || 0))
+        .slice(0, Math.max(0, limit))
+        .map(x => x.it)
+}
+
 export const MIN_RAIL = 120
 export const MAX_RAIL = 460
 
@@ -298,6 +547,25 @@ export const clampRail = (w) => {
 }
 
 /**
+ * Validate a list of tab records — each a back/forward stack, a current index and
+ * a pinned flag. Shared by the live session and by saved sets, so both trust the
+ * same rules: only http(s) URLs survive, the stack is capped, and the index is
+ * clamped into it. An entry with nothing left is kept as an empty tab (idx -1) so
+ * callers can decide whether to drop it.
+ */
+const sanitizeTabEntries = (arr) => (Array.isArray(arr) ? arr : [])
+    .filter(t => t && typeof t === 'object' && Array.isArray(t.stack))
+    .map(t => {
+        const stack = t.stack
+            .filter(u => typeof u === 'string' && /^https?:\/\/\S+$/i.test(u))
+            .slice(-MAX_STACK)
+        if (!stack.length) return { stack: [], idx: -1, pinned: false }
+        const idx = Number.isInteger(t.idx) ? Math.min(Math.max(t.idx, 0), stack.length - 1) : stack.length - 1
+        return { stack, idx, pinned: t.pinned === true }
+    })
+    .slice(0, MAX_TABS)
+
+/**
  * The saved session: which tabs were open, each one's history, and which was in
  * front. Restored on open so closing with the panic key loses nothing.
  * Returns null when there is nothing usable to restore.
@@ -306,21 +574,158 @@ export const sanitizeSession = (raw) => {
     const s = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : null
     if (!s || !Array.isArray(s.tabs)) return null
 
-    const tabs = s.tabs
-        .filter(t => t && typeof t === 'object' && Array.isArray(t.stack))
-        .map(t => {
-            const stack = t.stack
-                .filter(u => typeof u === 'string' && /^https?:\/\/\S+$/i.test(u))
-                .slice(-MAX_STACK)
-            if (!stack.length) return { stack: [], idx: -1 }
-            const idx = Number.isInteger(t.idx) ? Math.min(Math.max(t.idx, 0), stack.length - 1) : stack.length - 1
-            return { stack, idx }
-        })
-        .slice(0, MAX_TABS)
-
+    const tabs = sanitizeTabEntries(s.tabs)
     if (!tabs.length || tabs.every(t => t.idx < 0)) return null
     const active = Number.isInteger(s.active) && s.active >= 0 && s.active < tabs.length ? s.active : 0
     return { tabs, active }
+}
+
+/* ---- saved tab sets (workspaces) ---------------------------------------- */
+
+export const MAX_SAVED_SETS = 20
+
+/**
+ * Named groups of tabs the reader chose to keep, so a whole research or reading
+ * set can be reopened at once. Hand-editable storage, so nothing is trusted: a
+ * set needs a name and at least one real page, names are deduped case-insensitively
+ * (first kept), and the whole thing is capped.
+ */
+export const sanitizeSavedSets = (raw) => {
+    const seen = new Set()
+    return (Array.isArray(raw) ? raw : [])
+        .filter(s => s && typeof s === 'object' && typeof s.name === 'string')
+        .map(s => ({
+            name: s.name.trim().slice(0, 40),
+            tabs: sanitizeTabEntries(s.tabs).filter(t => t.idx >= 0),
+            at: Number.isFinite(s.at) && s.at > 0 ? s.at : 0
+        }))
+        .filter(s => s.name && s.tabs.length)
+        .filter(s => { const k = s.name.toLowerCase(); return seen.has(k) ? false : seen.add(k) })
+        .slice(0, MAX_SAVED_SETS)
+}
+
+/** Add or replace a set by name, newest first. Returns a new, sanitized list. */
+export const saveSet = (list, name, tabs, now) => {
+    const nm = String(name || '').trim().slice(0, 40)
+    const clean = sanitizeTabEntries(tabs).filter(t => t.idx >= 0)
+    if (!nm || !clean.length) return sanitizeSavedSets(list)
+    const rest = sanitizeSavedSets(list).filter(s => s.name.toLowerCase() !== nm.toLowerCase())
+    return [{ name: nm, tabs: clean, at: Number.isFinite(now) && now > 0 ? now : 0 }, ...rest].slice(0, MAX_SAVED_SETS)
+}
+
+export const removeSet = (list, name) =>
+    sanitizeSavedSets(list).filter(s => s.name.toLowerCase() !== String(name || '').trim().toLowerCase())
+
+/* ---- per-site rules for pages that refuse framing ----------------------- */
+
+export const MAX_POPUP_HOSTS = 50
+
+/** A stored host, without the www — the form the rules are compared in. */
+const bareHost = (h) => String(h || '').trim().toLowerCase().replace(/^www\./, '')
+
+/**
+ * Hosts the reader has chosen to always open in a popup, overriding the global
+ * "sites that refuse embedding" default for those sites alone. Hand-editable
+ * storage, so each entry must look like a real hostname; duplicates and www are
+ * folded together, and the list is capped.
+ */
+export const sanitizeHostList = (raw) => {
+    const seen = new Set()
+    return (Array.isArray(raw) ? raw : [])
+        .map(bareHost)
+        .filter(h => /^[a-z0-9][a-z0-9.-]{0,252}\.[a-z]{2,}$/i.test(h))
+        .filter(h => (seen.has(h) ? false : seen.add(h)))
+        .slice(0, MAX_POPUP_HOSTS)
+}
+
+/** Whether a URL's host is on the list (www-insensitive). */
+export const hostListed = (list, url) => {
+    const host = bareHost(hostOf(url))
+    return !!host && (Array.isArray(list) ? list : []).some(h => bareHost(h) === host)
+}
+
+/** Add or drop a URL's host, returning a new sanitized list. */
+export const toggleHost = (list, url, on) => {
+    const host = bareHost(hostOf(url))
+    if (!host) return sanitizeHostList(list)
+    const without = sanitizeHostList(list).filter(h => h !== host)
+    return on ? sanitizeHostList([host, ...without]) : without
+}
+
+/* ---- misc helpers ------------------------------------------------------- */
+
+/**
+ * Whether two URLs point at the same place, ignoring differences that never mean
+ * a different page: the scheme/host case (already folded by URL), and a trailing
+ * slash on the path. Used to switch to a tab that is already open rather than
+ * loading a second copy of it. Path, query and fragment stay case-sensitive,
+ * since those can be significant.
+ */
+export const sameLocation = (a, b) => {
+    const norm = (u) => {
+        try {
+            const x = new URL(u)
+            const path = x.pathname.replace(/\/+$/, '') || '/'
+            return x.origin + path + x.search + x.hash
+        } catch { return null }
+    }
+    const na = norm(a)
+    return !!na && na === norm(b)
+}
+
+/** A time-of-day greeting for the new-tab page. `hour` is 0–23. */
+export const greeting = (hour) => {
+    const h = Number(hour)
+    if (!Number.isFinite(h)) return 'Hello'
+    if (h >= 5 && h < 12) return 'Good morning'
+    if (h >= 12 && h < 17) return 'Good afternoon'
+    if (h >= 17 && h < 22) return 'Good evening'
+    return 'Good night'
+}
+
+/* ---- backup & restore --------------------------------------------------- */
+
+export const BACKUP_VERSION = 1
+
+/**
+ * A single portable snapshot of everything the viewer keeps: settings, shortcuts,
+ * saved tab sets, per-site rules and per-site zoom. Open tabs and visited history
+ * are deliberately left out — one is transient, the other is private, and neither
+ * is "setup" worth carrying to another device.
+ *
+ * Every part is run through its own sanitiser on the way out, so a backup is
+ * already clean and a hand-edited one can't smuggle anything in on the way back.
+ */
+export const packBackup = (data) => {
+    const d = data && typeof data === 'object' ? data : {}
+    return {
+        app: 'mathlab-web-viewer',
+        version: BACKUP_VERSION,
+        prefs: sanitizePrefs(d.prefs),
+        bookmarks: sanitizeBookmarks(d.bookmarks),
+        savedSets: sanitizeSavedSets(d.savedSets),
+        popupHosts: sanitizeHostList(d.popupHosts),
+        zooms: sanitizeZooms(d.zooms)
+    }
+}
+
+/**
+ * Read a backup, returning only the sections it actually contained, each
+ * sanitised — or null if the text is not a viewer backup at all. Returning just
+ * the present sections lets a partial or older backup restore what it has without
+ * wiping the rest.
+ */
+export const parseBackup = (text) => {
+    let raw
+    try { raw = typeof text === 'string' ? JSON.parse(text) : text } catch { return null }
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw) || raw.app !== 'mathlab-web-viewer') return null
+    const out = {}
+    if ('prefs' in raw) out.prefs = sanitizePrefs(raw.prefs)
+    if ('bookmarks' in raw) out.bookmarks = sanitizeBookmarks(raw.bookmarks)
+    if ('savedSets' in raw) out.savedSets = sanitizeSavedSets(raw.savedSets)
+    if ('popupHosts' in raw) out.popupHosts = sanitizeHostList(raw.popupHosts)
+    if ('zooms' in raw) out.zooms = sanitizeZooms(raw.zooms)
+    return out
 }
 
 /**
@@ -337,6 +742,33 @@ export const sanitizeBookmarks = (raw) => {
         }))
         .filter(b => (seen.has(b.url) ? false : seen.add(b.url)))
         .slice(0, MAX_BOOKMARKS)
+}
+
+/**
+ * What should happen when a site refuses to be embedded — the question this
+ * viewer keeps running into, so it gets one setting rather than a scatter of
+ * booleans.
+ *
+ *   'archive' — show the Internet Archive's snapshot in the pane. Stays inside
+ *               the viewer, at the cost of reading a copy rather than the live
+ *               page. The default, because it answers the question in place.
+ *   'popup'   — open the live site in its own centered window. A popup is a
+ *               top-level context, so framing headers don't apply to it — this is
+ *               the real page, reached the ordinary way, no proxy involved.
+ *   'tab'     — open the live site in a browser tab of its own.
+ *   'explain' — do neither, and leave the reasons and buttons on screen.
+ *
+ * 'popup' and 'tab' both leave the viewer; 'popup' gives a sized window rather
+ * than a background tab, which suits reading one page and coming back.
+ */
+export const BLOCKED_CHOICES = ['archive', 'popup', 'tab', 'explain']
+
+const blockedChoice = (p) => {
+    if (BLOCKED_CHOICES.includes(p.onBlocked)) return p.onBlocked
+    // saved before this was a choice: it was a boolean for the browser-tab route
+    if (p.handOffBlocked === false) return 'explain'
+    if (p.handOffBlocked === true) return 'tab'
+    return DEFAULT_PREFS.onBlocked
 }
 
 /** Everything here can come from hand-edited localStorage, so nothing is trusted. */
@@ -377,6 +809,270 @@ export const sanitizePrefs = (raw) => {
         tileSize,
         showNtpSearch: p.showNtpSearch !== false,
         showNtpNote: p.showNtpNote !== false,
+        showNtpTop: p.showNtpTop !== false,
+        showNtpClock: p.showNtpClock !== false,
+        // off unless explicitly turned on: see suggestUrl for why
+        webSuggest: p.webSuggest === true,
+        onBlocked: blockedChoice(p),
         bookmarks
     }
+}
+
+/* ---- zoom --------------------------------------------------------------- */
+
+/** The steps a real browser offers, so ⌘+ lands on familiar round numbers. */
+export const ZOOM_LEVELS = [0.5, 0.67, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5]
+
+/**
+ * Snap to the nearest offered step, so a hand-edited store can't yield 103.7%.
+ *
+ * Number(null) and Number('') are both 0, and a stored 0 means "nothing was
+ * saved", not "half size" — so only a genuine positive number is taken at face
+ * value and everything else reads as the default.
+ */
+export const clampZoom = (z) => {
+    const n = typeof z === 'number' ? z : (typeof z === 'string' && z.trim() ? Number(z) : NaN)
+    if (!Number.isFinite(n) || n <= 0) return 1
+    return ZOOM_LEVELS.reduce((best, step) => (Math.abs(step - n) < Math.abs(best - n) ? step : best), 1)
+}
+
+/** One step up (dir > 0) or down the ladder, stopping at either end. */
+export const stepZoom = (z, dir) => {
+    const i = ZOOM_LEVELS.indexOf(clampZoom(z))
+    return ZOOM_LEVELS[Math.min(ZOOM_LEVELS.length - 1, Math.max(0, i + (dir < 0 ? -1 : 1)))]
+}
+
+/**
+ * Zoom is remembered per site, the way a browser does it: set Wikipedia to 125%
+ * once and every Wikipedia page opens that way. Keyed on the host, so it holds
+ * while you move around a site and never follows you off it.
+ *
+ * A level of 1 is dropped rather than stored — it is the default, and keeping it
+ * would grow the blob by one entry for every site ever zoomed and then un-zoomed.
+ */
+export const sanitizeZooms = (raw) => {
+    const src = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}
+    const out = {}
+    for (const [host, z] of Object.entries(src)) {
+        if (!/^[a-z0-9][a-z0-9.-]{0,252}$/i.test(host)) continue
+        const level = clampZoom(z)
+        if (level !== 1) out[host] = level
+    }
+    return out
+}
+
+export const zoomFor = (zooms, url) => (zooms && zooms[hostOf(url)]) || 1
+
+export const setZoomFor = (zooms, url, z) => {
+    const host = hostOf(url)
+    if (!host) return zooms || {}
+    const next = { ...(zooms || {}) }
+    const level = clampZoom(z)
+    if (level === 1) delete next[host]
+    else next[host] = level
+    return next
+}
+
+/* ---- reaching a page that refuses framing ------------------------------- */
+
+/**
+ * The Internet Archive's copy of a page. Wayback replays the capture closest to
+ * the timestamp it is given, so a far-future one means "the newest snapshot".
+ *
+ * web.archive.org sends no X-Frame-Options of its own, which makes this the one
+ * honest way to read a site that refuses framing without leaving the viewer: the
+ * archive is a different resource that consented to being embedded, not the live
+ * site with its header stripped off. Nothing you are logged into is involved.
+ * Returns null for the archive itself — archiving the archive is a loop.
+ */
+export const waybackUrl = (url) => {
+    const raw = String(url || '')
+    if (!/^https?:\/\/\S+$/i.test(raw)) return null
+    if (/(^|\.)archive\.org$/i.test(hostOf(raw))) return null
+    return `https://web.archive.org/web/3000/${raw}`
+}
+
+/* ---- tab strip ----------------------------------------------------------- */
+
+/** Move one item to another index, returning a new array. Out of range is a no-op. */
+export const moveItem = (list, from, to) => {
+    const arr = Array.isArray(list) ? [...list] : []
+    if (!Number.isInteger(from) || !Number.isInteger(to)) return arr
+    if (from < 0 || from >= arr.length || to < 0 || to >= arr.length || from === to) return arr
+    const [item] = arr.splice(from, 1)
+    arr.splice(to, 0, item)
+    return arr
+}
+
+/** Pinned tabs sit at the front, as in every browser; relative order is kept. */
+export const withPinnedFirst = (tabs) => {
+    const list = Array.isArray(tabs) ? tabs : []
+    return [...list.filter(t => t && t.pinned), ...list.filter(t => !(t && t.pinned))]
+}
+
+/**
+ * What to write on a tab. A cross-origin frame's <title> is unreadable from out
+ * here, so the last path segment stands in for it: a rail reading "Pythagorean
+ * theorem / Euler's identity" beats one reading "en.wikipedia.org" three times.
+ * Segments that carry no information — index, search, watch — fall back to the
+ * host, which at least says where you are.
+ */
+const GENERIC_SEGMENT = /^(index|home|search|watch|results|result|page|default|main|view|browse|about|en|www)$/i
+
+export const tabTitle = (url) => {
+    const host = tabLabel(url)
+    if (host === 'New tab') return host
+    const path = prettyPath(url)
+    // Two characters is enough — /wiki/Pi is a better tab than "en.wikipedia.org".
+    if (!path || path.length < 2 || GENERIC_SEGMENT.test(path) || /^\d+$/.test(path)) return host
+    return path.length > 34 ? `${path.slice(0, 33)}…` : path
+}
+
+/* ---- history + home screen ---------------------------------------------- */
+
+/**
+ * The most-opened page per site, for the home screen's second row. One tile per
+ * host — ten Wikipedia articles are one habit, not ten — and anything already on
+ * the shortcut shelf is skipped, since a tile shown twice is a wasted slot.
+ */
+export const topSites = (history, { exclude = [], limit = 8 } = {}) => {
+    const skip = new Set((Array.isArray(exclude) ? exclude : []).map(u => String(u)))
+    const best = new Map()
+    for (const h of Array.isArray(history) ? history : []) {
+        if (!h || !h.url || skip.has(h.url)) continue
+        const host = hostOf(h.url)
+        if (!host) continue
+        const prev = best.get(host)
+        if (!prev || h.visits > prev.visits || (h.visits === prev.visits && h.last > prev.last)) best.set(host, h)
+    }
+    return [...best.values()]
+        .sort((a, b) => b.visits - a.visits || b.last - a.last)
+        .slice(0, Math.max(0, limit))
+        .map(h => ({ url: h.url, label: tabTitle(h.url), visits: h.visits }))
+}
+
+/** "Today" / "Yesterday" / a written date, for the history list's day headings. */
+export const dayLabel = (ts, now = Date.now()) => {
+    const midnight = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+    const then = new Date(ts)
+    if (!Number.isFinite(then.getTime())) return 'Earlier'
+    const days = Math.round((midnight(new Date(now)) - midnight(then)) / 86400000)
+    if (days <= 0) return 'Today'
+    if (days === 1) return 'Yesterday'
+    if (days < 7) return then.toLocaleDateString(undefined, { weekday: 'long' })
+    return then.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })
+}
+
+/**
+ * History split into day sections, newest first, narrowed by whatever is typed
+ * in the panel's filter. A section left empty by the filter is dropped rather
+ * than shown as a bare heading.
+ */
+export const groupHistory = (history, { query = '', now = Date.now() } = {}) => {
+    const q = String(query ?? '').trim().toLowerCase()
+    const hit = (h) => !q
+        || h.url.toLowerCase().includes(q)
+        || prettyPath(h.url).toLowerCase().includes(q)
+
+    const out = []
+    for (const h of [...(Array.isArray(history) ? history : [])].sort((a, b) => b.last - a.last)) {
+        if (!hit(h)) continue
+        const label = h.last ? dayLabel(h.last, now) : 'Earlier'
+        const tail = out[out.length - 1]
+        if (tail && tail.label === label) tail.items.push(h)
+        else out.push({ label, items: [h] })
+    }
+    return out
+}
+
+/* ---- the window itself --------------------------------------------------- */
+
+/** How much of the window must stay on screen, so it can always be grabbed back. */
+export const KEEP_ON_SCREEN = 130
+
+/**
+ * Where a dragged window is allowed to come to rest. A window can hang off any
+ * edge — that is how a real one behaves, and how you read a wide page on a narrow
+ * screen — but never so far that the toolbar you would grab it by is gone.
+ */
+export const clampWindow = ({ x, y }, { w, h }, { width, height }, keep = KEEP_ON_SCREEN) => {
+    const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0)
+    const edge = Math.min(keep, num(w), num(h))
+    return {
+        x: Math.round(Math.min(num(width) - edge, Math.max(edge - num(w), num(x)))),
+        // never above the top: the toolbar is the only handle, so it must stay reachable
+        y: Math.round(Math.min(num(height) - edge, Math.max(0, num(y))))
+    }
+}
+
+/** A saved window position, or null when it has never been moved. */
+export const sanitizePos = (raw) => {
+    const p = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : null
+    if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) return null
+    return { x: Math.round(p.x), y: Math.round(p.y) }
+}
+
+/**
+ * Which edges a resize gesture is pulling. 'se' means the corner, 'n' the top
+ * edge alone; pulling a top or left edge moves that edge and leaves the opposite
+ * one where it is, which is the whole reason this returns a box rather than a size.
+ */
+export const resizeBox = (mode, start, dx, dy, min = { w: 520, h: 360 }) => {
+    let { x, y, w, h } = start
+    if (mode === 'move') return { x: x + dx, y: y + dy, w, h }
+    if (mode.includes('e')) w = start.w + dx
+    if (mode.includes('s')) h = start.h + dy
+    if (mode.includes('w')) w = start.w - dx
+    if (mode.includes('n')) h = start.h - dy
+    w = Math.max(min.w, w)
+    h = Math.max(min.h, h)
+    // anchor the edge that was not grabbed
+    if (mode.includes('w')) x = start.x + start.w - w
+    if (mode.includes('n')) y = start.y + start.h - h
+    return { x, y, w, h }
+}
+
+/* ---- article suggestions ------------------------------------------------- */
+
+/**
+ * Wikipedia's OpenSearch endpoint, the one search API on the frameable list that
+ * answers a cross-origin request (`origin=*` earns the CORS header).
+ *
+ * This is off unless someone turns it on, and the setting says plainly why: with
+ * it on, every few keystrokes in the address bar are sent to Wikipedia before you
+ * press Enter. That is a real change in what leaves the device, and it is the same
+ * reason this viewer draws favicons from each site directly instead of routing
+ * them through an icon service that would see every host you visit.
+ */
+export const suggestUrl = (query) =>
+    `https://en.wikipedia.org/w/api.php?action=opensearch&format=json&origin=*&namespace=0&limit=6&search=${encodeURIComponent(String(query ?? '').slice(0, 120))}`
+
+/**
+ * OpenSearch answers with [query, titles[], descriptions[], urls[]]. Nothing about
+ * that shape is guaranteed to survive a bad day at the API, so each row is only
+ * kept when its title and its URL both arrive intact.
+ */
+export const parseOpenSearch = (raw, limit = 6) => {
+    if (!Array.isArray(raw) || raw.length < 4) return []
+    const titles = Array.isArray(raw[1]) ? raw[1] : []
+    const urls = Array.isArray(raw[3]) ? raw[3] : []
+    const out = []
+    for (let i = 0; i < titles.length && out.length < limit; i++) {
+        const label = typeof titles[i] === 'string' ? titles[i].trim() : ''
+        const url = typeof urls[i] === 'string' ? urls[i].trim() : ''
+        if (!label || !/^https:\/\/\S+$/i.test(url)) continue
+        out.push({ url, label, kind: 'article' })
+    }
+    return out
+}
+
+/**
+ * Local rows first, remote ones after: what you have already visited or saved is
+ * a better guess than what an encyclopedia thinks you meant, and keeping the
+ * order stable means the row under the cursor does not move when a slow reply
+ * lands. Anything already suggested locally is not repeated.
+ */
+export const mergeSuggestions = (local, remote, limit = 8) => {
+    const seen = new Set(local.map(s => s.url))
+    return [...local, ...remote.filter(r => !seen.has(r.url))].slice(0, Math.max(0, limit))
 }

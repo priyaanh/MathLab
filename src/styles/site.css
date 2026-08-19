@@ -3458,3 +3458,342 @@ textarea:focus-visible,
 .wf-blocked p { margin: 0; max-width: 46ch; font-size: 0.84rem; color: var(--text-muted); }
 .wf-blocked-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: center; margin-top: 0.6rem; }
 .wf-blocked-alt { margin-top: 0.5rem !important; font-size: 0.8rem !important; }
+
+/* ---- web viewer: pinned tabs, tab menu, zoom, history, toasts ----------- */
+
+/* A pinned tab shrinks to its icon and keeps no close button, so a run of ⌘W
+   can't take it with it. Same rule in the rail and along the top strip. */
+.wf-tab.is-pinned {
+    /* a chip, so a pinned tab reads as deliberately small rather than truncated */
+    background: color-mix(in srgb, var(--text) 7%, transparent);
+    flex: 0 0 auto;
+    justify-content: center;
+    width: 34px;
+    min-width: 34px;
+    max-width: 34px;
+    padding: 0;
+}
+.wf-tab.is-pinned .wf-tab-label { display: none; }
+.wf-tab.is-pinned::after {
+    /* a small mark so a pinned tab reads as deliberate, not merely narrow */
+    content: '';
+    position: absolute;
+    right: 3px;
+    bottom: 3px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--accent);
+}
+/* the rail is a column of full-width rows; pinned tabs share a row at the top,
+   which is what makes them read as a separate, smaller group */
+.wf-rail .wf-tabs { flex-direction: row; flex-wrap: wrap; align-content: flex-start; }
+.wf-rail .wf-tab, .wf-rail .wf-newtab { flex: 1 1 100%; }
+.wf-rail .wf-tab.is-pinned { flex: 0 0 34px; }
+.wf-tab.is-dragging { opacity: 0.45; }
+.wf-tab[draggable='true'] { cursor: grab; }
+
+/* right-click menu on a tab */
+.wf-menu {
+    position: fixed;
+    z-index: 240;
+    min-width: 12rem;
+    padding: 0.25rem;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 20px 46px -18px rgba(0, 0, 0, 0.75);
+}
+.wf-menu-item {
+    display: block;
+    width: 100%;
+    padding: 0.36rem 0.6rem;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: var(--text);
+    font: inherit;
+    font-size: 0.8rem;
+    text-align: left;
+    cursor: pointer;
+}
+.wf-menu-item:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.wf-menu-item:disabled { opacity: 0.35; cursor: default; }
+
+/* zoom chip inside the omnibox */
+.wf-zoom {
+    flex: none;
+    padding: 0.1rem 0.4rem;
+    border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    color: var(--text);
+    font: inherit;
+    font-size: 0.68rem;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+}
+.wf-zoom:hover { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+.wf-omni-btn.is-on { color: var(--accent); }
+
+/* transient confirmation, bottom-centre inside the window */
+.wf-toast {
+    position: absolute;
+    left: 50%;
+    bottom: 1.1rem;
+    z-index: 60;
+    transform: translateX(-50%);
+    max-width: min(30rem, 80%);
+    padding: 0.45rem 0.85rem;
+    background: color-mix(in srgb, var(--bg) 88%, #000);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    box-shadow: 0 14px 34px -14px rgba(0, 0, 0, 0.8);
+    font-size: 0.78rem;
+    text-align: center;
+    animation: wf-toast-in 0.18s ease;
+    pointer-events: none;
+}
+@keyframes wf-toast-in {
+    from { opacity: 0; transform: translate(-50%, 6px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .wf-toast { animation: none; } }
+
+/* history panel — same shell as settings, taller and with its own toolbar */
+.wf-panel.is-history { width: min(44rem, 92vw); }
+.wf-panel.is-history .wf-panel-body { max-height: min(60vh, 30rem); }
+.wf-hist-tools {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 0.5rem 0.9rem;
+    border-bottom: 1px solid var(--border);
+}
+.wf-hist-search {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0.35rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 0.82rem;
+}
+.wf-hist-search:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.wf-hist-day { display: flex; flex-direction: column; gap: 0.1rem; }
+.wf-hist-day h3 {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    margin: 0.5rem 0 0.25rem;
+    padding: 0.15rem 0;
+    background: var(--bg-2);
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.wf-hist-row { display: flex; align-items: center; gap: 0.25rem; }
+.wf-hist-open {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 0;
+    padding: 0.35rem 0.5rem;
+    border: 0;
+    border-radius: 9px;
+    background: none;
+    color: var(--text);
+    font: inherit;
+    font-size: 0.82rem;
+    text-align: left;
+    cursor: pointer;
+}
+.wf-hist-open:hover { background: color-mix(in srgb, var(--text) 8%, transparent); }
+.wf-hist-title { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.wf-hist-url { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.75rem; color: var(--text-muted); }
+.wf-hist-count {
+    flex: none;
+    padding: 0 0.3rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text) 10%, transparent);
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+.wf-hist-time { flex: none; font-size: 0.72rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* "frequently visited" row on the home screen */
+.wf-ntp-top { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; width: 100%; }
+.wf-ntp-sub {
+    margin: 0.4rem 0 0;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+.wf-ntp.has-bg .wf-ntp-sub { color: #fff; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6); }
+
+.wf-shell.is-compact .wf-menu-item { padding: 0.3rem 0.5rem; font-size: 0.76rem; }
+.wf-shell.is-compact .wf-toast { bottom: 0.7rem; font-size: 0.74rem; }
+
+/* ---- web viewer: a window you can move ---------------------------------- */
+
+/*
+ * Eight invisible grips, one per edge and corner.
+ *
+ * They sit just INSIDE the window, not straddling its border. The shell clips to
+ * `overflow: hidden` and has an 18px corner radius, so anything hung outside is
+ * cut off: an earlier version placed them at -3px and the east and south edges
+ * ended up about five pixels wide, while the rounded corners swallowed the corner
+ * grips entirely and left the toolbar's close button catching a resize aimed at
+ * the top-right. Six pixels in from each edge is roughly what a desktop window
+ * border offers, and it is all reachable.
+ *
+ * z-index keeps them above the frame; the frame also stops taking pointers for
+ * the duration of a drag, or a cross-origin page would swallow the gesture.
+ */
+.wf-grip { position: absolute; z-index: 5; touch-action: none; }
+.wf-grip.is-n { top: 0; left: 16px; right: 16px; height: 6px; }
+.wf-grip.is-s { bottom: 0; left: 16px; right: 16px; height: 6px; }
+.wf-grip.is-w { left: 0; top: 16px; bottom: 16px; width: 6px; }
+.wf-grip.is-e { right: 0; top: 16px; bottom: 16px; width: 6px; }
+/*
+ * The top corners stay shallow — the toolbar's buttons begin about seven pixels
+ * down, and a resize grip over the close button would turn a mis-aimed drag into
+ * a closed window. Wider instead of taller, because the 18px corner radius eats
+ * the outermost few pixels of the strip at that height anyway.
+ */
+.wf-grip.is-nw { top: 0; left: 0; width: 26px; height: 6px; }
+.wf-grip.is-ne { top: 0; right: 0; width: 26px; height: 6px; }
+.wf-grip.is-sw { bottom: 0; left: 0; width: 16px; height: 16px; }
+.wf-grip.is-se { bottom: 0; right: 0; width: 16px; height: 16px; }
+/* the drawn notch sits above its grip and shares the same gesture */
+.wf-resize { z-index: 6; }
+/* blank toolbar is a title bar: show the hand, but not over its controls */
+.wf-bar { cursor: grab; }
+.wf-bar button, .wf-bar a, .wf-bar input, .wf-omni { cursor: auto; }
+.wf-bar button, .wf-bar a { cursor: pointer; }
+.wf-stage.is-resizing { user-select: none; }
+
+/* offline strip, and the suggestion badges for tabs and articles */
+.wf-offline {
+    padding: 0.3rem 0.7rem;
+    background: color-mix(in srgb, var(--danger, #e5484d) 18%, var(--bg-2));
+    border-bottom: 1px solid color-mix(in srgb, var(--danger, #e5484d) 40%, transparent);
+    color: var(--text);
+    font-size: 0.76rem;
+    text-align: center;
+}
+.wf-sugg-kind.is-tab, .wf-sugg-kind.is-article {
+    padding: 0.05rem 0.4rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    color: var(--text);
+    font-size: 0.66rem;
+    white-space: nowrap;
+}
+.wf-sugg-kind.is-article { background: color-mix(in srgb, var(--text) 10%, transparent); color: var(--text-muted); }
+.wf-menu-item:focus-visible { outline: none; background: color-mix(in srgb, var(--accent) 30%, transparent); }
+.wf-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* the rail's unused lower half is a window handle, not dead space */
+.wf-rail-fill { flex: 1 1 auto; min-height: 12px; }
+.wf-rail, .wf-toprail, .wf-bmbar { cursor: grab; }
+.wf-rail .wf-tab, .wf-rail button, .wf-toprail .wf-tab, .wf-toprail button, .wf-bmbar button { cursor: pointer; }
+.wf-shell.is-max .wf-rail, .wf-shell.is-max .wf-bar, .wf-shell.is-max .wf-toprail, .wf-shell.is-max .wf-bmbar,
+.wf-shell.is-fs .wf-rail, .wf-shell.is-fs .wf-bar, .wf-shell.is-fs .wf-toprail, .wf-shell.is-fs .wf-bmbar { cursor: default; }
+/* the shell is focusable only so focus can be taken back from a framed page */
+.wf-shell:focus, .wf-shell:focus-visible { outline: none; }
+
+/* ---- web viewer: command palette (⌘/Ctrl+K) ---------------------------- */
+.wf-cmd {
+    position: absolute;
+    inset: 0;
+    z-index: 70;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 8vh;
+    background: color-mix(in srgb, #000 42%, transparent);
+    backdrop-filter: blur(2px);
+}
+.wf-cmd-box {
+    width: min(34rem, 92%);
+    max-height: 70%;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 26px 60px -20px rgba(0, 0, 0, 0.75);
+    overflow: hidden;
+    animation: dino-pop 0.16s ease;
+}
+@media (prefers-reduced-motion: reduce) { .wf-cmd-box { animation: none; } }
+.wf-cmd-input {
+    flex: none;
+    padding: 0.85rem 1rem;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    font-size: 1rem;
+}
+.wf-cmd-input:focus-visible { outline: none; }
+.wf-cmd-list { margin: 0; padding: 0.3rem; list-style: none; overflow-y: auto; }
+.wf-cmd-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.5rem 0.6rem;
+    border-radius: 9px;
+    cursor: pointer;
+    color: var(--text);
+}
+.wf-cmd-row.is-on { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.wf-cmd-ico {
+    flex: none; width: 20px; height: 20px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.85rem;
+}
+.wf-cmd-fav { flex: none; width: 20px; height: 20px; }
+.wf-cmd-title { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.wf-cmd-sub { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.78rem; color: var(--text-muted); }
+.wf-cmd-kind {
+    flex: none; font-size: 0.68rem; color: var(--text-muted);
+    padding: 0.05rem 0.4rem; border-radius: 999px;
+    background: color-mix(in srgb, var(--text) 9%, transparent);
+}
+.wf-cmd-kind.is-bookmark { color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); }
+.wf-cmd-empty { padding: 0.9rem 0.7rem; color: var(--text-muted); font-size: 0.86rem; }
+.wf-cmd-foot {
+    flex: none;
+    display: flex; gap: 1rem; justify-content: center;
+    padding: 0.4rem; border-top: 1px solid var(--border);
+    font-size: 0.72rem; color: var(--text-muted);
+}
+.wf-cmd-foot kbd {
+    padding: 0.05rem 0.35rem; margin-right: 0.2rem;
+    border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px;
+    background: var(--surface); font-family: ui-monospace, Menlo, monospace; font-size: 0.7rem;
+}
+
+.wf-set-name { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--text); }
+.wf-cmd-kind.is-set { color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); }
+
+.wf-blocked-rule { display: inline-flex; align-items: center; gap: 0.4rem; margin-top: 0.6rem; font-size: 0.82rem; color: var(--text-muted); cursor: pointer; }
+.wf-blocked-rule input { accent-color: var(--accent); }
+
+/* new-tab clock + greeting */
+.wf-ntp-clock { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; margin-bottom: 0.3rem; }
+.wf-ntp-time { font-size: 2.4rem; font-weight: 300; letter-spacing: 0.01em; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.wf-ntp-greet { font-size: 0.82rem; color: var(--text-muted); }
+.wf-ntp.has-bg .wf-ntp-time { color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,0.6); }
+.wf-ntp.has-bg .wf-ntp-greet { color: #fff; text-shadow: 0 1px 6px rgba(0,0,0,0.6); }
