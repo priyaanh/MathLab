@@ -32,6 +32,10 @@ npm run sync              # from the project root — http://localhost:8787
 # or:  cd server && npm start
 ```
 
+**Want your progress on any device without carrying the last one?** Host this
+once in the cloud (free) and sign in anywhere — see **[DEPLOY.md](./DEPLOY.md)**.
+Running it locally like above only reaches the same computer.
+
 Then, in MathLab → Profile → **Sync across devices**, set the server address to
 `http://localhost:8787` and turn sync on.
 

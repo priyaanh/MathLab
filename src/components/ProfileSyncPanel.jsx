@@ -193,6 +193,11 @@ const ProfileSyncPanel = ({ onFlash }) => {
                     that&apos;s the browser blocking it: use <code>http://localhost:8787</code> on the
                     same machine, or give the server an https address.
                 </p>
+                <p>
+                    To reach your progress from <b>any</b> device without keeping the last one
+                    around, host the server in the cloud once (free) — <code>server/DEPLOY.md</code>
+                    walks through it. Then just sign in anywhere.
+                </p>
             </details>
         </div>
     )

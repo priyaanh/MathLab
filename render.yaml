@@ -1,0 +1,25 @@
+# One-click-ish deploy of the MathLab sync server to Render (render.com).
+#
+# In Render: New +  ->  Blueprint  ->  connect this repo. Render reads this file
+# and creates the service below. It's a free web service; see server/DEPLOY.md
+# for the click-by-click walkthrough and the data-persistence note.
+services:
+  - type: web
+    name: mathlab-sync
+    runtime: node
+    plan: free
+    rootDir: server            # only the server folder runs here, not the site
+    buildCommand: npm install   # the server has no dependencies; this is a no-op
+    startCommand: node sync-server.mjs
+    healthCheckPath: /v1/health
+    envVars:
+      # Which site may call this server. "*" works from anywhere and is safe here
+      # (the server only ever holds ciphertext it cannot read); tighten it to your
+      # site's origin, e.g. https://priyaanh.github.io, if you prefer.
+      - key: ALLOW_ORIGIN
+        value: "*"
+    # Render's free tier has an ephemeral disk: the stored blobs reset on a new
+    # deploy, and the service sleeps after ~15 min idle (first request then wakes
+    # it, ~30s). That's tolerable here — each device keeps its own encrypted copy
+    # and re-uploads on the next sign-in, so a reset re-seeds itself. For durable
+    # storage, add a paid disk mounted at /data and set DATA_FILE=/data/profiles.json.
