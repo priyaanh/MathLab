@@ -52,6 +52,33 @@ const ProfileAccountPanel = ({ onFlash }) => {
         }
     }
 
+    /** No file to shuffle: copy the encrypted profile as text to paste on another
+        device's sign-in screen. Works with no server, on the deployed site too. */
+    const copyTransferCode = async () => {
+        setBusy(true)
+        try {
+            await persist()
+            const code = exportProfile(session.key)
+            try {
+                await navigator.clipboard.writeText(code)
+                onFlash?.('Transfer code copied — on the other device choose “Paste a transfer code” and paste it.')
+            } catch {
+                // clipboard blocked (e.g. not focused): fall back to a file
+                const blob = new Blob([code], { type: 'application/json' })
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url; a.download = exportFilename(session.display)
+                document.body.appendChild(a); a.click(); a.remove()
+                setTimeout(() => URL.revokeObjectURL(url), 10000)
+                onFlash?.('Clipboard was blocked, so the profile downloaded as a file instead.')
+            }
+        } catch (err) {
+            onFlash?.(err?.message || 'Could not export this profile.')
+        } finally {
+            setBusy(false)
+        }
+    }
+
     const submitPassword = async (e) => {
         e.preventDefault()
         if (busy) return
@@ -104,14 +131,16 @@ const ProfileAccountPanel = ({ onFlash }) => {
                 <button className="btn ghost" onClick={() => { setOpen(o => !o); setError('') }} aria-expanded={open}>
                     Change password
                 </button>
-                <button className="btn ghost" onClick={downloadProfile} disabled={busy}>Download for another device</button>
+                <button className="btn ghost" onClick={copyTransferCode} disabled={busy}>Copy transfer code</button>
+                <button className="btn ghost" onClick={downloadProfile} disabled={busy}>Download as a file</button>
             </div>
 
             <p className="hint" style={{ marginTop: '0.6rem' }}>
-                MathLab has no server, so a profile does not follow you around by itself.
-                Download it here and import it on the other device with the same password —
-                the file stays encrypted, so it is safe to email to yourself or drop in a
-                shared folder.
+                To move your progress to another device without running a sync server:
+                <b> Copy transfer code</b> here, then on the other device choose
+                <b> “Paste a transfer code”</b> on the sign-in screen and paste it (or use the
+                file). It stays encrypted and opens with the same password, so it is safe to
+                send to yourself however is easiest.
             </p>
 
             {open && (

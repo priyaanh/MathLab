@@ -77,7 +77,8 @@ const ProfileAuth = ({ onSession }) => {
     const [adopt, setAdopt] = useState(true)
     const [busy, setBusy] = useState(false)
     const [error, setError] = useState('')
-    const [bundle, setBundle] = useState(null) // a profile file waiting for its password
+    const [bundle, setBundle] = useState(null) // a profile file/code waiting for its password
+    const [codeText, setCodeText] = useState('') // the pasted transfer code
     const [serverUrl, setServerUrl] = useState(getSyncUrl) // for the "from server" path
     const nameRef = useRef(null)
     const fileRef = useRef(null)
@@ -110,10 +111,26 @@ const ProfileAuth = ({ onSession }) => {
             const parsed = JSON.parse(text)
             setBundle({ text, display: parsed?.display || '' })
             setUsername(parsed?.display || '')
+            setCodeText('')
             setMode('import')
             setPassword('')
         } catch {
             setError('That file could not be read as a MathLab profile.')
+        }
+    }
+
+    /** A pasted transfer code is the same JSON a file holds — parse it to unlock. */
+    const pasteCode = (e) => {
+        const text = e.target.value
+        setCodeText(text)
+        setError('')
+        if (!text.trim()) { setBundle(null); return }
+        try {
+            const parsed = JSON.parse(text)
+            setBundle({ text, display: parsed?.display || '' })
+            if (parsed?.display) setUsername(parsed.display)
+        } catch {
+            setBundle(null) // keep what they typed; validation happens on submit
         }
     }
 
@@ -153,6 +170,7 @@ const ProfileAuth = ({ onSession }) => {
         }
 
         if (mode === 'import') {
+            if (!bundle) { setError('Paste your transfer code, or choose a profile file.'); return }
             if (!password) { setError('Enter the password for this profile.'); return }
             setBusy(true)
             setError('')
@@ -230,6 +248,26 @@ const ProfileAuth = ({ onSession }) => {
                     </div>
                 )}
 
+                {mode === 'import' && (
+                    <>
+                        <label className="auth-field">
+                            <span>Transfer code</span>
+                            <textarea
+                                className="auth-code"
+                                value={codeText}
+                                onChange={pasteCode}
+                                placeholder="Paste the transfer code you copied from the other device…"
+                                spellCheck="false"
+                                rows={3}
+                                disabled={busy}
+                            />
+                        </label>
+                        <button type="button" className="auth-link" onClick={() => fileRef.current?.click()} disabled={busy}>
+                            …or choose a profile file instead
+                        </button>
+                    </>
+                )}
+
                 <label className="auth-field">
                     <span>Username</span>
                     <input
@@ -240,7 +278,7 @@ const ProfileAuth = ({ onSession }) => {
                         autoComplete="username"
                         spellCheck="false"
                         list={mode === 'in' && accounts.length ? 'auth-known' : undefined}
-                        disabled={busy}
+                        disabled={busy || mode === 'import'}
                     />
                     {mode === 'in' && accounts.length > 0 && (
                         <datalist id="auth-known">
@@ -338,8 +376,8 @@ const ProfileAuth = ({ onSession }) => {
                     hidden
                 />
                 {mode === 'import' ? (
-                    <button type="button" className="btn ghost" onClick={() => { setBundle(null); setPassword(''); switchMode('in') }} disabled={busy}>
-                        Cancel import
+                    <button type="button" className="btn ghost" onClick={() => { setBundle(null); setCodeText(''); setPassword(''); switchMode('in') }} disabled={busy}>
+                        Cancel
                     </button>
                 ) : mode === 'server' ? (
                     <button type="button" className="btn ghost" onClick={() => { setPassword(''); switchMode('in') }} disabled={busy}>
@@ -347,11 +385,11 @@ const ProfileAuth = ({ onSession }) => {
                     </button>
                 ) : (
                     <div className="auth-alts">
-                        <button type="button" className="auth-link" onClick={() => { setPassword(''); switchMode('server') }} disabled={busy}>
-                            Coming from another device? Sign in from your sync server
+                        <button type="button" className="auth-link" onClick={() => { setBundle(null); setCodeText(''); setPassword(''); switchMode('import') }} disabled={busy}>
+                            Coming from another device? Paste a transfer code
                         </button>
-                        <button type="button" className="auth-link" onClick={() => fileRef.current?.click()} disabled={busy}>
-                            …or import a profile file
+                        <button type="button" className="auth-link" onClick={() => { setPassword(''); switchMode('server') }} disabled={busy}>
+                            …or sign in from your sync server
                         </button>
                     </div>
                 )}
