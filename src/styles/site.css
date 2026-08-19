@@ -3890,3 +3890,20 @@ textarea:focus-visible,
 }
 /* over a user background image the orb + gradient text would fight the photo */
 .wf-ntp.has-bg .wf-ntp-orb { display: none; }
+
+/* new-tab scratchpad — a small note kept with the profile */
+.wf-ntp-scratch { width: 100%; max-width: 30rem; display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.25rem; }
+.wf-scratch-head { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); display: flex; align-items: center; gap: 0.35rem; }
+.wf-scratch-box {
+    width: 100%; resize: vertical; min-height: 3.2rem; padding: 0.55rem 0.7rem;
+    border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+    border-radius: 10px; background: color-mix(in srgb, var(--bg-2) 70%, transparent);
+    color: var(--text); font: inherit; font-size: 0.85rem; line-height: 1.45;
+}
+.wf-scratch-box:focus-visible {
+    outline: none;
+    border-color: color-mix(in srgb, var(--lumen-1) 55%, var(--border));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--lumen-1) 18%, transparent);
+}
+.wf-ntp.has-bg .wf-scratch-box { background: rgba(0, 0, 0, 0.35); }
+.wf-ntp.has-bg .wf-scratch-head { color: #fff; text-shadow: 0 1px 6px rgba(0,0,0,0.6); }

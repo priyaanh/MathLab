@@ -447,10 +447,12 @@ const KEY_SINCE = {
     // a profile that predates them keeps its device copy until its next save
     'mathlab-frame-saved': 3,
     'mathlab-frame-zoom': 3,
-    'mathlab-frame-popup-hosts': 3
+    'mathlab-frame-popup-hosts': 3,
+    // v4 — the new-tab scratchpad note
+    'mathlab-frame-note': 4
 }
 
-export const WORKSPACE_VERSION = 3
+export const WORKSPACE_VERSION = 4
 export const WORKSPACE_KEYS = Object.keys(KEY_SINCE)
 
 export const snapshotWorkspace = () => {

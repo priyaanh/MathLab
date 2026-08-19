@@ -30,6 +30,8 @@ const PRUNED_KEY = 'mathlab-frame-pruned'
 const HISTORY_KEY = 'mathlab-frame-history'
 const ZOOM_KEY = 'mathlab-frame-zoom'
 const SAVED_KEY = 'mathlab-frame-saved'
+const NOTE_KEY = 'mathlab-frame-note'
+const MAX_NOTE = 10000
 const POPUP_HOSTS_KEY = 'mathlab-frame-popup-hosts'
 const POS_KEY = 'mathlab-frame-pos'
 
@@ -117,6 +119,11 @@ const readPos = () => {
 /** Per-site zoom levels, so a site you enlarged once opens enlarged next time. */
 const readZooms = () => {
     try { return sanitizeZooms(JSON.parse(localStorage.getItem(ZOOM_KEY) || 'null')) } catch { return {} }
+}
+
+/** The new-tab scratchpad note — a plain string, capped so storage can't bloat. */
+const readNote = () => {
+    try { return String(localStorage.getItem(NOTE_KEY) || '').slice(0, MAX_NOTE) } catch { return '' }
 }
 
 /** Named tab sets the reader saved, newest first. */
@@ -209,6 +216,7 @@ const WebFrame = ({ onClose }) => {
     const [savedName, setSavedName] = useState('')  // name being typed in the Tab-sets pane
     const [popupHosts, setPopupHosts] = useState(readPopupHosts)
     const [clock, setClock] = useState(() => Date.now())  // ticks only on the new-tab page
+    const [note, setNote] = useState(readNote)            // new-tab scratchpad
     const [backupIo, setBackupIo] = useState('')
     const [backupMsg, setBackupMsg] = useState('')
     const [engineName, setEngineName] = useState('')  // add-a-search-engine form
@@ -628,6 +636,13 @@ const WebFrame = ({ onClose }) => {
     useEffect(() => {
         try { localStorage.setItem(SAVED_KEY, JSON.stringify(savedSets)) } catch { /* ignore */ }
     }, [savedSets])
+
+    useEffect(() => {
+        try {
+            if (note) localStorage.setItem(NOTE_KEY, note)
+            else localStorage.removeItem(NOTE_KEY)
+        } catch { /* ignore */ }
+    }, [note])
 
     useEffect(() => {
         try { localStorage.setItem(POPUP_HOSTS_KEY, JSON.stringify(popupHosts)) } catch { /* ignore */ }
@@ -1833,6 +1848,10 @@ const WebFrame = ({ onClose }) => {
                                                 <span>“Frequently visited” row</span>
                                             </label>
                                             <label className="wf-set is-check">
+                                                <input type="checkbox" checked={prefs.showNtpScratch} onChange={(e) => patchPrefs({ showNtpScratch: e.target.checked })} />
+                                                <span>Scratchpad note</span>
+                                            </label>
+                                            <label className="wf-set is-check">
                                                 <input type="checkbox" checked={prefs.showNtpNote} onChange={(e) => patchPrefs({ showNtpNote: e.target.checked })} />
                                                 <span>Explanatory note at the bottom</span>
                                             </label>
@@ -2479,6 +2498,24 @@ const WebFrame = ({ onClose }) => {
                                             <button type="submit" className="btn" disabled={!draft.url.trim()}>Add</button>
                                             <button type="button" className="btn ghost" onClick={() => setDraft(null)}>Cancel</button>
                                         </form>
+                                    )}
+
+                                    {prefs.showNtpScratch && (
+                                        <div className="wf-ntp-scratch">
+                                            <label className="wf-scratch-head" htmlFor="wf-scratch">
+                                                <span aria-hidden="true">✎</span> Scratchpad
+                                            </label>
+                                            <textarea
+                                                id="wf-scratch"
+                                                className="wf-scratch-box"
+                                                value={note}
+                                                onChange={(e) => setNote(e.target.value.slice(0, MAX_NOTE))}
+                                                placeholder="Jot a formula, an answer, a link to come back to…"
+                                                aria-label="Scratchpad — a note kept with your profile"
+                                                spellCheck="false"
+                                                rows={3}
+                                            />
+                                        </div>
                                     )}
 
                                     {prefs.showNtpNote && (

@@ -1004,6 +1004,8 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
 
         ok('prefs: the clock defaults on and can be turned off',
             sanitizePrefs(null).showNtpClock === true && sanitizePrefs({ showNtpClock: false }).showNtpClock === false)
+        ok('prefs: the scratchpad defaults on and can be turned off',
+            sanitizePrefs(null).showNtpScratch === true && sanitizePrefs({ showNtpScratch: false }).showNtpScratch === false)
     }
 
     /* full backup & restore */
@@ -1231,9 +1233,9 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
         renamed.display === 'Trip Two' && A.accountExists('Trip') && A.accountExists('Trip Two'))
 
     /* ---- the profile snapshot really does save everything ---- */
-    ok('workspace: the version advanced to 3', A.WORKSPACE_VERSION === 3)
+    ok('workspace: the version advanced to 4', A.WORKSPACE_VERSION === 4)
     ok('workspace: the later web-viewer keys are now saved',
-        ['mathlab-frame-saved', 'mathlab-frame-zoom', 'mathlab-frame-popup-hosts'].every(k => A.WORKSPACE_KEYS.includes(k)))
+        ['mathlab-frame-saved', 'mathlab-frame-zoom', 'mathlab-frame-popup-hosts', 'mathlab-frame-note'].every(k => A.WORKSPACE_KEYS.includes(k)))
     ok('workspace: window geometry stays device-local',
         !A.WORKSPACE_KEYS.includes('mathlab-frame-size') && !A.WORKSPACE_KEYS.includes('mathlab-frame-pos'))
     globalThis.localStorage.clear()

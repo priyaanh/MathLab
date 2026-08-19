@@ -366,6 +366,7 @@ export const DEFAULT_PREFS = {
     showNtpNote: true,
     showNtpTop: true,
     showNtpClock: true,
+    showNtpScratch: true,
     webSuggest: false,
     onBlocked: 'archive',
     confirmOpen: false,
@@ -856,6 +857,7 @@ export const sanitizePrefs = (raw) => {
         showNtpNote: p.showNtpNote !== false,
         showNtpTop: p.showNtpTop !== false,
         showNtpClock: p.showNtpClock !== false,
+        showNtpScratch: p.showNtpScratch !== false,
         // off unless explicitly turned on: see suggestUrl for why
         webSuggest: p.webSuggest === true,
         onBlocked: blockedChoice(p),
