@@ -30,6 +30,7 @@ import {
     packBackup, parseBackup, looksLikeMath
 } from '../src/utils/webframe.js'
 import { evaluateExpression } from '../src/utils/mathUtils.js'
+import { parseConversion } from '../src/utils/convert.js'
 import { syncDecision, hashContent, reachError } from '../src/utils/sync.js'
 
 let passed = 0
@@ -1025,6 +1026,25 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
         try { evaluateExpression(t) } catch { threw = true }
         return looksLikeMath(t) && threw
     })())
+
+    /* address-bar unit conversion */
+    {
+        const near = (a, b) => Math.abs(a - b) < 1e-3
+        ok('convert: length across systems', near(parseConversion('100 km in miles').result, 62.1371))
+        ok('convert: no space between number and unit works', !!parseConversion('100km in mi'))
+        ok('convert: temperature is affine, through Celsius',
+            near(parseConversion('72 f in c').result, 22.2222) && near(parseConversion('0 c in k').result, 273.15))
+        ok('convert: the degree sign and full names are accepted', !!parseConversion('72°f to celsius'))
+        ok('convert: to/in/as all separate the two sides',
+            !!parseConversion('10 m to ft') && !!parseConversion('10 m in ft') && !!parseConversion('10 m as ft'))
+        ok('convert: "5 in in cm" resolves inch -> cm despite the keyword clash',
+            near(parseConversion('5 in in cm').result, 12.7))
+        ok('convert: mixing categories is refused', parseConversion('5 kg in miles') === null)
+        ok('convert: the result echoes the target unit', parseConversion('1 mile in ft').text === '5280 ft')
+        ok('convert: prose, sums, and bare text are not conversions',
+            parseConversion('pythagorean theorem') === null && parseConversion('2+2') === null && parseConversion('') === null)
+        ok('convert: an unknown unit is refused', parseConversion('5 foos in bars') === null)
+    }
 
         ok('prefs: the clock defaults on and can be turned off',
             sanitizePrefs(null).showNtpClock === true && sanitizePrefs({ showNtpClock: false }).showNtpClock === false)
