@@ -209,6 +209,7 @@ const WebFrame = ({ onClose }) => {
     const [dragId, setDragId] = useState(null)  // tab being dragged along the strip
     const [bmDrag, setBmDrag] = useState(null)  // shortcut URL being dragged to reorder
     const [mru, setMru] = useState([])          // tab ids, most-recently-active first
+    const [awake, setAwake] = useState(false)   // screen wake lock requested?
     const [toast, setToast] = useState('')      // transient one-line confirmation
     const [articles, setArticles] = useState([]) // opt-in Wikipedia suggestions
     const [offline, setOffline] = useState(() => typeof navigator !== 'undefined' && navigator.onLine === false)
@@ -234,6 +235,7 @@ const WebFrame = ({ onClose }) => {
     const palRef = useRef(null)
     const restoreSize = useRef(null)
     const liveIdsRef = useRef(new Set())   // which tabs are currently mounted (awake)
+    const wakeRef = useRef(null)           // the Screen Wake Lock sentinel, while held
     const toastTimer = useRef(null)
     const focusTab = useRef(null)     // tab the arrow keys moved to, focused after the render
     const panelRef = useRef(null)
@@ -278,6 +280,34 @@ const WebFrame = ({ onClose }) => {
     // engine picker. Recomputed from prefs, so an added engine is usable at once.
     const engines = allEngines(prefs.customEngines)
     const search = (text) => toUrl(text, prefs.engine, engines)
+
+    /*
+     * Screen wake lock — an honest "don't let the display dim" toggle, the same
+     * one video sites use. It keeps the screen on only while this window is the
+     * visible foreground (the browser drops the lock when the tab is hidden, so
+     * a visibility handler re-takes it). It fakes no input and cannot keep the
+     * whole machine awake if you switch away — for that, the OS settings are the
+     * tool. It does not, and is not meant to, affect any game's idle check.
+     */
+    const wakeSupported = typeof navigator !== 'undefined' && 'wakeLock' in navigator
+    const setWake = async (on) => {
+        setAwake(on)
+        if (!on) {
+            try { await wakeRef.current?.release() } catch { /* already gone */ }
+            wakeRef.current = null
+            say('The screen can sleep again')
+            return
+        }
+        try {
+            const lock = await navigator.wakeLock.request('screen')
+            wakeRef.current = lock
+            lock.addEventListener?.('release', () => { wakeRef.current = null })
+            say('Screen will stay awake while Lumen is in front')
+        } catch {
+            setAwake(false)
+            say('This browser wouldn’t grant a screen wake lock here.')
+        }
+    }
 
     /*
      * Page zoom. A cross-origin frame's own zoom is out of reach, so the frame
@@ -933,6 +963,25 @@ const WebFrame = ({ onClose }) => {
     useEffect(() => {
         setMru(prev => [activeId, ...prev.filter(id => id !== activeId && tabs.some(t => t.id === id))])
     }, [activeId, tabs])
+
+    // The browser drops a screen wake lock whenever the tab is hidden; re-take it
+    // when we're visible again and the toggle is still on. Release it on close.
+    useEffect(() => {
+        if (!wakeSupported) return undefined
+        const reacquire = async () => {
+            if (awake && document.visibilityState === 'visible' && !wakeRef.current) {
+                try {
+                    const lock = await navigator.wakeLock.request('screen')
+                    wakeRef.current = lock
+                    lock.addEventListener?.('release', () => { wakeRef.current = null })
+                } catch { /* denied; the toggle still reflects intent */ }
+            }
+        }
+        document.addEventListener('visibilitychange', reacquire)
+        return () => document.removeEventListener('visibilitychange', reacquire)
+    }, [awake, wakeSupported])
+
+    useEffect(() => () => { try { wakeRef.current?.release() } catch { /* gone */ } }, [])
 
     // The clock only ticks while a blank new-tab page is in front — nowhere else
     // shows it, so nowhere else needs the re-render.
@@ -1655,6 +1704,18 @@ const WebFrame = ({ onClose }) => {
                                 ? 'Asking before opening a page in a new window — click to open immediately'
                                 : 'Opening pages immediately — click to ask first'}
                         >{prefs.confirmOpen ? '?' : '⚡'}</button>
+                        {wakeSupported && (
+                            <button
+                                type="button"
+                                className={`wf-icon${awake ? ' is-on' : ''}`}
+                                onClick={() => setWake(!awake)}
+                                aria-label="Keep the screen awake"
+                                aria-pressed={awake}
+                                title={awake
+                                    ? 'Screen kept awake while this window is open — click to allow it to sleep'
+                                    : 'Keep the screen awake (stops it dimming while Lumen is in front)'}
+                            >{awake ? '☀' : '☾'}</button>
+                        )}
                         <button type="button" className={`wf-icon${showSettings ? ' is-on' : ''}`} onClick={() => { setShowHistory(false); setShowSettings(s => !s) }} aria-label="Settings" aria-expanded={showSettings} title="Settings">⚙</button>
                         <button
                             type="button"
