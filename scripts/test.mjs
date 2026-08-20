@@ -27,8 +27,9 @@ import {
     clampWindow, sanitizePos, resizeBox, parseOpenSearch, mergeSuggestions, suggestUrl, KEEP_ON_SCREEN,
     rankPalette, scorePalette, sanitizeSavedSets, saveSet, removeSet, MAX_SAVED_SETS,
     sanitizeHostList, hostListed, toggleHost, MAX_POPUP_HOSTS, sameLocation, greeting,
-    packBackup, parseBackup
+    packBackup, parseBackup, looksLikeMath
 } from '../src/utils/webframe.js'
+import { evaluateExpression } from '../src/utils/mathUtils.js'
 import { syncDecision, hashContent, reachError } from '../src/utils/sync.js'
 
 let passed = 0
@@ -1002,6 +1003,28 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
         ok('greeting: the boundaries land on the right side',
             greeting(5) === 'Good morning' && greeting(11) === 'Good morning' && greeting(12) === 'Good afternoon' && greeting(17) === 'Good evening' && greeting(22) === 'Good night')
         ok('greeting: a bad hour falls back to a plain hello', greeting(NaN) === 'Hello' && greeting('x') === 'Hello')
+
+    /* address-bar calculator: the "is this a sum" guard */
+    ok('calc: expressions with an operator are recognised',
+        ['2+2*3', '100/7', '(1+2)^3', 'pi*2', '2 - 3'].every(looksLikeMath))
+    ok('calc: functions are recognised', ['sqrt(144)', 'sin(30)', 'log(100)'].every(looksLikeMath))
+    ok('calc: prose and plain words are not treated as maths',
+        !looksLikeMath('pythagorean theorem') && !looksLikeMath('pi') && !looksLikeMath('hello world') && !looksLikeMath(''))
+    ok('calc: a bare number is not a calculation', !looksLikeMath('42'))
+    ok('calc: a URL is never a calculation',
+        !looksLikeMath('https://a.com/2+2') && !looksLikeMath('example.com'))
+    ok('calc: an over-long string is skipped', !looksLikeMath('1+'.repeat(200)))
+    // the guard + evaluator together give a real, finite answer for a real sum
+    ok('calc: guarded expressions actually evaluate', (() => {
+        const t = '2+2*3'
+        return looksLikeMath(t) && evaluateExpression(t) === 8
+    })())
+    ok('calc: a guarded-but-broken expression throws (so no row is shown)', (() => {
+        const t = '3 apples + 2'   // passes the cheap guard, fails real evaluation
+        let threw = false
+        try { evaluateExpression(t) } catch { threw = true }
+        return looksLikeMath(t) && threw
+    })())
 
         ok('prefs: the clock defaults on and can be turned off',
             sanitizePrefs(null).showNtpClock === true && sanitizePrefs({ showNtpClock: false }).showNtpClock === false)

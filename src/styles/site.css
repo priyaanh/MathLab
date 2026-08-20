@@ -3921,3 +3921,13 @@ textarea:focus-visible,
 .wf-bm[draggable="true"], .wf-tile[draggable="true"] { cursor: grab; }
 .wf-bm.is-dragging, .wf-tile-wrap.is-dragging { opacity: 0.45; }
 .wf-tile-wrap.is-dragging { transform: scale(0.97); }
+
+/* address-bar calculator result row */
+.wf-sugg-calc-ico {
+    flex: none; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
+    border-radius: 6px; font-weight: 800; color: var(--on-accent, #fff);
+    background: var(--lumen-grad, var(--accent));
+}
+.wf-sugg-calc-eq { flex: none; color: var(--text-muted); font-weight: 700; }
+.wf-sugg-calc-res { flex: 1 1 auto; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+.wf-sugg-kind.is-calc { color: var(--text-muted); }

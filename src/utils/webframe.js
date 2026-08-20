@@ -726,6 +726,22 @@ export const greeting = (hour) => {
     return 'Good night'
 }
 
+/**
+ * A cheap pre-filter for the address-bar calculator: does the text look like a
+ * sum worth trying to evaluate? It must hold a digit and an operator, function,
+ * or parenthesis — so a plain word ("pi") or a bare number stays a search, while
+ * "pi*2" or "sqrt(9)" gets computed. The real gate is whether evaluation then
+ * succeeds and returns a finite number; this just avoids trying on prose. A
+ * leading http(s) or a domain-shaped token is never a calculation.
+ */
+export const looksLikeMath = (raw) => {
+    const t = String(raw ?? '').trim()
+    if (!t || t.length > 120) return false
+    if (/^https?:\/\//i.test(t)) return false
+    if (!/\d/.test(t)) return false
+    return /[+\-*/^%()√]/.test(t) || /\b(sqrt|sin|cos|tan|log|ln|abs|exp|floor|ceil|round)\s*\(/i.test(t)
+}
+
 /* ---- backup & restore --------------------------------------------------- */
 
 export const BACKUP_VERSION = 1

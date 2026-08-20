@@ -8,8 +8,9 @@ import {
     clampWindow, resizeBox, mergeSuggestions, parseOpenSearch, suggestUrl, rankPalette,
     sanitizeSavedSets, saveSet, removeSet, MAX_SAVED_SETS,
     sanitizeHostList, hostListed, toggleHost, sameLocation, greeting,
-    packBackup, parseBackup
+    packBackup, parseBackup, looksLikeMath
 } from '../utils/webframe'
+import { evaluateExpression, formatResult } from '../utils/mathUtils'
 
 /**
  * An in-page web viewer laid out like Chrome with vertical tabs: a tab rail down
@@ -293,21 +294,44 @@ const WebFrame = ({ onClose }) => {
 
     // What the address bar offers while typing. Hidden once the text is exactly
     // the page already open, so it cannot cover the page with a single result.
+    // Address-bar calculator: when what's typed evaluates to a number, offer the
+    // answer as the top row — this is a maths lab's browser, after all.
+    const calc = (() => {
+        const t = input.trim()
+        if (!omniOpen || t === current || !looksLikeMath(t)) return null
+        try {
+            const v = evaluateExpression(t)
+            if (!Number.isFinite(v)) return null
+            return { kind: 'calc', url: `calc:${t}`, expr: t, result: formatResult(v) }
+        } catch { return null }
+    })()
+
     const suggestions = omniOpen && input.trim() && input !== current
-        ? mergeSuggestions(
-            rankSuggestions(input, {
-                bookmarks: prefs.bookmarks,
-                history,
-                // a page already open is offered as "switch to it", not as a copy
-                open: tabs.filter(t => t.id !== active.id && urlOf(t)).map(t => ({ id: t.id, url: urlOf(t) }))
-            }, 5),
-            articles
-        )
+        ? [
+            ...(calc ? [calc] : []),
+            ...mergeSuggestions(
+                rankSuggestions(input, {
+                    bookmarks: prefs.bookmarks,
+                    history,
+                    // a page already open is offered as "switch to it", not as a copy
+                    open: tabs.filter(t => t.id !== active.id && urlOf(t)).map(t => ({ id: t.id, url: urlOf(t) }))
+                }, 5),
+                articles
+            )
+        ]
         : []
 
-    /** A suggestion row does one of two things: raise a tab, or open a page. */
+    const copyText = (text, label) => {
+        navigator.clipboard?.writeText(text).then(
+            () => say(label || `Copied ${text}`),
+            () => say('Could not reach the clipboard')
+        )
+    }
+
+    /** A suggestion row: copy a calc result, raise a tab, or open a page. */
     const chooseSuggestion = (s) => {
         if (!s) return
+        if (s.kind === 'calc') { copyText(s.result, `Copied ${s.result}`); setOmniOpen(false); setSugg(-1); return }
         if (s.kind === 'tab') { selectTab(s.tabId); setOmniOpen(false); setSugg(-1); return }
         go(s.url)
     }
@@ -414,6 +438,9 @@ const WebFrame = ({ onClose }) => {
         // address bar does; otherwise it treats the text as typed.
         const chosen = sugg >= 0 && suggestions[sugg]
         if (chosen) { chooseSuggestion(chosen); return }
+        // A bare Enter on something that is purely a calculation copies the answer
+        // rather than web-searching it — you almost never want to search "2+2".
+        if (calc) { chooseSuggestion(calc); return }
         go(search(input))
     }
     const submitNtp = (e) => { e.preventDefault(); go(search(ntpQuery)) }
@@ -1559,17 +1586,29 @@ const WebFrame = ({ onClose }) => {
                                             // mousedown, not click: blur would tear the row down first
                                             onMouseDown={(e) => {
                                                 e.preventDefault()
-                                                if (e.button === 1 || e.metaKey || e.ctrlKey) openInBackground(s.url)
+                                                if (s.kind !== 'calc' && (e.button === 1 || e.metaKey || e.ctrlKey)) openInBackground(s.url)
                                                 else if (e.button === 0) chooseSuggestion(s)
                                             }}
                                         >
-                                            <Favicon url={s.url} className="wf-bm-fav" />
-                                            <span className="wf-sugg-label">{s.label}</span>
-                                            {/* host + path, so two pages on one site stay distinguishable */}
-                                            <span className="wf-sugg-url">{s.url.replace(/^https?:\/\//i, '').replace(/^www\./, '')}</span>
-                                            <span className={`wf-sugg-kind is-${s.kind}`}>
-                                                {{ bookmark: '★', tab: 'Switch to tab', article: 'Wikipedia' }[s.kind] || '↺'}
-                                            </span>
+                                            {s.kind === 'calc' ? (
+                                                <>
+                                                    <span className="wf-sugg-calc-ico" aria-hidden="true">=</span>
+                                                    <span className="wf-sugg-label">{s.expr}</span>
+                                                    <span className="wf-sugg-calc-eq" aria-hidden="true">=</span>
+                                                    <span className="wf-sugg-calc-res">{s.result}</span>
+                                                    <span className="wf-sugg-kind is-calc">Enter to copy</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Favicon url={s.url} className="wf-bm-fav" />
+                                                    <span className="wf-sugg-label">{s.label}</span>
+                                                    {/* host + path, so two pages on one site stay distinguishable */}
+                                                    <span className="wf-sugg-url">{s.url.replace(/^https?:\/\//i, '').replace(/^www\./, '')}</span>
+                                                    <span className={`wf-sugg-kind is-${s.kind}`}>
+                                                        {{ bookmark: '★', tab: 'Switch to tab', article: 'Wikipedia' }[s.kind] || '↺'}
+                                                    </span>
+                                                </>
+                                            )}
                                         </li>
                                     ))}
                                 </ul>
