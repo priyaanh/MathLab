@@ -3916,3 +3916,8 @@ textarea:focus-visible,
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.78rem; line-height: 1.4;
 }
 .auth-code:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* dragging a shortcut to reorder it (bookmarks bar + new-tab tiles) */
+.wf-bm[draggable="true"], .wf-tile[draggable="true"] { cursor: grab; }
+.wf-bm.is-dragging, .wf-tile-wrap.is-dragging { opacity: 0.45; }
+.wf-tile-wrap.is-dragging { transform: scale(0.97); }

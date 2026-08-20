@@ -205,6 +205,7 @@ const WebFrame = ({ onClose }) => {
     const [histQuery, setHistQuery] = useState('')
     const [menu, setMenu] = useState(null)      // tab context menu: { tabId, x, y }
     const [dragId, setDragId] = useState(null)  // tab being dragged along the strip
+    const [bmDrag, setBmDrag] = useState(null)  // shortcut URL being dragged to reorder
     const [toast, setToast] = useState('')      // transient one-line confirmation
     const [articles, setArticles] = useState([]) // opt-in Wikipedia suggestions
     const [offline, setOffline] = useState(() => typeof navigator !== 'undefined' && navigator.onLine === false)
@@ -1150,6 +1151,23 @@ const WebFrame = ({ onClose }) => {
         patchPrefs({ bookmarks: next })
     }
 
+    /** Drag one shortcut onto another to reorder — the bar and the home tiles both use it. */
+    const reorderBookmarks = (fromUrl, toUrl) => {
+        if (!fromUrl || !toUrl || fromUrl === toUrl) return
+        const from = prefs.bookmarks.findIndex(b => b.url === fromUrl)
+        const to = prefs.bookmarks.findIndex(b => b.url === toUrl)
+        if (from < 0 || to < 0) return
+        patchPrefs({ bookmarks: moveItem(prefs.bookmarks, from, to) })
+    }
+    // props shared by every draggable shortcut, so the bar and the tiles behave alike
+    const bmDragProps = (url) => ({
+        draggable: true,
+        onDragStart: (e) => { setBmDrag(url); e.dataTransfer.effectAllowed = 'move' },
+        onDragOver: (e) => { if (bmDrag && bmDrag !== url) { e.preventDefault(); e.dataTransfer.dropEffect = 'move' } },
+        onDrop: (e) => { e.preventDefault(); reorderBookmarks(bmDrag, url); setBmDrag(null) },
+        onDragEnd: () => setBmDrag(null)
+    })
+
     /** Chrome's "bookmark all tabs" — duplicates are dropped by the sanitiser. */
     const bookmarkAllTabs = () => {
         const open = tabs.map(urlOf).filter(Boolean).map(u => ({ label: tabLabel(u), url: u }))
@@ -1581,10 +1599,11 @@ const WebFrame = ({ onClose }) => {
                                 <button
                                     key={b.url}
                                     type="button"
-                                    className="wf-bm"
+                                    className={`wf-bm${bmDrag === b.url ? ' is-dragging' : ''}`}
                                     onClick={(e) => (e.metaKey || e.ctrlKey ? openInBackground(b.url) : openOrSwitch(b.url))}
                                     onAuxClick={(e) => { if (e.button === 1) { e.preventDefault(); openInBackground(b.url) } }}
-                                    title={`${b.url}\n${MOD_LABEL}click or middle-click opens a new tab`}
+                                    title={`${b.url}\n${MOD_LABEL}click or middle-click opens a new tab · drag to reorder`}
+                                    {...bmDragProps(b.url)}
                                 >
                                     <Favicon url={b.url} className="wf-bm-fav" />
                                     <span>{b.label}</span>
@@ -2418,8 +2437,14 @@ const WebFrame = ({ onClose }) => {
 
                                     <div className="wf-tiles">
                                         {prefs.bookmarks.map(b => (
-                                            <div key={b.url} className="wf-tile-wrap">
-                                                <button type="button" className="wf-tile" onClick={() => openOrSwitch(b.url)} title={b.url}>
+                                            <div key={b.url} className={`wf-tile-wrap${bmDrag === b.url ? ' is-dragging' : ''}`}>
+                                                <button
+                                                    type="button"
+                                                    className="wf-tile"
+                                                    onClick={() => openOrSwitch(b.url)}
+                                                    title={`${b.url}\ndrag to reorder`}
+                                                    {...bmDragProps(b.url)}
+                                                >
                                                     <span className="wf-tile-icon"><Favicon url={b.url} className="wf-tile-fav" /></span>
                                                     <span className="wf-tile-label">{b.label}</span>
                                                 </button>
