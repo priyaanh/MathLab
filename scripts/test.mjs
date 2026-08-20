@@ -1007,6 +1007,8 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
             sanitizePrefs(null).showNtpClock === true && sanitizePrefs({ showNtpClock: false }).showNtpClock === false)
         ok('prefs: the scratchpad defaults on and can be turned off',
             sanitizePrefs(null).showNtpScratch === true && sanitizePrefs({ showNtpScratch: false }).showNtpScratch === false)
+        ok('prefs: sleeping inactive tabs defaults on and can be turned off',
+            sanitizePrefs(null).sleepTabs === true && sanitizePrefs({ sleepTabs: false }).sleepTabs === false)
     }
 
     /* full backup & restore */

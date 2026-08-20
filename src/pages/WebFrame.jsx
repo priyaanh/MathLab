@@ -206,6 +206,7 @@ const WebFrame = ({ onClose }) => {
     const [menu, setMenu] = useState(null)      // tab context menu: { tabId, x, y }
     const [dragId, setDragId] = useState(null)  // tab being dragged along the strip
     const [bmDrag, setBmDrag] = useState(null)  // shortcut URL being dragged to reorder
+    const [mru, setMru] = useState([])          // tab ids, most-recently-active first
     const [toast, setToast] = useState('')      // transient one-line confirmation
     const [articles, setArticles] = useState([]) // opt-in Wikipedia suggestions
     const [offline, setOffline] = useState(() => typeof navigator !== 'undefined' && navigator.onLine === false)
@@ -230,6 +231,7 @@ const WebFrame = ({ onClose }) => {
     const histRef = useRef(null)
     const palRef = useRef(null)
     const restoreSize = useRef(null)
+    const liveIdsRef = useRef(new Set())   // which tabs are currently mounted (awake)
     const toastTimer = useRef(null)
     const focusTab = useRef(null)     // tab the arrow keys moved to, focused after the render
     const panelRef = useRef(null)
@@ -249,6 +251,21 @@ const WebFrame = ({ onClose }) => {
 
     const active = tabs.find(t => t.id === activeId) || tabs[0]
     const current = urlOf(active)
+
+    /*
+     * Tab discarding. Every mounted iframe is a live site eating memory, so only
+     * the active tab and the few most-recently-used ones keep their frame; the
+     * rest sleep — their iframe leaves the DOM and remounts (reloads) when picked
+     * again. `mru` is the recency order; the active tab is always awake. Turned
+     * off, every tab stays mounted as before.
+     */
+    const LIVE_TABS = 6
+    const liveIds = (() => {
+        if (!prefs.sleepTabs) return new Set(tabs.map(t => t.id))
+        const order = [activeId, ...mru].filter((id, i, a) => a.indexOf(id) === i && tabs.some(t => t.id === id))
+        return new Set(order.slice(0, LIVE_TABS))
+    })()
+    liveIdsRef.current = liveIds   // so selectTab can tell if a tab needs remounting
     // Blocked only when there is no official embed to fall back on.
     const blocked = isBlocked(current)
 
@@ -452,7 +469,9 @@ const WebFrame = ({ onClose }) => {
         if (tabs.length >= MAX_TABS) { say(`${MAX_TABS} tabs is the limit — close one first.`); return }
         const tab = makeTab(target)
         setTabs(ts => [...ts, tab])
-        startLoad(tab.id, target)
+        // With discarding on, a background tab stays asleep until viewed, so don't
+        // start a spinner on a frame that won't mount — it loads when selected.
+        if (!prefs.sleepTabs) startLoad(tab.id, target)
         setHistory(h => recordVisit(h, target, Date.now()))
         say(`Opened ${tabLabel(url)} in a new tab`)
     }
@@ -476,8 +495,12 @@ const WebFrame = ({ onClose }) => {
     const selectTab = (id) => {
         const tab = tabs.find(t => t.id === id)
         if (!tab) return
+        // A sleeping tab has no frame in the DOM; selecting it remounts and reloads,
+        // so show the spinner while that happens.
+        const u = urlOf(tab)
+        if (u && !liveIdsRef.current.has(id)) startLoad(id, u)
         setActiveId(id)
-        setInput(urlOf(tab) || '')
+        setInput(u || '')
     }
     const closeTab = (id) => {
         if (tabs.length <= 1) { onClose?.(); return } // last tab closes the viewer, like Chrome
@@ -869,6 +892,12 @@ const WebFrame = ({ onClose }) => {
     // The filter box is the point of opening the history panel, so it gets focus.
     useEffect(() => { if (showHistory) histRef.current?.focus() }, [showHistory])
     useEffect(() => { if (palette) palRef.current?.focus() }, [palette])
+
+    // Track recency so tab discarding keeps the right frames awake. The active tab
+    // goes to the front; stale ids are pruned so the list can't grow forever.
+    useEffect(() => {
+        setMru(prev => [activeId, ...prev.filter(id => id !== activeId && tabs.some(t => t.id === id))])
+    }, [activeId, tabs])
 
     // The clock only ticks while a blank new-tab page is in front — nowhere else
     // shows it, so nowhere else needs the re-render.
@@ -1700,6 +1729,14 @@ const WebFrame = ({ onClose }) => {
                                                 <input type="checkbox" checked={prefs.bookmarksBar} onChange={(e) => patchPrefs({ bookmarksBar: e.target.checked })} />
                                                 <span>Show the shortcuts bar</span>
                                             </label>
+                                            <label className="wf-set is-check">
+                                                <input type="checkbox" checked={prefs.sleepTabs} onChange={(e) => patchPrefs({ sleepTabs: e.target.checked })} />
+                                                <span>Sleep inactive tabs to save memory</span>
+                                            </label>
+                                            <p className="hint">
+                                                Only the tabs you&apos;ve used most recently keep running; the rest reload
+                                                when you return to them. Turn off to keep every tab live at once.
+                                            </p>
                                         </>
                                     )}
 
@@ -2273,6 +2310,8 @@ const WebFrame = ({ onClose }) => {
                         {tabs.map(t => {
                             const u = urlOf(t)
                             if (!u || isBlocked(u)) return null
+                            // Asleep: no frame in the DOM until this tab is active again.
+                            if (!liveIds.has(t.id)) return null
                             // The stack holds the page a person typed; the frame gets the
                             // embeddable form of it where the site publishes one.
                             const src = embedUrl(u) || u
