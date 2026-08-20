@@ -742,6 +742,28 @@ export const looksLikeMath = (raw) => {
     return /[+\-*/^%()√]/.test(t) || /\b(sqrt|sin|cos|tan|log|ln|abs|exp|floor|ceil|round)\s*\(/i.test(t)
 }
 
+/**
+ * Everyday percentage phrasing the plain calculator can't parse: "15% of 200",
+ * "20% off 50", "200 + 15%". Returns { expr, value } with a tidy echo of what was
+ * asked, or null. Checked before the calculator so "200 + 15%" means "add 15
+ * percent" (230), not the modulo the expression parser would attempt.
+ */
+export const parsePercent = (raw) => {
+    const t = String(raw ?? '').trim().toLowerCase().replace(/^what\s+is\s+/, '').replace(/\??\s*$/, '')
+    const num = '(-?\\d+(?:\\.\\d+)?)'
+    let m = t.match(new RegExp(`^${num}\\s*(?:%|percent)\\s+of\\s+${num}$`))
+    if (m) return { expr: `${m[1]}% of ${m[2]}`, value: (Number(m[1]) / 100) * Number(m[2]) }
+    m = t.match(new RegExp(`^${num}\\s*(?:%|percent)\\s+off\\s+${num}$`))
+    if (m) return { expr: `${m[1]}% off ${m[2]}`, value: Number(m[2]) * (1 - Number(m[1]) / 100) }
+    m = t.match(new RegExp(`^${num}\\s*([+\\-])\\s*${num}\\s*(?:%|percent)$`))
+    if (m) {
+        const y = Number(m[1])
+        const x = Number(m[3])
+        return { expr: `${m[1]} ${m[2]} ${m[3]}%`, value: m[2] === '+' ? y * (1 + x / 100) : y * (1 - x / 100) }
+    }
+    return null
+}
+
 /* ---- backup & restore --------------------------------------------------- */
 
 export const BACKUP_VERSION = 1

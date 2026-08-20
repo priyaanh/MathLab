@@ -27,7 +27,7 @@ import {
     clampWindow, sanitizePos, resizeBox, parseOpenSearch, mergeSuggestions, suggestUrl, KEEP_ON_SCREEN,
     rankPalette, scorePalette, sanitizeSavedSets, saveSet, removeSet, MAX_SAVED_SETS,
     sanitizeHostList, hostListed, toggleHost, MAX_POPUP_HOSTS, sameLocation, greeting,
-    packBackup, parseBackup, looksLikeMath
+    packBackup, parseBackup, looksLikeMath, parsePercent
 } from '../src/utils/webframe.js'
 import { evaluateExpression } from '../src/utils/mathUtils.js'
 import { parseConversion } from '../src/utils/convert.js'
@@ -1026,6 +1026,21 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
         try { evaluateExpression(t) } catch { threw = true }
         return looksLikeMath(t) && threw
     })())
+
+    /* address-bar percentages */
+    {
+        const near = (a, b) => Math.abs(a - b) < 1e-6
+        ok('percent: "X% of Y"', near(parsePercent('15% of 200').value, 30))
+        ok('percent: a leading "what is" and trailing "?" are tolerated', near(parsePercent('what is 15% of 200?').value, 30))
+        ok('percent: the word "percent" works', near(parsePercent('15 percent of 200').value, 30))
+        ok('percent: "X% off Y" discounts', near(parsePercent('20% off 50').value, 40))
+        ok('percent: "Y + X%" adds, "Y - X%" subtracts',
+            near(parsePercent('200 + 15%').value, 230) && near(parsePercent('200 - 15%').value, 170))
+        ok('percent: the echo reads cleanly', parsePercent('15% of 200').expr === '15% of 200')
+        ok('percent: a plain sum is not a percentage (falls to the calculator)', parsePercent('2+2') === null)
+        ok('percent: modulo is left alone', parsePercent('200 % 7') === null)
+        ok('percent: prose is ignored', parsePercent('50% chance of rain') === null && parsePercent('') === null)
+    }
 
     /* address-bar unit conversion */
     {

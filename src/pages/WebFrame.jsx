@@ -8,7 +8,7 @@ import {
     clampWindow, resizeBox, mergeSuggestions, parseOpenSearch, suggestUrl, rankPalette,
     sanitizeSavedSets, saveSet, removeSet, MAX_SAVED_SETS,
     sanitizeHostList, hostListed, toggleHost, sameLocation, greeting,
-    packBackup, parseBackup, looksLikeMath
+    packBackup, parseBackup, looksLikeMath, parsePercent
 } from '../utils/webframe'
 import { evaluateExpression, formatResult } from '../utils/mathUtils'
 import { parseConversion } from '../utils/convert'
@@ -300,6 +300,9 @@ const WebFrame = ({ onClose }) => {
     const compute = (() => {
         const t = input.trim()
         if (!omniOpen || t === current) return null
+        // percentages first, so "200 + 15%" means "add 15%" not a modulo sum
+        const pct = parsePercent(t)
+        if (pct && Number.isFinite(pct.value)) return { kind: 'calc', url: `calc:${t}`, expr: pct.expr, result: formatResult(pct.value) }
         if (looksLikeMath(t)) {
             try {
                 const v = evaluateExpression(t)
