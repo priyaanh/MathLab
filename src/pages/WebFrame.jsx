@@ -1092,6 +1092,14 @@ const WebFrame = ({ onClose, onOpenApp }) => {
         return () => window.removeEventListener('pointerdown', shut)
     }, [editGroup])
 
+    /** The notes popover closes on a click outside it, like a menu. */
+    useEffect(() => {
+        if (!notesOpen) return undefined
+        const shut = (e) => { if (!e.target.closest?.('.wf-notes, [aria-label="Note for this site"]')) setNotesOpen(false) }
+        window.addEventListener('pointerdown', shut)
+        return () => window.removeEventListener('pointerdown', shut)
+    }, [notesOpen])
+
     // The filter box is the point of opening the history panel, so it gets focus.
     useEffect(() => { if (showHistory) histRef.current?.focus() }, [showHistory])
     useEffect(() => { if (palette) palRef.current?.focus() }, [palette])
@@ -2932,7 +2940,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
 
                     {showOverview && (
                         <div className="wf-modal" role="presentation" onPointerDown={(e) => { if (e.target === e.currentTarget) setShowOverview(false) }}>
-                            <div className="wf-panel is-overview" role="dialog" aria-modal="true" aria-label="All tabs">
+                            <div className="wf-panel is-overview" role="dialog" aria-modal="true" aria-label="All tabs" onKeyDown={(e) => trapTab(e, e.currentTarget)}>
                                 <header className="wf-panel-head">
                                     <h2>All tabs ({tabs.length})</h2>
                                     <button type="button" className="wf-icon" onClick={() => setShowOverview(false)} aria-label="Close overview" title="Close">×</button>
@@ -2975,7 +2983,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                         const quiet = 4, dim = qs + quiet * 2
                         return (
                             <div className="wf-modal" role="presentation" onPointerDown={(e) => { if (e.target === e.currentTarget) setQrFor(null) }}>
-                                <div className="wf-panel is-qr" role="dialog" aria-modal="true" aria-label="QR code">
+                                <div className="wf-panel is-qr" role="dialog" aria-modal="true" aria-label="QR code" onKeyDown={(e) => trapTab(e, e.currentTarget)}>
                                     <header className="wf-panel-head">
                                         <h2>Scan to open on your phone</h2>
                                         <button type="button" className="wf-icon" onClick={() => setQrFor(null)} aria-label="Close QR code" title="Close">×</button>
