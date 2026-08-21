@@ -215,8 +215,14 @@ export const qrMatrix = (text) => {
     }
     set(size - 8, 8, true) // the always-dark module
 
+    // Only the three centres that collide with a finder are skipped; the ones on
+    // the timing row/col (e.g. (6,22) at v7+) ARE drawn — their centre line is
+    // consistent with the timing pattern, so overwriting those cells is correct.
+    const alo = ALIGN[version][0]
+    const ahi = ALIGN[version][ALIGN[version].length - 1]
+    const nearFinder = (r, c) => (r === alo && c === alo) || (r === alo && c === ahi) || (r === ahi && c === alo)
     for (const ar of ALIGN[version]) for (const ac of ALIGN[version]) {
-        if (fn[ar][ac]) continue // overlaps a finder — skip
+        if (nearFinder(ar, ac)) continue
         for (let dr = -2; dr <= 2; dr++) for (let dc = -2; dc <= 2; dc++) {
             set(ar + dr, ac + dc, Math.max(Math.abs(dr), Math.abs(dc)) !== 1)
         }
