@@ -2133,6 +2133,47 @@ a.topic-card {
 .wf-tab.is-private { border: 1px dashed color-mix(in srgb, var(--text) 32%, transparent); }
 .wf-tab-private { flex: 0 0 auto; font-size: 0.82em; opacity: 0.85; line-height: 1; }
 
+/* ---- tab overview grid ---- */
+.wf-panel.is-overview { width: min(720px, 92vw); max-height: 82vh; }
+.wf-overview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+    padding: 4px 2px;
+    overflow-y: auto;
+}
+.wf-ov-tile { position: relative; }
+.wf-ov-open {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    width: 100%;
+    height: 100%;
+    padding: 10px;
+    text-align: left;
+    border: 1px solid color-mix(in srgb, var(--text) 14%, transparent);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+}
+.wf-ov-open:hover { border-color: color-mix(in srgb, var(--accent) 55%, transparent); background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+.wf-ov-tile.is-active .wf-ov-open { border-color: var(--accent, #5b6cf0); box-shadow: 0 0 0 1px var(--accent, #5b6cf0) inset; }
+.wf-ov-top { display: flex; align-items: center; gap: 6px; }
+.wf-ov-pin { margin-left: auto; font-size: 0.75rem; }
+.wf-ov-title { font-size: 0.82rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wf-ov-url { font-size: 0.72rem; opacity: 0.65; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wf-ov-x {
+    position: absolute; top: 6px; right: 6px;
+    width: 20px; height: 20px; line-height: 1;
+    border: 0; border-radius: 50%;
+    background: color-mix(in srgb, var(--text) 12%, transparent);
+    color: var(--text); cursor: pointer; opacity: 0;
+    transition: opacity 0.12s ease;
+}
+.wf-ov-tile:hover .wf-ov-x { opacity: 1; }
+.wf-ov-x:hover { background: color-mix(in srgb, #e5484d 70%, transparent); color: #fff; }
+
 /* ---- accessibility: high contrast & readable font ---- */
 /* High contrast firms up every edge and focus ring so the chrome is legible
    without leaning on subtle colour-mixes. */

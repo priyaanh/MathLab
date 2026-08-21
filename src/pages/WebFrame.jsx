@@ -223,6 +223,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
     const [omniOpen, setOmniOpen] = useState(false)
     const [zooms, setZooms] = useState(readZooms)
     const [showHistory, setShowHistory] = useState(false)
+    const [showOverview, setShowOverview] = useState(false)
     const [histQuery, setHistQuery] = useState('')
     const [menu, setMenu] = useState(null)      // tab context menu: { tabId, x, y }
     const [dragId, setDragId] = useState(null)  // tab being dragged along the strip
@@ -966,6 +967,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                 if (k === 'arrowright' || k === ']') { take(); forward(); return }
                 if (k === 'y') { take(); setShowSettings(false); setShowHistory(h => !h); return }
                 if (k === '\\') { take(); toggleSplit(); return }
+                if (k === 'e' && e.shiftKey) { take(); setShowOverview(o => !o); return }
                 if (k === 'k') { take(); openPalette(); return }
                 // Zoom. '+' and '=' share a key, and which one arrives depends on
                 // the layout and whether Shift is down, so both mean "in".
@@ -1009,6 +1011,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                 // Peel back one layer at a time rather than closing outright.
                 if (menu) { setMenu(null); return }
                 if (omniOpen) { setOmniOpen(false); setSugg(-1); return }
+                if (showOverview) { setShowOverview(false); return }
                 if (showHistory) { setShowHistory(false); return }
                 if (showSettings) { setShowSettings(false); return }
                 onClose?.()
@@ -1288,6 +1291,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
         const act = (title, run, keywords = []) => items.push({ key: `act-${title}`, type: 'action', title, keywords, base: 60, run })
         act('New tab', () => openTab(), ['open', 'create'])
         act('New private tab', () => openTab(null, { private: true }), ['incognito', 'private', 'no history'])
+        if (tabs.length > 1) act('Show all tabs', () => setShowOverview(true), ['overview', 'grid', 'expose'])
         if (closed.length) act('Reopen closed tab', reopenClosed, ['restore', 'undo'])
         act('History', () => setShowHistory(true), ['recent', 'visited'])
         act('Settings', () => setShowSettings(true), ['preferences', 'options'])
@@ -2775,6 +2779,44 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                                             ))}
                                         </section>
                                     ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {showOverview && (
+                        <div className="wf-modal" role="presentation" onPointerDown={(e) => { if (e.target === e.currentTarget) setShowOverview(false) }}>
+                            <div className="wf-panel is-overview" role="dialog" aria-modal="true" aria-label="All tabs">
+                                <header className="wf-panel-head">
+                                    <h2>All tabs ({tabs.length})</h2>
+                                    <button type="button" className="wf-icon" onClick={() => setShowOverview(false)} aria-label="Close overview" title="Close">×</button>
+                                </header>
+                                <div className="wf-overview-grid">
+                                    {tabs.map(t => {
+                                        const u = urlOf(t)
+                                        const g = t.groupId != null ? groups.find(x => x.id === t.groupId) : null
+                                        return (
+                                            <div key={t.id} className={`wf-ov-tile${t.id === active.id ? ' is-active' : ''}`}>
+                                                <button
+                                                    type="button"
+                                                    className="wf-ov-open"
+                                                    onClick={() => { selectTab(t.id); setShowOverview(false) }}
+                                                    title={u || 'New tab'}
+                                                >
+                                                    <span className="wf-ov-top">
+                                                        {t.private ? <span aria-hidden="true">🕶</span> : <Favicon url={u} className="wf-bm-fav" />}
+                                                        {g && <span className="wf-group-dot" style={{ background: g.color }} title={g.name} aria-hidden="true" />}
+                                                        {t.pinned && <span className="wf-ov-pin" aria-hidden="true" title="Pinned">📌</span>}
+                                                    </span>
+                                                    <span className="wf-ov-title">{t.private && !u ? 'Private tab' : tabTitle(u)}</span>
+                                                    <span className="wf-ov-url">{u ? u.replace(/^https?:\/\//i, '').replace(/^www\./, '') : 'New tab page'}</span>
+                                                </button>
+                                                {!t.pinned && (
+                                                    <button type="button" className="wf-ov-x" onClick={() => closeTab(t.id)} aria-label={`Close ${tabLabel(u)}`} title="Close tab">×</button>
+                                                )}
+                                            </div>
+                                        )
+                                    })}
                                 </div>
                             </div>
                         </div>
