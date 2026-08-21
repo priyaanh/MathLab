@@ -2201,6 +2201,20 @@ a.topic-card {
 .wf-tab.is-private { border: 1px dashed color-mix(in srgb, var(--text) 32%, transparent); }
 .wf-tab-private { flex: 0 0 auto; font-size: 0.82em; opacity: 0.85; line-height: 1; }
 
+/* ---- QR code ("send to phone") ---- */
+.wf-panel.is-qr { width: min(340px, 88vw); align-items: center; text-align: center; }
+.wf-qr {
+    width: min(260px, 70vw);
+    height: auto;
+    margin: 4px auto 0;
+    /* a white frame around the quiet zone, so it scans against any panel colour */
+    background: #fff;
+    border-radius: 8px;
+    padding: 6px;
+    box-shadow: 0 4px 16px rgb(0 0 0 / 18%);
+}
+.wf-qr-url { font-size: 0.78rem; color: var(--muted, var(--text)); word-break: break-all; margin: 4px 0 0; }
+
 /* ---- tab overview grid ---- */
 .wf-panel.is-overview { width: min(720px, 92vw); max-height: 82vh; }
 .wf-overview-grid {

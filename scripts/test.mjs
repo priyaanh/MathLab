@@ -34,6 +34,7 @@ import {
 } from '../src/utils/webframe.js'
 import { evaluateExpression } from '../src/utils/mathUtils.js'
 import { parseConversion } from '../src/utils/convert.js'
+import { qrMatrix } from '../src/utils/qr.js'
 import {
     computeAnswer, parsePlot, parseFactor, parsePrime, parseGcdLcm, parseDivisors,
     parseBaseN, parseRoman, parseNumWords, parseColor, parseCharCode, parseConstant, parseDate
@@ -1160,6 +1161,20 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
         ok('marks-io: query entities decode in the URL', parsed[0].url === 'https://example.com/?a=1&b=2')
         ok('marks-io: non-http links are dropped', !parsed.some(b => b.url.startsWith('ftp')))
         ok('marks-io: junk parses to an empty list', parseBookmarksHTML('not a bookmark file').length === 0)
+    }
+
+    /* QR encoder — structure (correctness proven separately by a jsQR round-trip) */
+    {
+        const q = qrMatrix('https://oeis.org')
+        ok('qr: returns a square module matrix', q && q.size === q.modules.length && q.modules.every(r => r.length === q.size))
+        ok('qr: size follows the version formula (4v+17)', q && (q.size - 17) % 4 === 0)
+        ok('qr: a short string picks version 1 (21×21)', qrMatrix('hi').size === 21)
+        ok('qr: a longer URL grows the version', qrMatrix('https://example.com/a/really/long/path?with=params&and=more#section').size > 21)
+        const finderDark = (m, r, c) => m[r][c] && m[r][c + 6] && m[r + 6][c] && !m[r + 1][c + 1]
+        ok('qr: the three finder patterns are placed', finderDark(q.modules, 0, 0) && finderDark(q.modules, 0, q.size - 7) && finderDark(q.modules, q.size - 7, 0))
+        ok('qr: empty input yields null', qrMatrix('') === null)
+        ok('qr: text beyond version-10 capacity yields null', qrMatrix('x'.repeat(400)) === null)
+        ok('qr: output is deterministic', JSON.stringify(qrMatrix('https://oeis.org')) === JSON.stringify(q))
     }
 
     /* bookmark tags */

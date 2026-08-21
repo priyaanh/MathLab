@@ -14,6 +14,7 @@ import {
 import { evaluateExpression, formatResult } from '../utils/mathUtils'
 import { parseConversion } from '../utils/convert'
 import { computeAnswer, parsePlot } from '../utils/answers'
+import { qrMatrix } from '../utils/qr'
 
 /**
  * An in-page web viewer laid out like Chrome with vertical tabs: a tab rail down
@@ -236,6 +237,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
     const [zooms, setZooms] = useState(readZooms)
     const [showHistory, setShowHistory] = useState(false)
     const [showOverview, setShowOverview] = useState(false)
+    const [qrFor, setQrFor] = useState(null) // URL currently shown as a QR code, or null
     const [histQuery, setHistQuery] = useState('')
     const [menu, setMenu] = useState(null)      // tab context menu: { tabId, x, y }
     const [dragId, setDragId] = useState(null)  // tab being dragged along the strip
@@ -1023,6 +1025,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                 // Peel back one layer at a time rather than closing outright.
                 if (menu) { setMenu(null); return }
                 if (omniOpen) { setOmniOpen(false); setSugg(-1); return }
+                if (qrFor) { setQrFor(null); return }
                 if (showOverview) { setShowOverview(false); return }
                 if (showHistory) { setShowHistory(false); return }
                 if (showSettings) { setShowSettings(false); return }
@@ -1319,6 +1322,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
             groups.filter(g => g.id !== active.groupId).forEach(g => act(`Move tab to "${g.name}"`, () => setTabGroup(active.id, g.id), ['group']))
         }
         if (current) act('Copy address', () => copyAddress(current), ['url', 'link'])
+        if (current && qrMatrix(current)) act('Show QR code for this page', () => setQrFor(current), ['qr', 'phone', 'scan', 'send to phone'])
         if (current) act('Forget this site', () => forgetSite(current), ['clear', 'privacy', 'remove', 'history'])
         if (tabs.length > 1) act(splitActive ? 'Close split view' : 'Split view', toggleSplit, ['split', 'side by side', 'compare'])
         if (splitActive) act('Swap split sides', swapSplit, ['split', 'swap'])
@@ -1805,6 +1809,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                     ...groups.map(g => [`Move to "${g.name}"`, () => setTabGroup(menuTab.id, g.id), false])]),
                 ['Bookmark', () => bookmarkPage(urlOf(menuTab)), !urlOf(menuTab)],
                 ['Copy address', () => copyAddress(urlOf(menuTab)), !urlOf(menuTab)],
+                ['QR code', () => setQrFor(urlOf(menuTab)), !urlOf(menuTab) || !qrMatrix(urlOf(menuTab))],
                 ['Reopen closed tab', reopenClosed, !closed.length],
                 ['Close others', () => closeOthers(menuTab.id), tabs.filter(t => t.id !== menuTab.id && !t.pinned).length === 0],
                 ['Close to the right', () => closeToRight(menuTab.id),
@@ -2959,6 +2964,30 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                             </div>
                         </div>
                     )}
+
+                    {qrFor && (() => {
+                        const qr = qrMatrix(qrFor)
+                        if (!qr) return null
+                        const { size: qs, modules } = qr
+                        const quiet = 4, dim = qs + quiet * 2
+                        return (
+                            <div className="wf-modal" role="presentation" onPointerDown={(e) => { if (e.target === e.currentTarget) setQrFor(null) }}>
+                                <div className="wf-panel is-qr" role="dialog" aria-modal="true" aria-label="QR code">
+                                    <header className="wf-panel-head">
+                                        <h2>Scan to open on your phone</h2>
+                                        <button type="button" className="wf-icon" onClick={() => setQrFor(null)} aria-label="Close QR code" title="Close">×</button>
+                                    </header>
+                                    <svg className="wf-qr" viewBox={`0 0 ${dim} ${dim}`} shapeRendering="crispEdges" role="img" aria-label={`QR code for ${qrFor}`}>
+                                        <rect x="0" y="0" width={dim} height={dim} fill="#fff" />
+                                        {modules.flatMap((row, r) => row.map((on, c) => on
+                                            ? <rect key={`${r}-${c}`} x={c + quiet} y={r + quiet} width="1" height="1" fill="#000" />
+                                            : null))}
+                                    </svg>
+                                    <p className="wf-qr-url">{qrFor.replace(/^https?:\/\//i, '').replace(/^www\./, '')}</p>
+                                </div>
+                            </div>
+                        )
+                    })()}
 
                     {/* Indeterminate: a cross-origin frame reports no progress, only
                         that it finished, so this shows activity rather than a fraction. */}
