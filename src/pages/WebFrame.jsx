@@ -38,6 +38,7 @@ const NOTE_KEY = 'mathlab-frame-note'
 const MAX_NOTE = 10000
 const POPUP_HOSTS_KEY = 'mathlab-frame-popup-hosts'
 const POS_KEY = 'mathlab-frame-pos'
+const READ_KEY = 'mathlab-frame-readlater'
 
 /** The eight grips around the window, and the cursor each one wears. */
 const GRIPS = [
@@ -139,6 +140,10 @@ const readSavedSets = () => {
 const readPopupHosts = () => {
     try { return sanitizeHostList(JSON.parse(localStorage.getItem(POPUP_HOSTS_KEY) || 'null')) } catch { return [] }
 }
+// The read-later queue reuses the bookmark shape ({url,label}) and its sanitiser.
+const readReadingList = () => {
+    try { return sanitizeBookmarks(JSON.parse(localStorage.getItem(READ_KEY) || 'null')) } catch { return [] }
+}
 
 // Each tab keeps its own history — a cross-origin frame's real history is unreadable.
 let nextTabId = 1
@@ -222,6 +227,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
     const [savedSets, setSavedSets] = useState(readSavedSets)
     const [savedName, setSavedName] = useState('')  // name being typed in the Tab-sets pane
     const [popupHosts, setPopupHosts] = useState(readPopupHosts)
+    const [readingList, setReadingList] = useState(readReadingList)
     const [clock, setClock] = useState(() => Date.now())  // ticks only on the new-tab page
     const [note, setNote] = useState(readNote)            // new-tab scratchpad
     const [backupIo, setBackupIo] = useState('')
@@ -752,6 +758,10 @@ const WebFrame = ({ onClose, onOpenApp }) => {
         try { localStorage.setItem(POPUP_HOSTS_KEY, JSON.stringify(popupHosts)) } catch { /* ignore */ }
     }, [popupHosts])
 
+    useEffect(() => {
+        try { localStorage.setItem(READ_KEY, JSON.stringify(readingList)) } catch { /* ignore */ }
+    }, [readingList])
+
     /*
      * A frame that never fires load — blocked, hung, offline — would otherwise
      * leave the bar animating forever. Give up after a while and just stop
@@ -1192,6 +1202,8 @@ const WebFrame = ({ onClose, onOpenApp }) => {
         act('History', () => setShowHistory(true), ['recent', 'visited'])
         act('Settings', () => setShowSettings(true), ['preferences', 'options'])
         if (current && !isBookmarked) act('Bookmark this page', bookmarkCurrent, ['save', 'star', 'shortcut'])
+        if (current && !inReadingList(current)) act('Add to reading list', () => addToReadingList(current), ['read later', 'queue', 'save'])
+        if (readingList.length) act('Read later list', () => setShowHistory(true), ['reading list', 'queue'])
         if (current) act(active.pinned ? 'Unpin this tab' : 'Pin this tab', () => togglePin(active.id), ['pin'])
         if (current) act('Copy address', () => copyAddress(current), ['url', 'link'])
         if (current) act('Forget this site', () => forgetSite(current), ['clear', 'privacy', 'remove', 'history'])
@@ -1320,6 +1332,19 @@ const WebFrame = ({ onClose, onOpenApp }) => {
         if (prefs.historyDays) setHistory(h => pruneHistory(h, prefs.historyDays, Date.now()))
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [prefs.historyDays])
+    /* ---- read later ---- */
+    const inReadingList = (url) => readingList.some(r => r.url === url)
+    const addToReadingList = (url) => {
+        if (!url || !/^https?:\/\//i.test(url)) { say('Nothing to save here yet'); return }
+        if (inReadingList(url)) { say('Already on your reading list'); return }
+        setReadingList(list => sanitizeBookmarks([{ url, label: tabTitle(url) }, ...list]))
+        say(`Saved ${tabLabel(url)} to read later`)
+    }
+    const removeFromReadingList = (url) => setReadingList(list => list.filter(r => r.url !== url))
+    // Opening consumes the item — that's what makes this a queue, not a second
+    // bookmarks list: you read it, it leaves.
+    const openFromReadingList = (url) => { removeFromReadingList(url); setShowHistory(false); go(url) }
+
     // "Forget this site" wipes a host from everywhere Lumen remembers it: visits,
     // bookmarks, its saved zoom, and any embed-in-popup rule.
     const forgetSite = (url) => {
@@ -2443,6 +2468,33 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                                 </div>
 
                                 <div className="wf-panel-body">
+                                    {readingList.length > 0 && !histQuery.trim() && (
+                                        <section className="wf-hist-day">
+                                            <h3>Read later</h3>
+                                            {readingList.map(r => (
+                                                <div key={r.url} className="wf-hist-row">
+                                                    <button
+                                                        type="button"
+                                                        className="wf-hist-open"
+                                                        title={`${r.url}\nOpens and removes it from the list`}
+                                                        onClick={() => openFromReadingList(r.url)}
+                                                    >
+                                                        <Favicon url={r.url} className="wf-bm-fav" />
+                                                        <span className="wf-hist-title">{r.label}</span>
+                                                        <span className="wf-hist-url">{r.url.replace(/^https?:\/\//i, '').replace(/^www\./, '')}</span>
+                                                        <span className="wf-hist-time">Open</span>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="wf-icon"
+                                                        onClick={() => removeFromReadingList(r.url)}
+                                                        aria-label={`Remove ${tabLabel(r.url)} from reading list`}
+                                                        title="Remove from reading list"
+                                                    >×</button>
+                                                </div>
+                                            ))}
+                                        </section>
+                                    )}
                                     {closed.length > 0 && !histQuery.trim() && (
                                         <section className="wf-hist-day">
                                             <h3>Recently closed</h3>
@@ -2466,7 +2518,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                                             })}
                                         </section>
                                     )}
-                                    {!history.length && (
+                                    {!history.length && !readingList.length && !closed.length && (
                                         <p className="hint">
                                             Nothing yet. Pages you open in the viewer are listed here — on this device only,
                                             never in the browser&apos;s own history.
