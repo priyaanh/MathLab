@@ -960,8 +960,11 @@ const WebFrame = ({ onClose, onOpenApp }) => {
              * captured and stopped before it sees them. They only reach us while
              * focus is outside the frame — a cross-origin page keeps its keys.
              */
+            // While locked, the shortcut set is frozen — only the panic key and Esc
+            // below still act (both close the viewer), so nothing edits tabs behind
+            // the lock screen.
             const mod = e.metaKey || e.ctrlKey
-            if (mod && !e.altKey) {
+            if (mod && !e.altKey && !locked) {
                 const k = e.key.toLowerCase()
                 const take = () => { e.preventDefault(); e.stopPropagation() }
 
@@ -1000,7 +1003,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                 }
             }
             // Ctrl+Tab cycles even on a Mac, matching every browser.
-            if (e.ctrlKey && e.key === 'Tab') {
+            if (e.ctrlKey && e.key === 'Tab' && !locked) {
                 e.preventDefault(); e.stopPropagation()
                 cycleTab(e.shiftKey ? -1 : 1)
                 return
