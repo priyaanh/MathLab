@@ -3,7 +3,7 @@ import {
     DEFAULT_PREFS, ENGINES, allEngines, bangFromName, MAX_BOOKMARKS, MAX_CLOSED, MAX_CUSTOM_ENGINES, MAX_RAIL, MAX_TABS, MIN_RAIL, clampRail,
     embedUrl, groupHistory, hostOf, hueFor, isBlocked, moveItem, pruneRetiredDefaults,
     rankSuggestions, readableOn, recordVisit, sanitizeBookmarks, sanitizeHistory, sanitizePrefs,
-    exportBookmarksHTML, parseBookmarksHTML, pruneHistory, HISTORY_DAY_OPTS,
+    exportBookmarksHTML, parseBookmarksHTML, pruneHistory, HISTORY_DAY_OPTS, GROUP_COLORS, groupedTabOrder,
     sanitizePos, sanitizeSession, sanitizeZooms, searchTermOf, setZoomFor, stepZoom, tabLabel,
     tabTitle, topSites, toUrl, waybackUrl, withPinnedFirst, zoomFor,
     clampWindow, resizeBox, mergeSuggestions, parseOpenSearch, suggestUrl, rankPalette,
@@ -147,7 +147,8 @@ const readReadingList = () => {
 
 // Each tab keeps its own history — a cross-origin frame's real history is unreadable.
 let nextTabId = 1
-const makeTab = (url, opts = {}) => ({ id: nextTabId++, stack: url ? [url] : [], idx: url ? 0 : -1, nonce: 0, pinned: false, private: !!opts.private })
+let nextGroupId = 1
+const makeTab = (url, opts = {}) => ({ id: nextTabId++, stack: url ? [url] : [], idx: url ? 0 : -1, nonce: 0, pinned: false, private: !!opts.private, groupId: null })
 const urlOf = (tab) => (tab && tab.idx >= 0 ? tab.stack[tab.idx] : null)
 
 /**
@@ -217,6 +218,8 @@ const WebFrame = ({ onClose, onOpenApp }) => {
     const [bmDrag, setBmDrag] = useState(null)  // shortcut URL being dragged to reorder
     const [mru, setMru] = useState([])          // tab ids, most-recently-active first
     const [splitId, setSplitId] = useState(null) // tab shown in the right split pane, or null
+    const [groups, setGroups] = useState([])     // tab groups: { id, name, color, collapsed } (this session only)
+    const [editGroup, setEditGroup] = useState(null) // id of the group whose header is being edited
     const [awake, setAwake] = useState(false)   // screen wake lock requested?
     const [toast, setToast] = useState('')      // transient one-line confirmation
     const [articles, setArticles] = useState([]) // opt-in Wikipedia suggestions
@@ -622,6 +625,32 @@ const WebFrame = ({ onClose, onOpenApp }) => {
     // drop the split rather than show the same page twice.
     useEffect(() => { if (splitId != null && splitId === activeId) setSplitId(null) }, [activeId, splitId])
 
+    /* ---- tab groups (this session only) ---- */
+    const setTabGroup = (tabId, groupId) =>
+        setTabs(ts => ts.map(t => (t.id === tabId ? { ...t, groupId, pinned: groupId ? false : t.pinned } : t)))
+    // New group seeded with one tab; colour cycles through the palette.
+    const groupTab = (tabId) => {
+        const id = nextGroupId++
+        const color = GROUP_COLORS[groups.length % GROUP_COLORS.length]
+        setGroups(gs => [...gs, { id, name: `Group ${gs.length + 1}`, color, collapsed: false }])
+        setTabGroup(tabId, id)
+        setEditGroup(id) // open the rename/colour editor straight away
+    }
+    const ungroupTab = (tabId) => setTabGroup(tabId, null)
+    const renameGroup = (id, name) => setGroups(gs => gs.map(g => (g.id === id ? { ...g, name: name.slice(0, 24) } : g)))
+    const recolorGroup = (id, color) => setGroups(gs => gs.map(g => (g.id === id ? { ...g, color } : g)))
+    const toggleGroupCollapse = (id) => setGroups(gs => gs.map(g => (g.id === id ? { ...g, collapsed: !g.collapsed } : g)))
+    // Deleting a group frees its tabs; they stay open, just ungrouped.
+    const deleteGroup = (id) => {
+        setTabs(ts => ts.map(t => (t.groupId === id ? { ...t, groupId: null } : t)))
+        setGroups(gs => gs.filter(g => g.id !== id))
+    }
+    // Drop groups that have lost all their members (e.g. every tab closed).
+    useEffect(() => {
+        setGroups(gs => gs.filter(g => tabs.some(t => t.groupId === g.id)))
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tabs])
+
     const closeTab = (id) => {
         if (tabs.length <= 1) { onClose?.(); return } // last tab closes the viewer, like Chrome
         if (id === splitId) setSplitId(null) // closing the split pane ends the split
@@ -1018,6 +1047,14 @@ const WebFrame = ({ onClose, onOpenApp }) => {
         }
     }, [menu])
 
+    /** The group-header editor closes on a click outside it (it stops its own). */
+    useEffect(() => {
+        if (editGroup == null) return undefined
+        const shut = () => setEditGroup(null)
+        window.addEventListener('pointerdown', shut)
+        return () => window.removeEventListener('pointerdown', shut)
+    }, [editGroup])
+
     // The filter box is the point of opening the history panel, so it gets focus.
     useEffect(() => { if (showHistory) histRef.current?.focus() }, [showHistory])
     useEffect(() => { if (palette) palRef.current?.focus() }, [palette])
@@ -1241,6 +1278,11 @@ const WebFrame = ({ onClose, onOpenApp }) => {
         if (current && !inReadingList(current)) act('Add to reading list', () => addToReadingList(current), ['read later', 'queue', 'save'])
         if (readingList.length) act('Read later list', () => setShowHistory(true), ['reading list', 'queue'])
         if (current) act(active.pinned ? 'Unpin this tab' : 'Pin this tab', () => togglePin(active.id), ['pin'])
+        if (active && !active.pinned) {
+            if (active.groupId) act('Remove tab from group', () => ungroupTab(active.id), ['ungroup'])
+            else act('Add tab to a new group', () => groupTab(active.id), ['group', 'colour', 'organize'])
+            groups.filter(g => g.id !== active.groupId).forEach(g => act(`Move tab to "${g.name}"`, () => setTabGroup(active.id, g.id), ['group']))
+        }
         if (current) act('Copy address', () => copyAddress(current), ['url', 'link'])
         if (current) act('Forget this site', () => forgetSite(current), ['clear', 'privacy', 'remove', 'history'])
         if (tabs.length > 1) act(splitActive ? 'Close split view' : 'Split view', toggleSplit, ['split', 'side by side', 'compare'])
@@ -1504,9 +1546,60 @@ const WebFrame = ({ onClose, onOpenApp }) => {
         prefs.verticalTabs && !railOpen && 'rail-closed'
     ].filter(Boolean).join(' ')
 
+    // A group header row: colour dot, name, member count, collapse caret. Clicking
+    // the name opens a small inline editor (rename + recolour + delete).
+    const renderGroupHeader = ({ group, count }) => (
+        <div key={`g-${group.id}`} className="wf-group-head" style={{ '--group-color': group.color }}>
+            <button
+                type="button"
+                className="wf-group-caret"
+                onClick={() => toggleGroupCollapse(group.id)}
+                aria-label={group.collapsed ? `Expand ${group.name}` : `Collapse ${group.name}`}
+                aria-expanded={!group.collapsed}
+                title={group.collapsed ? 'Expand group' : 'Collapse group'}
+            >{group.collapsed ? '▸' : '▾'}</button>
+            <button type="button" className="wf-group-name" onClick={() => setEditGroup(g => (g === group.id ? null : group.id))} title="Rename or recolour">
+                <span className="wf-group-dot" style={{ background: group.color }} aria-hidden="true" />
+                <span className="wf-group-label">{group.name}</span>
+                <span className="wf-group-count">{count}</span>
+            </button>
+            {editGroup === group.id && (
+                <div className="wf-group-edit" onPointerDown={(e) => e.stopPropagation()}>
+                    <input
+                        type="text"
+                        className="wf-group-input"
+                        value={group.name}
+                        maxLength={24}
+                        aria-label="Group name"
+                        autoFocus
+                        onChange={(e) => renameGroup(group.id, e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); setEditGroup(null) } }}
+                    />
+                    <div className="wf-group-colors">
+                        {GROUP_COLORS.map(c => (
+                            <button
+                                key={c}
+                                type="button"
+                                className={`wf-group-swatch${c === group.color ? ' is-on' : ''}`}
+                                style={{ background: c }}
+                                aria-label={`Colour ${c}`}
+                                onClick={() => recolorGroup(group.id, c)}
+                            />
+                        ))}
+                    </div>
+                    <button type="button" className="btn ghost" onClick={() => { setEditGroup(null); deleteGroup(group.id) }}>Ungroup all</button>
+                </div>
+            )}
+        </div>
+    )
+
+    const tabOrder = groupedTabOrder(tabs, groups, active?.id)
     const tabList = (
         <div className="wf-tabs" role="tablist" aria-label="Tabs">
-            {tabs.map(t => {
+            {tabOrder.map(it => {
+                if (it.type === 'header') return renderGroupHeader(it)
+                const t = it.tab
+                const group = it.group
                 const u = urlOf(t)
                 return (
                     <div
@@ -1523,8 +1616,10 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                             loading[t.id] && 'is-loading',
                             t.pinned && 'is-pinned',
                             t.private && 'is-private',
+                            group && 'is-grouped',
                             dragId === t.id && 'is-dragging'
                         ].filter(Boolean).join(' ')}
+                        style={group ? { '--group-color': group.color } : undefined}
                         title={(t.private ? 'Private tab — not saved to history\n' : '') + (u ? `${u}\nMiddle-click to close · right-click for more` : 'New tab')}
                         // Dragging reorders the strip; a pinned tab can only be
                         // dropped among the other pinned ones, which withPinnedFirst
@@ -1627,6 +1722,10 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                 ['New tab', () => openTab(), tabs.length >= MAX_TABS],
                 ['Duplicate', () => duplicateTab(menuTab.id), !urlOf(menuTab) || tabs.length >= MAX_TABS],
                 [menuTab.pinned ? 'Unpin tab' : 'Pin tab', () => togglePin(menuTab.id), !urlOf(menuTab)],
+                ...(menuTab.groupId
+                    ? [['Remove from group', () => ungroupTab(menuTab.id), false]]
+                    : [['Add to new group', () => groupTab(menuTab.id), false],
+                    ...groups.map(g => [`Move to "${g.name}"`, () => setTabGroup(menuTab.id, g.id), false])]),
                 ['Bookmark', () => bookmarkPage(urlOf(menuTab)), !urlOf(menuTab)],
                 ['Copy address', () => copyAddress(urlOf(menuTab)), !urlOf(menuTab)],
                 ['Reopen closed tab', reopenClosed, !closed.length],

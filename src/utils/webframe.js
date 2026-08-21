@@ -1025,6 +1025,35 @@ export const sanitizePrefs = (raw) => {
 /** The retention choices the Privacy pane offers; 0 means "keep forever". */
 export const HISTORY_DAY_OPTS = [0, 7, 30, 90, 365]
 
+/* ---- tab groups --------------------------------------------------------- */
+
+/** The colours a new tab group cycles through, in order. */
+export const GROUP_COLORS = ['#e5484d', '#e8892a', '#e2b53a', '#46a758', '#3aa7c2', '#5b6cf0', '#9b5de5', '#d6489a']
+
+/**
+ * The order the tab strip renders in once groups exist, as a flat list of
+ * { type:'tab', tab, group? } and { type:'header', group, count } items:
+ * pinned tabs first (never grouped), then each group as a header followed by its
+ * members, then the ungrouped tabs. A collapsed group shows only its header —
+ * except for the active tab, which stays visible so it's never orphaned. Pure,
+ * so the ordering is unit-tested rather than eyeballed.
+ */
+export const groupedTabOrder = (tabs, groups, activeId = null) => {
+    const list = Array.isArray(tabs) ? tabs : []
+    const gs = Array.isArray(groups) ? groups : []
+    const items = []
+    for (const t of list) if (t.pinned) items.push({ type: 'tab', tab: t })
+    for (const g of gs) {
+        const members = list.filter(t => !t.pinned && t.groupId === g.id)
+        if (!members.length) continue
+        items.push({ type: 'header', group: g, count: members.length })
+        const shown = g.collapsed ? members.filter(t => t.id === activeId) : members
+        for (const t of shown) items.push({ type: 'tab', tab: t, group: g })
+    }
+    for (const t of list) if (!t.pinned && !gs.some(g => g.id === t.groupId)) items.push({ type: 'tab', tab: t })
+    return items
+}
+
 /** Drop visits older than `days` (0 keeps everything). Pure, for testability. */
 export const pruneHistory = (history, days, now = Date.now()) => {
     if (!days || !Array.isArray(history)) return Array.isArray(history) ? history : []

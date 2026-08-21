@@ -27,7 +27,7 @@ import {
     clampWindow, sanitizePos, resizeBox, parseOpenSearch, mergeSuggestions, suggestUrl, KEEP_ON_SCREEN,
     rankPalette, scorePalette, sanitizeSavedSets, saveSet, removeSet, MAX_SAVED_SETS,
     sanitizeHostList, hostListed, toggleHost, MAX_POPUP_HOSTS, sameLocation, greeting,
-    exportBookmarksHTML, parseBookmarksHTML, pruneHistory, HISTORY_DAY_OPTS,
+    exportBookmarksHTML, parseBookmarksHTML, pruneHistory, HISTORY_DAY_OPTS, groupedTabOrder, GROUP_COLORS,
     packBackup, parseBackup, looksLikeMath, parsePercent, parseRadix,
     resolveBang, bangFromName
 } from '../src/utils/webframe.js'
@@ -1159,6 +1159,29 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
         ok('marks-io: query entities decode in the URL', parsed[0].url === 'https://example.com/?a=1&b=2')
         ok('marks-io: non-http links are dropped', !parsed.some(b => b.url.startsWith('ftp')))
         ok('marks-io: junk parses to an empty list', parseBookmarksHTML('not a bookmark file').length === 0)
+    }
+
+    /* tab groups: the pure render ordering */
+    {
+        const tabs = [
+            { id: 1, pinned: true, groupId: null },
+            { id: 2, pinned: false, groupId: 10 },
+            { id: 3, pinned: false, groupId: null },
+            { id: 4, pinned: false, groupId: 10 }
+        ]
+        const groups = [{ id: 10, name: 'Work', color: GROUP_COLORS[0], collapsed: false }]
+        const order = groupedTabOrder(tabs, groups, 2)
+        ok('groups: pinned tab leads, ungrouped comes last',
+            order[0].type === 'tab' && order[0].tab.id === 1 && order[order.length - 1].tab.id === 3)
+        ok('groups: a header precedes its members', order[1].type === 'header' && order[1].group.id === 10 && order[1].count === 2)
+        ok('groups: both members render under the header', order[2].tab.id === 2 && order[3].tab.id === 4)
+        const collapsed = groupedTabOrder(tabs, [{ ...groups[0], collapsed: true }], 2)
+        ok('groups: a collapsed group shows only the active member',
+            collapsed.filter(i => i.type === 'tab').map(i => i.tab.id).join() === '1,2,3')
+        ok('groups: an empty groups list is just the tabs in order',
+            groupedTabOrder(tabs, []).filter(i => i.type === 'tab').length === 4 && groupedTabOrder(tabs, []).every(i => i.type === 'tab'))
+        ok('groups: a tab pointing at a missing group falls back to ungrouped',
+            groupedTabOrder([{ id: 9, pinned: false, groupId: 999 }], []).length === 1)
     }
 
     /* history retention */

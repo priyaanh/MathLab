@@ -2132,6 +2132,39 @@ a.topic-card {
 /* Private tabs read as "off the record": a dimmed, dashed chip with a mask. */
 .wf-tab.is-private { border: 1px dashed color-mix(in srgb, var(--text) 32%, transparent); }
 .wf-tab-private { flex: 0 0 auto; font-size: 0.82em; opacity: 0.85; line-height: 1; }
+
+/* ---- tab groups ---- */
+/* A grouped tab wears its group's colour on the leading edge and a faint wash. */
+.wf-tab.is-grouped {
+    border-left: 3px solid var(--group-color, var(--accent));
+    background: color-mix(in srgb, var(--group-color, var(--accent)) 8%, transparent);
+}
+.wf-tab.is-grouped.is-active { background: color-mix(in srgb, var(--group-color, var(--accent)) 18%, transparent); }
+.wf-group-head { position: relative; display: flex; align-items: center; gap: 2px; padding: 2px 2px 2px 4px; margin-top: 2px; }
+.wf-group-caret {
+    flex: 0 0 auto; width: 18px; height: 22px; border: 0; background: none; cursor: pointer;
+    color: var(--text); opacity: 0.7; font-size: 0.7rem; border-radius: 5px;
+}
+.wf-group-caret:hover { opacity: 1; background: color-mix(in srgb, var(--text) 8%, transparent); }
+.wf-group-name {
+    flex: 1 1 auto; display: flex; align-items: center; gap: 6px; min-width: 0;
+    border: 0; background: none; cursor: pointer; color: var(--text);
+    font-size: 0.74rem; font-weight: 600; letter-spacing: 0.02em; padding: 2px 6px; border-radius: 6px;
+}
+.wf-group-name:hover { background: color-mix(in srgb, var(--text) 8%, transparent); }
+.wf-group-dot { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; }
+.wf-group-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wf-group-count { flex: 0 0 auto; opacity: 0.6; font-weight: 500; }
+.wf-group-edit {
+    position: absolute; z-index: 8; top: 100%; left: 4px; right: 4px;
+    display: flex; flex-direction: column; gap: 8px; padding: 10px;
+    background: var(--surface); border: 1px solid color-mix(in srgb, var(--text) 16%, transparent);
+    border-radius: 10px; box-shadow: 0 8px 24px rgb(0 0 0 / 22%);
+}
+.wf-group-input { width: 100%; padding: 5px 8px; border-radius: 7px; border: 1px solid color-mix(in srgb, var(--text) 20%, transparent); background: var(--bg); color: var(--text); }
+.wf-group-colors { display: flex; flex-wrap: wrap; gap: 6px; }
+.wf-group-swatch { width: 20px; height: 20px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+.wf-group-swatch.is-on { border-color: var(--text); }
 .wf-tab-x {
     flex: none;
     width: 20px;
