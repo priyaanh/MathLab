@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import GraphingMode from '../components/GraphingMode'
 import { useGraphing } from '../hooks/useGraphing'
 import '../App.css'
@@ -20,6 +21,17 @@ const SIZES = {
 const GraphPage = () => {
     const graphingState = useGraphing()
     const [size, setSize] = useState('medium')
+
+    // Seed the first function from a "?fn=" deep link (Lumen's "plot sin(x)"),
+    // once, then drop the param so a later edit isn't overwritten on refresh.
+    const [params, setParams] = useSearchParams()
+    useEffect(() => {
+        const fn = params.get('fn')
+        if (!fn) return
+        graphingState.updateFunctionExpression(graphingState.functions[0].id, fn)
+        setParams({}, { replace: true })
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
     return (
         <div className="page">

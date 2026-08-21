@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useState } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import NavBar from './NavBar'
 import MathKeypad from './MathKeypad'
 import ErrorBoundary from './ErrorBoundary'
@@ -79,9 +79,13 @@ const SECRET_CODES = {
 
 const Layout = () => {
     const { pathname } = useLocation()
+    const navigate = useNavigate()
     const [secretGame, setSecretGame] = useState(null) // 'dino' | '2048' | 'web' | null
     useEffect(() => { document.title = titleFor(pathname) }, [pathname])
     const closeGame = () => setSecretGame(null)
+    // Lumen hands an expression to a full-page tool (e.g. "plot sin(x)"): leave
+    // the viewer and open that route.
+    const openApp = (to) => { setSecretGame(null); navigate(to) }
 
     // Typing a word toggles its panel — the same word closes it again, so there
     // is a way back out that does not depend on finding the × button.
@@ -141,7 +145,7 @@ const Layout = () => {
                     <Suspense fallback={null}>
                         {secretGame === 'dino' && <DinoGame onClose={closeGame} />}
                         {secretGame === '2048' && <Game2048 onClose={closeGame} />}
-                        {secretGame === 'web' && <WebFrame onClose={closeGame} />}
+                        {secretGame === 'web' && <WebFrame onClose={closeGame} onOpenApp={openApp} />}
                     </Suspense>
                 </ErrorBoundary>
             )}

@@ -32,6 +32,10 @@ import {
 } from '../src/utils/webframe.js'
 import { evaluateExpression } from '../src/utils/mathUtils.js'
 import { parseConversion } from '../src/utils/convert.js'
+import {
+    computeAnswer, parsePlot, parseFactor, parsePrime, parseGcdLcm, parseDivisors,
+    parseBaseN, parseRoman, parseNumWords, parseColor, parseCharCode, parseConstant, parseDate
+} from '../src/utils/answers.js'
 import { syncDecision, hashContent, reachError } from '../src/utils/sync.js'
 
 let passed = 0
@@ -1096,6 +1100,46 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
         ok('radix: negatives and non-integers are refused',
             parseRadix('-5 in hex') === null && parseRadix('1.5 in binary') === null)
         ok('radix: digits outside the source base are refused', parseRadix('0b1012 in decimal') === null)
+    }
+
+    /* address-bar lab answers: number theory, bases, roman, colours, dates */
+    {
+        const NOW = new Date(2026, 7, 20) // 2026-08-20, so date tests are deterministic
+        ok('answers: prime factorisation groups exponents', parseFactor('factor 360').result === '2^3 · 3^2 · 5')
+        ok('answers: "prime factors of" phrasing works', parseFactor('prime factors of 84').result === '2^2 · 3 · 7')
+        ok('answers: a prime reports prime', parsePrime('is 97 prime').result === '97 is prime')
+        ok('answers: a composite shows a factor pair', parsePrime('is 91 prime').result === '91 is not prime (7 × 13)')
+        ok('answers: gcd and lcm over 2+ numbers', parseGcdLcm('gcd 24 36').result === '12' && parseGcdLcm('lcm of 4 and 6').result === '12')
+        ok('answers: divisors are listed and counted', parseDivisors('divisors of 28').result === '1, 2, 4, 7, 14, 28  (6)')
+        ok('answers: decimal into an arbitrary base', parseBaseN('255 in base 7').result === '513')
+        ok('answers: an arbitrary base back to decimal', parseBaseN('ff base 16 in decimal').result === '255')
+        ok('answers: base digits must fit the base', parseBaseN('1012 base 2 in decimal') === null)
+        ok('answers: decimal to roman', parseRoman('2024 in roman').result === 'MMXXIV')
+        ok('answers: roman to decimal, round-trip validated', parseRoman('MCMLXXXIV in decimal').result === '1984')
+        ok('answers: a malformed roman numeral is refused', parseRoman('IIII in decimal') === null)
+        ok('answers: numbers spelled out', parseNumWords('1234567 in words').result === 'one million two hundred thirty-four thousand five hundred sixty-seven')
+        ok('answers: zero spells out', parseNumWords('0 in words').result === 'zero')
+        ok('answers: hex colour to rgb', parseColor('#ff8800 in rgb').result === 'rgb(255, 136, 0)')
+        ok('answers: rgb colour to hsl', parseColor('rgb(255,136,0) in hsl').result === 'hsl(32, 100%, 50%)')
+        ok('answers: 3-digit hex expands', parseColor('#f80 in hex').result === '#FF8800')
+        ok('answers: an out-of-range rgb channel is refused', parseColor('rgb(300,0,0) in hex') === null)
+        ok('answers: a character to its code point', parseCharCode('char code of A').result === '65 (U+0041)')
+        ok('answers: a hex code point to its character', parseCharCode('U+2603').result.startsWith('☃'))
+        ok('answers: a decimal code point to its character', parseCharCode('char 9731').result.startsWith('☃'))
+        ok('answers: pi to N digits', parseConstant('pi to 12 digits').result === '3.141592653589')
+        ok('answers: a bare named constant', parseConstant('golden ratio').result.startsWith('1.6180339887'))
+        ok('answers: a physical constant', parseConstant('speed of light').result === '299792458 m/s')
+        ok('answers: days until a date', parseDate('days until 2026-12-25', NOW).result === '127 days')
+        ok('answers: an offset from today lands on the right weekday', parseDate('3 weeks from today', NOW).result === '2026-09-10 (Thursday)')
+        ok('answers: an offset into the past', parseDate('2 months ago', NOW).result === '2026-06-20 (Saturday)')
+        ok('answers: "time in <zone>" resolves', typeof parseDate('time in tokyo', NOW).result === 'string')
+        ok('answers: the dispatcher finds a hit and tags it copyable', computeAnswer('factor 12', NOW)?.kind === 'calc')
+        ok('answers: prose is not an answer', computeAnswer('why is the sky blue', NOW) === null && computeAnswer('', NOW) === null)
+        ok('answers: bare "pi" stays searchable', computeAnswer('pi', NOW) === null)
+        ok('plot: "plot sin(x)" yields the expression', parsePlot('plot sin(x)').expr === 'sin(x)')
+        ok('plot: "graph" is a synonym', parsePlot('graph x^2 - 3').expr === 'x^2 - 3')
+        ok('plot: an expression without x is not a plot', parsePlot('plot 5') === null)
+        ok('plot: prose after plot is refused', parsePlot('plot my day') === null)
     }
 
         ok('prefs: the clock defaults on and can be turned off',

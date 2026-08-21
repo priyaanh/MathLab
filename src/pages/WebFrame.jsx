@@ -12,6 +12,7 @@ import {
 } from '../utils/webframe'
 import { evaluateExpression, formatResult } from '../utils/mathUtils'
 import { parseConversion } from '../utils/convert'
+import { computeAnswer, parsePlot } from '../utils/answers'
 
 /**
  * An in-page web viewer laid out like Chrome with vertical tabs: a tab rail down
@@ -168,7 +169,7 @@ const Favicon = ({ url, className = 'wf-fav' }) => {
     return <img className={className} src={`${origin}/favicon.ico`} alt="" loading="lazy" onError={() => setFailedFor(url)} />
 }
 
-const WebFrame = ({ onClose }) => {
+const WebFrame = ({ onClose, onOpenApp }) => {
     const [prefs, setPrefs] = useState(readPrefs)
 
     // Reopen exactly where we left off — tabs, their history and the front tab.
@@ -343,6 +344,12 @@ const WebFrame = ({ onClose }) => {
         if (radix) return { kind: 'calc', url: `radix:${t}`, expr: radix.expr, result: radix.result }
         const conv = parseConversion(t)
         if (conv) return { kind: 'convert', url: `convert:${t}`, expr: `${conv.value} ${conv.from}`, result: conv.text }
+        // number theory, bases, roman, colours, dates, constants — a maths lab's answers
+        const ans = computeAnswer(t)
+        if (ans) return { ...ans, url: `answer:${t}` }
+        // "plot sin(x)" hands the expression to the full-page grapher instead of copying
+        const plot = onOpenApp && parsePlot(t)
+        if (plot) return { kind: 'plot', url: `plot:${t}`, expr: plot.expr, to: `/graph?fn=${encodeURIComponent(plot.expr)}` }
         return null
     })()
 
@@ -372,6 +379,7 @@ const WebFrame = ({ onClose }) => {
     const chooseSuggestion = (s) => {
         if (!s) return
         if (s.kind === 'calc' || s.kind === 'convert') { copyText(s.result, `Copied ${s.result}`); setOmniOpen(false); setSugg(-1); return }
+        if (s.kind === 'plot') { onOpenApp?.(s.to); setOmniOpen(false); setSugg(-1); return }
         if (s.kind === 'tab') { selectTab(s.tabId); setOmniOpen(false); setSugg(-1); return }
         go(s.url)
     }
@@ -1645,7 +1653,7 @@ const WebFrame = ({ onClose }) => {
                                             // mousedown, not click: blur would tear the row down first
                                             onMouseDown={(e) => {
                                                 e.preventDefault()
-                                                const compute = s.kind === 'calc' || s.kind === 'convert'
+                                                const compute = s.kind === 'calc' || s.kind === 'convert' || s.kind === 'plot'
                                                 if (!compute && (e.button === 1 || e.metaKey || e.ctrlKey)) openInBackground(s.url)
                                                 else if (e.button === 0) chooseSuggestion(s)
                                             }}
@@ -1657,6 +1665,12 @@ const WebFrame = ({ onClose }) => {
                                                     <span className="wf-sugg-calc-eq" aria-hidden="true">=</span>
                                                     <span className="wf-sugg-calc-res">{s.result}</span>
                                                     <span className="wf-sugg-kind is-calc">Enter to copy</span>
+                                                </>
+                                            ) : s.kind === 'plot' ? (
+                                                <>
+                                                    <span className="wf-sugg-calc-ico" aria-hidden="true">∿</span>
+                                                    <span className="wf-sugg-label">Plot <code>{s.expr}</code></span>
+                                                    <span className="wf-sugg-kind is-calc">Enter to graph</span>
                                                 </>
                                             ) : (
                                                 <>
