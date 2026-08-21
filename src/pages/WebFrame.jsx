@@ -1312,8 +1312,9 @@ const WebFrame = ({ onClose, onOpenApp }) => {
         act('History', () => setShowHistory(true), ['recent', 'visited'])
         act('Settings', () => setShowSettings(true), ['preferences', 'options'])
         if (current && !isBookmarked) act('Bookmark this page', bookmarkCurrent, ['save', 'star', 'shortcut'])
-        if (current && !inReadingList(current)) act('Add to reading list', () => addToReadingList(current), ['read later', 'queue', 'save'])
-        if (noteHost) act(currentNote ? 'Edit note for this site' : 'Add a note for this site', () => setNotesOpen(true), ['note', 'annotate', 'memo'])
+        if (current && !readingList.some(r => r.url === current)) act('Add to reading list', () => addToReadingList(current), ['read later', 'queue', 'save'])
+        const noteH = hostOf(current) // computed here: noteHost/currentNote are declared later
+        if (noteH) act((siteNotes[noteH] ? 'Edit' : 'Add a') + ' note for this site', () => setNotesOpen(true), ['note', 'annotate', 'memo'])
         if (readingList.length) act('Read later list', () => setShowHistory(true), ['reading list', 'queue'])
         if (current) act(active.pinned ? 'Unpin this tab' : 'Pin this tab', () => togglePin(active.id), ['pin'])
         if (active && !active.pinned) {
