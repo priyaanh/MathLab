@@ -155,6 +155,12 @@ const readSiteNotes = () => {
         return out
     } catch { return {} }
 }
+// A salted SHA-256 of the lock PIN — so the plaintext isn't sitting in storage.
+// (Client-side, so it deters a shoulder-surfer, not a determined attacker.)
+const hashPin = async (pin) => {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`mathlab-lumen:${pin}`))
+    return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('')
+}
 
 // Each tab keeps its own history — a cross-origin frame's real history is unreadable.
 let nextTabId = 1
@@ -209,6 +215,10 @@ const WebFrame = ({ onClose, onOpenApp }) => {
     const [pos, setPos] = useState(readPos)
     const [maximized, setMaximized] = useState(false)
     const [mini, setMini] = useState(false) // picture-in-picture: shrink to a corner, page below stays usable
+    const [locked, setLocked] = useState(false) // PIN lock screen shown
+    const [pinEntry, setPinEntry] = useState('')
+    const [pinMsg, setPinMsg] = useState('')
+    const [pinSet, setPinSet] = useState('') // new-PIN field in settings
     const [isFullscreen, setIsFullscreen] = useState(false)
     const [resizing, setResizing] = useState(false)
     const [showSettings, setShowSettings] = useState(false)
@@ -1454,6 +1464,20 @@ const WebFrame = ({ onClose, onOpenApp }) => {
         if (text.trim()) next[host] = text.slice(0, 4000); else delete next[host]
         return next
     })
+
+    /* ---- PIN lock (a convenience lock, not strong security) ---- */
+    // Lock on open if a PIN is set.
+    useEffect(() => { if (prefs.pinHash) setLocked(true) /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [])
+    const unlock = async () => {
+        if (await hashPin(pinEntry) === prefs.pinHash) { setLocked(false); setPinEntry(''); setPinMsg('') }
+        else { setPinMsg('That PIN doesn’t match.'); setPinEntry('') }
+    }
+    const setPin = async (pin) => {
+        if (!/^\d{4,12}$/.test(pin)) { setPinMsg('Use 4–12 digits.'); return }
+        patchPrefs({ pinHash: await hashPin(pin) })
+        setPinMsg('PIN set — Lumen will ask for it when it opens.')
+    }
+    const removePin = () => { patchPrefs({ pinHash: '' }); setPinMsg('PIN removed.') }
     // Opening consumes the item — that's what makes this a queue, not a second
     // bookmarks list: you read it, it leaves.
     const openFromReadingList = (url) => { removeFromReadingList(url); setShowHistory(false); go(url) }
@@ -1798,6 +1822,27 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                 tabIndex={-1}
                 onPointerDown={reclaimFocus}
             >
+                {locked && (
+                    <div className="wf-lock" role="dialog" aria-modal="true" aria-label="Locked">
+                        <form className="wf-lock-box" onSubmit={(e) => { e.preventDefault(); unlock() }}>
+                            <span className="wf-lock-icon" aria-hidden="true">🔒</span>
+                            <h2>Lumen is locked</h2>
+                            <input
+                                type="password"
+                                inputMode="numeric"
+                                className="wf-lock-input"
+                                value={pinEntry}
+                                onChange={(e) => { setPinEntry(e.target.value.replace(/\D/g, '').slice(0, 12)); setPinMsg('') }}
+                                placeholder="Enter PIN"
+                                aria-label="Enter your PIN"
+                                autoFocus
+                            />
+                            <button type="submit" className="btn primary" disabled={!pinEntry}>Unlock</button>
+                            {pinMsg && <span className="hint" role="status">{pinMsg}</span>}
+                            <span className="hint">Press {prefs.closeKey === '`' ? 'the panic key' : `“${prefs.closeKey}”`} or Esc to close instead.</span>
+                        </form>
+                    </div>
+                )}
                 {prefs.verticalTabs && (
                     <aside className="wf-rail" style={railOpen ? { width: `${prefs.railWidth}px` } : undefined} {...titleDragProps}>
                         <div className="wf-rail-head">
@@ -2506,6 +2551,29 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                                                     <button type="button" className="btn ghost" disabled={!history.length} onClick={() => { setShowSettings(false); setShowHistory(true) }}>Browse the list</button>
                                                     <button type="button" className="btn ghost" disabled={!current} onClick={() => forgetSite(current)}>Forget this site</button>
                                                 </div>
+                                            </div>
+
+                                            <div className="wf-set-list">
+                                                <span className="wf-set-title">Lock</span>
+                                                <p className="hint">
+                                                    {prefs.pinHash
+                                                        ? 'Lumen asks for this PIN when it opens. It keeps casual eyes out — not strong security, since anyone with the device could clear it.'
+                                                        : 'Set a PIN and Lumen will ask for it each time it opens. This keeps casual eyes out; it is a convenience lock, not strong security.'}
+                                                </p>
+                                                <div className="wf-set-actions">
+                                                    <input
+                                                        type="password"
+                                                        inputMode="numeric"
+                                                        value={pinSet}
+                                                        onChange={(e) => { setPinSet(e.target.value.replace(/\D/g, '').slice(0, 12)); setPinMsg('') }}
+                                                        placeholder={prefs.pinHash ? 'New PIN (4–12 digits)' : 'PIN (4–12 digits)'}
+                                                        aria-label="Set a lock PIN"
+                                                        style={{ flex: '1 1 8rem' }}
+                                                    />
+                                                    <button type="button" className="btn" onClick={() => { setPin(pinSet); setPinSet('') }} disabled={!pinSet}>{prefs.pinHash ? 'Change PIN' : 'Set PIN'}</button>
+                                                    {prefs.pinHash && <button type="button" className="btn ghost" onClick={removePin}>Remove PIN</button>}
+                                                </div>
+                                                {pinMsg && <span className="hint" role="status">{pinMsg}</span>}
                                             </div>
 
                                             <div className="wf-set-list">

@@ -2055,6 +2055,31 @@ a.topic-card {
 .wf-shell.is-max { width: calc(100vw - 2rem); height: calc(100vh - 2rem); }
 .wf-shell.is-fs { width: 100vw; height: 100vh; border: none; border-radius: 0; }
 
+/* ---- PIN lock ---- */
+.wf-lock {
+    position: absolute;
+    inset: 0;
+    z-index: 90;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-2);
+    border-radius: inherit;
+}
+.wf-lock-box { display: flex; flex-direction: column; align-items: center; gap: 12px; width: min(300px, 80%); text-align: center; }
+.wf-lock-icon { font-size: 2rem; }
+.wf-lock-input {
+    width: 100%;
+    padding: 10px 12px;
+    text-align: center;
+    letter-spacing: 0.3em;
+    font-size: 1.1rem;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--text) 22%, transparent);
+    background: var(--bg);
+    color: var(--text);
+}
+
 /* ---- picture-in-picture / mini player ---- */
 /* The backdrop stops dimming and stops catching clicks, so the MathLab page
    underneath stays usable; only the little window itself takes pointer events. */

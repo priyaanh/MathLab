@@ -420,6 +420,7 @@ export const DEFAULT_PREFS = {
     confirmOpen: false,
     contrast: 'normal',   // 'high' strengthens borders, text and focus rings
     dyslexiaFont: false,  // a more legible, roomier font for the viewer chrome
+    pinHash: '',          // sha-256 of a lock PIN; '' means no lock (convenience only)
     historyDays: 0, // 0 = keep forever; else auto-forget visits older than N days
     bookmarks: [
         { label: 'Wikipedia', url: 'https://en.wikipedia.org' },
@@ -1021,6 +1022,7 @@ export const sanitizePrefs = (raw) => {
         confirmOpen: p.confirmOpen === true,
         contrast: p.contrast === 'high' ? 'high' : 'normal',
         dyslexiaFont: p.dyslexiaFont === true,
+        pinHash: /^[0-9a-f]{64}$/i.test(String(p.pinHash || '')) ? String(p.pinHash).toLowerCase() : DEFAULT_PREFS.pinHash,
         historyDays: HISTORY_DAY_OPTS.includes(p.historyDays) ? p.historyDays : DEFAULT_PREFS.historyDays,
         bookmarks
     }
