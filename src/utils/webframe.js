@@ -923,9 +923,12 @@ export const sanitizeBookmarks = (raw) => {
 /* ---- bookmarks import / export (Netscape HTML) --------------------------- */
 
 const escHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+// A code point past U+10FFFF would make String.fromCodePoint throw and take the
+// whole import down, so out-of-range numeric entities are dropped, not decoded.
+const fromCP = (n) => (Number.isFinite(n) && n >= 0 && n <= 0x10ffff ? String.fromCodePoint(n) : '')
 const unescHtml = (s) => String(s)
-    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
-    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => fromCP(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => fromCP(Number(d)))
     .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
 
 /**

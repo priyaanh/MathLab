@@ -280,8 +280,12 @@ export const parseConstant = (raw) => {
 const parseISO = (s) => {
     const m = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/)
     if (!m) return null
-    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
-    return Number.isNaN(d.getTime()) ? null : d
+    const y = Number(m[1]), mo = Number(m[2]), da = Number(m[3])
+    if (mo < 1 || mo > 12 || da < 1 || da > 31) return null
+    const d = new Date(y, mo - 1, da)
+    // reject calendar-invalid dates that Date would otherwise roll over (e.g. Feb 30 -> Mar 2)
+    if (d.getFullYear() !== y || d.getMonth() !== mo - 1 || d.getDate() !== da) return null
+    return d
 }
 const DAY = 86400000
 const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate())

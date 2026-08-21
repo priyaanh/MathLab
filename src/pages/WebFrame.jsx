@@ -14,7 +14,7 @@ import {
 import { evaluateExpression, formatResult } from '../utils/mathUtils'
 import { parseConversion } from '../utils/convert'
 import { computeAnswer, parsePlot } from '../utils/answers'
-import { qrMatrix } from '../utils/qr'
+import { qrMatrix, qrFits } from '../utils/qr'
 
 /**
  * An in-page web viewer laid out like Chrome with vertical tabs: a tab rail down
@@ -201,7 +201,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
     const [restored] = useState(() => {
         const s = readSession()
         if (s) {
-            const list = s.tabs.map(t => ({ id: nextTabId++, stack: t.stack, idx: t.idx, nonce: 0, pinned: t.pinned }))
+            const list = s.tabs.map(t => ({ id: nextTabId++, stack: t.stack, idx: t.idx, nonce: 0, pinned: t.pinned, private: false, groupId: null }))
             return { tabs: list, activeId: list[s.active].id }
         }
         const tab = makeTab(prefs.newTabOpensHome ? prefs.home : null)
@@ -685,8 +685,9 @@ const WebFrame = ({ onClose, onOpenApp }) => {
         const i = tabs.findIndex(t => t.id === id)
         const victim = tabs[i]
         const rest = tabs.filter(t => t.id !== id)
-        // Remember it so Cmd/Ctrl+Shift+T can bring it back with its history.
-        if (victim && urlOf(victim)) {
+        // Remember it so Cmd/Ctrl+Shift+T can bring it back with its history — but
+        // never a private tab, whose whole point is to leave no trail to reopen.
+        if (victim && urlOf(victim) && !victim.private) {
             setClosed(c => [{ stack: victim.stack, idx: victim.idx, at: i }, ...c].slice(0, MAX_CLOSED))
         }
         setTabs(rest)
@@ -702,7 +703,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
         const entry = closed[i]
         if (!entry) { say('No recently closed tabs.'); return }
         if (tabs.length >= MAX_TABS) { say(`${MAX_TABS} tabs is the limit — close one first.`); return }
-        const tab = { id: nextTabId++, stack: entry.stack, idx: entry.idx, nonce: 0, pinned: false }
+        const tab = { id: nextTabId++, stack: entry.stack, idx: entry.idx, nonce: 0, pinned: false, private: false, groupId: null }
         setClosed(c => c.filter((_, j) => j !== i))
         setTabs(ts => {
             const at = Math.min(Math.max(entry.at, 0), ts.length)
@@ -719,8 +720,9 @@ const WebFrame = ({ onClose, onOpenApp }) => {
         const src = tabs.find(t => t.id === id)
         if (!src || !urlOf(src)) return
         if (tabs.length >= MAX_TABS) { say(`${MAX_TABS} tabs is the limit — close one first.`); return }
-        // the copy is never pinned, so it has to fall out of the pinned block
-        const tab = { id: nextTabId++, stack: [...src.stack], idx: src.idx, nonce: 0, pinned: false }
+        // the copy is never pinned, so it has to fall out of the pinned block; it
+        // keeps the source's private flag and group so a duplicate isn't a downgrade
+        const tab = { id: nextTabId++, stack: [...src.stack], idx: src.idx, nonce: 0, pinned: false, private: !!src.private, groupId: src.groupId ?? null }
         const at = tabs.findIndex(t => t.id === id) + 1
         setTabs(ts => withPinnedFirst([...ts.slice(0, at), tab, ...ts.slice(at)]))
         setActiveId(tab.id)
@@ -1323,7 +1325,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
             groups.filter(g => g.id !== active.groupId).forEach(g => act(`Move tab to "${g.name}"`, () => setTabGroup(active.id, g.id), ['group']))
         }
         if (current) act('Copy address', () => copyAddress(current), ['url', 'link'])
-        if (current && qrMatrix(current)) act('Show QR code for this page', () => setQrFor(current), ['qr', 'phone', 'scan', 'send to phone'])
+        if (current && qrFits(current)) act('Show QR code for this page', () => setQrFor(current), ['qr', 'phone', 'scan', 'send to phone'])
         if (current) act('Forget this site', () => forgetSite(current), ['clear', 'privacy', 'remove', 'history'])
         if (tabs.length > 1) act(splitActive ? 'Close split view' : 'Split view', toggleSplit, ['split', 'side by side', 'compare'])
         if (splitActive) act('Swap split sides', swapSplit, ['split', 'swap'])
@@ -1375,7 +1377,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
             if (!u) continue
             if (openUrls.has(u)) { skipped++; continue }
             if (tabs.length + fresh.length >= MAX_TABS) break
-            fresh.push({ id: nextTabId++, stack: t.stack, idx: t.idx, nonce: 0, pinned: !!t.pinned })
+            fresh.push({ id: nextTabId++, stack: t.stack, idx: t.idx, nonce: 0, pinned: !!t.pinned, private: false, groupId: null })
         }
         if (!fresh.length) { say(skipped ? 'Those tabs are already open.' : `${MAX_TABS} tabs is the limit — close some first.`); return }
         fresh.forEach(t => startLoad(t.id, urlOf(t)))
@@ -1810,7 +1812,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                     ...groups.map(g => [`Move to "${g.name}"`, () => setTabGroup(menuTab.id, g.id), false])]),
                 ['Bookmark', () => bookmarkPage(urlOf(menuTab)), !urlOf(menuTab)],
                 ['Copy address', () => copyAddress(urlOf(menuTab)), !urlOf(menuTab)],
-                ['QR code', () => setQrFor(urlOf(menuTab)), !urlOf(menuTab) || !qrMatrix(urlOf(menuTab))],
+                ['QR code', () => setQrFor(urlOf(menuTab)), !urlOf(menuTab) || !qrFits(urlOf(menuTab))],
                 ['Reopen closed tab', reopenClosed, !closed.length],
                 ['Close others', () => closeOthers(menuTab.id), tabs.filter(t => t.id !== menuTab.id && !t.pinned).length === 0],
                 ['Close to the right', () => closeToRight(menuTab.id),

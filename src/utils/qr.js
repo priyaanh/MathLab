@@ -66,6 +66,17 @@ const dataCodewords = (v) => EC_M[v][1].reduce((s, [n, d]) => s + n * d, 0)
 
 const utf8Bytes = (str) => Array.from(new TextEncoder().encode(str))
 
+/**
+ * Cheap capacity check — does `text` fit in a version-1..10 level-M code? Lets
+ * callers decide whether to offer a QR without running the full encoder (Reed–
+ * Solomon + eight-mask evaluation) just to find out.
+ */
+export const qrFits = (text) => {
+    const len = utf8Bytes(String(text ?? '')).length
+    if (!len) return false
+    return len * 8 <= dataCodewords(10) * 8 - 4 - 16 // v10-M byte capacity
+}
+
 /* ---- format / version information (BCH) ---------------------------------- */
 const encodeFormat = (mask) => {
     const data = (0b00 << 3) | mask // level M = 00

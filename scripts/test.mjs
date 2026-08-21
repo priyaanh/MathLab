@@ -34,7 +34,7 @@ import {
 } from '../src/utils/webframe.js'
 import { evaluateExpression } from '../src/utils/mathUtils.js'
 import { parseConversion } from '../src/utils/convert.js'
-import { qrMatrix } from '../src/utils/qr.js'
+import { qrMatrix, qrFits } from '../src/utils/qr.js'
 import {
     computeAnswer, parsePlot, parseFactor, parsePrime, parseGcdLcm, parseDivisors,
     parseBaseN, parseRoman, parseNumWords, parseColor, parseCharCode, parseConstant, parseDate
@@ -1136,6 +1136,8 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
         ok('answers: an offset from today lands on the right weekday', parseDate('3 weeks from today', NOW).result === '2026-09-10 (Thursday)')
         ok('answers: an offset into the past', parseDate('2 months ago', NOW).result === '2026-06-20 (Saturday)')
         ok('answers: "time in <zone>" resolves', typeof parseDate('time in tokyo', NOW).result === 'string')
+        ok('answers: calendar-invalid dates are refused, not rolled over',
+            parseDate('days until 2026-13-45', NOW) === null && parseDate('days until 2026-02-30', NOW) === null)
         ok('answers: the dispatcher finds a hit and tags it copyable', computeAnswer('factor 12', NOW)?.kind === 'calc')
         ok('answers: prose is not an answer', computeAnswer('why is the sky blue', NOW) === null && computeAnswer('', NOW) === null)
         ok('answers: bare "pi" stays searchable', computeAnswer('pi', NOW) === null)
@@ -1161,6 +1163,8 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
         ok('marks-io: query entities decode in the URL', parsed[0].url === 'https://example.com/?a=1&b=2')
         ok('marks-io: non-http links are dropped', !parsed.some(b => b.url.startsWith('ftp')))
         ok('marks-io: junk parses to an empty list', parseBookmarksHTML('not a bookmark file').length === 0)
+        ok('marks-io: an out-of-range numeric entity is dropped, not thrown on',
+            parseBookmarksHTML('<A HREF="https://a.test/x">bad &#x110000; &#99999999999;</A>').length === 1)
     }
 
     /* QR encoder — structure (correctness proven separately by a jsQR round-trip) */
@@ -1175,6 +1179,8 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
         ok('qr: empty input yields null', qrMatrix('') === null)
         ok('qr: text beyond version-10 capacity yields null', qrMatrix('x'.repeat(400)) === null)
         ok('qr: output is deterministic', JSON.stringify(qrMatrix('https://oeis.org')) === JSON.stringify(q))
+        ok('qr: qrFits agrees with qrMatrix at the capacity edge',
+            qrFits('https://oeis.org') === !!qrMatrix('https://oeis.org') && qrFits('x'.repeat(400)) === !!qrMatrix('x'.repeat(400)) && qrFits('') === false)
     }
 
     /* bookmark tags */
