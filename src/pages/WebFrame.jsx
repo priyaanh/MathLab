@@ -1363,7 +1363,8 @@ const WebFrame = ({ onClose, onOpenApp }) => {
 
     /* ---- saved tab sets (workspaces) ---- */
     const saveCurrentAs = (name) => {
-        const payload = tabs.map(t => ({ stack: t.stack, idx: t.idx, pinned: t.pinned })).filter(t => t.idx >= 0)
+        // a saved set is written to storage, so private tabs never go into one
+        const payload = tabs.filter(t => !t.private).map(t => ({ stack: t.stack, idx: t.idx, pinned: t.pinned })).filter(t => t.idx >= 0)
         if (!payload.length) { say('No open pages to save yet.'); return false }
         const nm = String(name || '').trim()
         if (!nm) return false
@@ -1445,7 +1446,9 @@ const WebFrame = ({ onClose, onOpenApp }) => {
 
     /** Chrome's "bookmark all tabs" — duplicates are dropped by the sanitiser. */
     const bookmarkAllTabs = () => {
-        const open = tabs.map(urlOf).filter(Boolean).map(u => ({ label: tabLabel(u), url: u }))
+        // private tabs are excluded — bookmarking them would persist a URL the
+        // private tab exists precisely to keep out of storage
+        const open = tabs.filter(t => !t.private).map(urlOf).filter(Boolean).map(u => ({ label: tabLabel(u), url: u }))
         if (!open.length) return
         patchPrefs({ bookmarks: [...prefs.bookmarks, ...open] })
     }
@@ -1507,6 +1510,9 @@ const WebFrame = ({ onClose, onOpenApp }) => {
         patchPrefs({ bookmarks: prefs.bookmarks.filter(b => hostOf(b.url) !== host) })
         setZooms(z => { const n = { ...z }; delete n[host]; return n })
         setPopupHosts(p => toggleHost(p, url, false))
+        // "everything" has to mean everything: the read-later queue and the site note too
+        setReadingList(list => list.filter(r => hostOf(r.url) !== host))
+        setSiteNotes(prev => { const n = { ...prev }; delete n[host]; return n })
         say(`Forgot everything from ${host}`)
     }
 
@@ -1856,7 +1862,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                 onPointerDown={reclaimFocus}
             >
                 {locked && (
-                    <div className="wf-lock" role="dialog" aria-modal="true" aria-label="Locked">
+                    <div className="wf-lock" role="dialog" aria-modal="true" aria-label="Locked" onKeyDown={(e) => trapTab(e, e.currentTarget)}>
                         <form className="wf-lock-box" onSubmit={(e) => { e.preventDefault(); unlock() }}>
                             <span className="wf-lock-icon" aria-hidden="true">🔒</span>
                             <h2>Lumen is locked</h2>
