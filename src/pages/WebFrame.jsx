@@ -3,7 +3,7 @@ import {
     DEFAULT_PREFS, ENGINES, allEngines, bangFromName, MAX_BOOKMARKS, MAX_CLOSED, MAX_CUSTOM_ENGINES, MAX_RAIL, MAX_TABS, MIN_RAIL, clampRail,
     embedUrl, groupHistory, hostOf, hueFor, isBlocked, moveItem, pruneRetiredDefaults,
     rankSuggestions, readableOn, recordVisit, sanitizeBookmarks, sanitizeHistory, sanitizePrefs,
-    exportBookmarksHTML, parseBookmarksHTML,
+    exportBookmarksHTML, parseBookmarksHTML, pruneHistory, HISTORY_DAY_OPTS,
     sanitizePos, sanitizeSession, sanitizeZooms, searchTermOf, setZoomFor, stepZoom, tabLabel,
     tabTitle, topSites, toUrl, waybackUrl, withPinnedFirst, zoomFor,
     clampWindow, resizeBox, mergeSuggestions, parseOpenSearch, suggestUrl, rankPalette,
@@ -142,7 +142,7 @@ const readPopupHosts = () => {
 
 // Each tab keeps its own history — a cross-origin frame's real history is unreadable.
 let nextTabId = 1
-const makeTab = (url) => ({ id: nextTabId++, stack: url ? [url] : [], idx: url ? 0 : -1, nonce: 0, pinned: false })
+const makeTab = (url, opts = {}) => ({ id: nextTabId++, stack: url ? [url] : [], idx: url ? 0 : -1, nonce: 0, pinned: false, private: !!opts.private })
 const urlOf = (tab) => (tab && tab.idx >= 0 ? tab.stack[tab.idx] : null)
 
 /**
@@ -479,7 +479,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
         setOmniOpen(false)
         setSugg(-1)
         startLoad(active.id, target)
-        setHistory(h => recordVisit(h, target, Date.now()))
+        if (!active.private) setHistory(h => recordVisit(h, target, Date.now()))
     }
     const submit = (e) => {
         e.preventDefault()
@@ -514,13 +514,16 @@ const WebFrame = ({ onClose, onOpenApp }) => {
     }
 
     /* ---- tabs ---- */
-    const openTab = (url) => {
+    const openTab = (url, opts = {}) => {
         if (tabs.length >= MAX_TABS) { say(`${MAX_TABS} tabs is the limit — close one first.`); return }
-        const tab = makeTab(url ?? (prefs.newTabOpensHome ? prefs.home : null))
+        // A private tab starts blank — the point is to leave no trail, so it
+        // doesn't open the start page either, and its visits skip history.
+        const tab = makeTab(url ?? (prefs.newTabOpensHome && !opts.private ? prefs.home : null), opts)
         setTabs(ts => [...ts, tab])
         setActiveId(tab.id)
         setInput(urlOf(tab) || '')
         setNtpQuery('')
+        if (opts.private) say('Private tab — this tab’s pages won’t be saved to history')
     }
 
     /** Open somewhere in a new tab without leaving this one — ⌘/middle-click. */
@@ -537,18 +540,19 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                 const opened = mode === 'popup' ? openPopup(url) : openExternally(url)
                 if (opened) {
                     say(`${tabLabel(url)} can't be embedded — opened ${mode === 'popup' ? 'in a popup window' : 'in a new browser tab'}`)
-                    setHistory(h => recordVisit(h, url, Date.now()))
+                    if (!active.private) setHistory(h => recordVisit(h, url, Date.now()))
                     return
                 }
             }
         }
         if (tabs.length >= MAX_TABS) { say(`${MAX_TABS} tabs is the limit — close one first.`); return }
-        const tab = makeTab(target)
+        // A link opened from a private tab stays private, like every browser.
+        const tab = makeTab(target, { private: active.private })
         setTabs(ts => [...ts, tab])
         // With discarding on, a background tab stays asleep until viewed, so don't
         // start a spinner on a frame that won't mount — it loads when selected.
         if (!prefs.sleepTabs) startLoad(tab.id, target)
-        setHistory(h => recordVisit(h, target, Date.now()))
+        if (!active.private) setHistory(h => recordVisit(h, target, Date.now()))
         say(`Opened ${tabLabel(url)} in a new tab`)
     }
 
@@ -797,9 +801,11 @@ const WebFrame = ({ onClose, onOpenApp }) => {
     // Saved on every change, so closing with the panic key never loses the session.
     useEffect(() => {
         try {
+            // Private tabs are ephemeral — they never touch the restored session.
+            const persistable = tabs.filter(t => !t.private)
             const payload = {
-                tabs: tabs.map(t => ({ stack: t.stack, idx: t.idx, pinned: t.pinned })),
-                active: Math.max(0, tabs.findIndex(t => t.id === activeId))
+                tabs: persistable.map(t => ({ stack: t.stack, idx: t.idx, pinned: t.pinned })),
+                active: Math.max(0, persistable.findIndex(t => t.id === activeId))
             }
             if (payload.tabs.every(t => t.idx < 0)) localStorage.removeItem(SESSION_KEY)
             else localStorage.setItem(SESSION_KEY, JSON.stringify(payload))
@@ -853,6 +859,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
 
                 if (k === 't' && e.shiftKey) { take(); reopenClosed(); return }
                 if (k === 't') { take(); openTab(); return }
+                if (k === 'n' && e.shiftKey) { take(); openTab(null, { private: true }); return }
                 if (k === 'w') {
                     take()
                     // pinning exists to survive exactly this; the tab menu is the
@@ -1180,12 +1187,14 @@ const WebFrame = ({ onClose, onOpenApp }) => {
 
         const act = (title, run, keywords = []) => items.push({ key: `act-${title}`, type: 'action', title, keywords, base: 60, run })
         act('New tab', () => openTab(), ['open', 'create'])
+        act('New private tab', () => openTab(null, { private: true }), ['incognito', 'private', 'no history'])
         if (closed.length) act('Reopen closed tab', reopenClosed, ['restore', 'undo'])
         act('History', () => setShowHistory(true), ['recent', 'visited'])
         act('Settings', () => setShowSettings(true), ['preferences', 'options'])
         if (current && !isBookmarked) act('Bookmark this page', bookmarkCurrent, ['save', 'star', 'shortcut'])
         if (current) act(active.pinned ? 'Unpin this tab' : 'Pin this tab', () => togglePin(active.id), ['pin'])
         if (current) act('Copy address', () => copyAddress(current), ['url', 'link'])
+        if (current) act('Forget this site', () => forgetSite(current), ['clear', 'privacy', 'remove', 'history'])
         if (tabs.length > 1) act('Close this tab', () => closeTab(active.id), ['close'])
         act('Save open tabs as a set…', () => { setShowSettings(true); setSetPane('sets') }, ['session', 'workspace', 'group'])
 
@@ -1305,6 +1314,22 @@ const WebFrame = ({ onClose, onOpenApp }) => {
         setHistory([])
         try { localStorage.removeItem(HISTORY_KEY) } catch { /* ignore */ }
         say('Visited pages cleared')
+    }
+    // Retention: forget visits past the chosen age, on open and when it changes.
+    useEffect(() => {
+        if (prefs.historyDays) setHistory(h => pruneHistory(h, prefs.historyDays, Date.now()))
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [prefs.historyDays])
+    // "Forget this site" wipes a host from everywhere Lumen remembers it: visits,
+    // bookmarks, its saved zoom, and any embed-in-popup rule.
+    const forgetSite = (url) => {
+        const host = hostOf(url)
+        if (!host) return
+        setHistory(h => h.filter(x => hostOf(x.url) !== host))
+        patchPrefs({ bookmarks: prefs.bookmarks.filter(b => hostOf(b.url) !== host) })
+        setZooms(z => { const n = { ...z }; delete n[host]; return n })
+        setPopupHosts(p => toggleHost(p, url, false))
+        say(`Forgot everything from ${host}`)
     }
 
     const exportBookmarks = () => {
@@ -1434,9 +1459,10 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                             t.id === active.id && 'is-active',
                             loading[t.id] && 'is-loading',
                             t.pinned && 'is-pinned',
+                            t.private && 'is-private',
                             dragId === t.id && 'is-dragging'
                         ].filter(Boolean).join(' ')}
-                        title={u ? `${u}\nMiddle-click to close · right-click for more` : 'New tab'}
+                        title={(t.private ? 'Private tab — not saved to history\n' : '') + (u ? `${u}\nMiddle-click to close · right-click for more` : 'New tab')}
                         // Dragging reorders the strip; a pinned tab can only be
                         // dropped among the other pinned ones, which withPinnedFirst
                         // enforces after the move.
@@ -1483,8 +1509,9 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                             focusTab.current = tabs[next].id
                         }}
                     >
+                        {t.private && <span className="wf-tab-private" aria-hidden="true" title="Private">🕶</span>}
                         {loading[t.id] ? <span className="wf-tab-spin" aria-label="Loading" /> : <Favicon url={u} />}
-                        <span className="wf-tab-label">{tabTitle(u)}</span>
+                        <span className="wf-tab-label">{t.private && !u ? 'Private tab' : tabTitle(u)}</span>
                         {!t.pinned && (
                             <button
                                 type="button"
@@ -1501,9 +1528,10 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                 type="button"
                 className="wf-newtab"
                 onClick={() => openTab()}
+                onContextMenu={(e) => { e.preventDefault(); openTab(null, { private: true }) }}
                 disabled={tabs.length >= MAX_TABS}
                 aria-label="New tab"
-                title={tabs.length >= MAX_TABS ? `${MAX_TABS} tabs is the limit` : `New tab (${MOD_LABEL}T)`}
+                title={tabs.length >= MAX_TABS ? `${MAX_TABS} tabs is the limit` : `New tab (${MOD_LABEL}T)\nRight-click for a private tab (${MOD_LABEL}⇧N)`}
             >+</button>
         </div>
     )
@@ -2212,9 +2240,18 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                                                     address bar can suggest it. It is never added to the browser&apos;s history.
                                                     {history.length > 0 && <> Currently <b>{history.length}</b> {history.length === 1 ? 'page' : 'pages'}.</>}
                                                 </p>
+                                                <label className="wf-set">
+                                                    <span>Keep history for</span>
+                                                    <select value={prefs.historyDays} onChange={(e) => patchPrefs({ historyDays: Number(e.target.value) })}>
+                                                        {HISTORY_DAY_OPTS.map(d => (
+                                                            <option key={d} value={d}>{d === 0 ? 'Forever' : d === 365 ? '1 year' : `${d} days`}</option>
+                                                        ))}
+                                                    </select>
+                                                </label>
                                                 <div className="wf-set-actions">
                                                     <button type="button" className="btn ghost" disabled={!history.length} onClick={clearHistory}>Clear visited pages</button>
                                                     <button type="button" className="btn ghost" disabled={!history.length} onClick={() => { setShowSettings(false); setShowHistory(true) }}>Browse the list</button>
+                                                    <button type="button" className="btn ghost" disabled={!current} onClick={() => forgetSite(current)}>Forget this site</button>
                                                 </div>
                                             </div>
 

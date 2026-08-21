@@ -2118,6 +2118,9 @@ a.topic-card {
 .wf-shell.rail-closed .wf-tab-label,
 .wf-shell.rail-closed .wf-tab-x { display: none; }
 .wf-shell.rail-closed .wf-tab { justify-content: center; padding: 0; }
+/* Private tabs read as "off the record": a dimmed, dashed chip with a mask. */
+.wf-tab.is-private { border: 1px dashed color-mix(in srgb, var(--text) 32%, transparent); }
+.wf-tab-private { flex: 0 0 auto; font-size: 0.82em; opacity: 0.85; line-height: 1; }
 .wf-tab-x {
     flex: none;
     width: 20px;

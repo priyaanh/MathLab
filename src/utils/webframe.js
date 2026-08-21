@@ -418,6 +418,7 @@ export const DEFAULT_PREFS = {
     webSuggest: false,
     onBlocked: 'archive',
     confirmOpen: false,
+    historyDays: 0, // 0 = keep forever; else auto-forget visits older than N days
     bookmarks: [
         { label: 'Wikipedia', url: 'https://en.wikipedia.org' },
         { label: 'Khan Academy', url: 'https://www.khanacademy.org' },
@@ -1016,8 +1017,19 @@ export const sanitizePrefs = (raw) => {
         webSuggest: p.webSuggest === true,
         onBlocked: blockedChoice(p),
         confirmOpen: p.confirmOpen === true,
+        historyDays: HISTORY_DAY_OPTS.includes(p.historyDays) ? p.historyDays : DEFAULT_PREFS.historyDays,
         bookmarks
     }
+}
+
+/** The retention choices the Privacy pane offers; 0 means "keep forever". */
+export const HISTORY_DAY_OPTS = [0, 7, 30, 90, 365]
+
+/** Drop visits older than `days` (0 keeps everything). Pure, for testability. */
+export const pruneHistory = (history, days, now = Date.now()) => {
+    if (!days || !Array.isArray(history)) return Array.isArray(history) ? history : []
+    const cutoff = now - days * 86400000
+    return history.filter(h => h && typeof h.last === 'number' && h.last >= cutoff)
 }
 
 /* ---- zoom --------------------------------------------------------------- */

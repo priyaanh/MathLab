@@ -27,7 +27,7 @@ import {
     clampWindow, sanitizePos, resizeBox, parseOpenSearch, mergeSuggestions, suggestUrl, KEEP_ON_SCREEN,
     rankPalette, scorePalette, sanitizeSavedSets, saveSet, removeSet, MAX_SAVED_SETS,
     sanitizeHostList, hostListed, toggleHost, MAX_POPUP_HOSTS, sameLocation, greeting,
-    exportBookmarksHTML, parseBookmarksHTML,
+    exportBookmarksHTML, parseBookmarksHTML, pruneHistory, HISTORY_DAY_OPTS,
     packBackup, parseBackup, looksLikeMath, parsePercent, parseRadix,
     resolveBang, bangFromName
 } from '../src/utils/webframe.js'
@@ -1159,6 +1159,23 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
         ok('marks-io: query entities decode in the URL', parsed[0].url === 'https://example.com/?a=1&b=2')
         ok('marks-io: non-http links are dropped', !parsed.some(b => b.url.startsWith('ftp')))
         ok('marks-io: junk parses to an empty list', parseBookmarksHTML('not a bookmark file').length === 0)
+    }
+
+    /* history retention */
+    {
+        const NOW = 1_000 * 86400000 // day 1000, in ms
+        const hist = [
+            { url: 'https://a.test', visits: 1, last: NOW - 3 * 86400000 },   // 3 days old
+            { url: 'https://b.test', visits: 1, last: NOW - 40 * 86400000 },  // 40 days old
+            { url: 'https://c.test', visits: 1, last: NOW - 400 * 86400000 }  // 400 days old
+        ]
+        ok('retention: 0 days keeps everything', pruneHistory(hist, 0, NOW).length === 3)
+        ok('retention: 7 days keeps only the recent visit', pruneHistory(hist, 7, NOW).map(h => h.url).join() === 'https://a.test')
+        ok('retention: 90 days keeps the two newer visits', pruneHistory(hist, 90, NOW).length === 2)
+        ok('retention: an entry with no timestamp is dropped when pruning', pruneHistory([{ url: 'https://x.test' }], 7, NOW).length === 0)
+        ok('retention: the offered options include forever and a year', HISTORY_DAY_OPTS.includes(0) && HISTORY_DAY_OPTS.includes(365))
+        ok('retention: sanitizePrefs only accepts an offered value',
+            sanitizePrefs({ historyDays: 30 }).historyDays === 30 && sanitizePrefs({ historyDays: 12345 }).historyDays === 0)
     }
 
         ok('prefs: the clock defaults on and can be turned off',
