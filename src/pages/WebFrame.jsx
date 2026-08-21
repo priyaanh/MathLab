@@ -1756,16 +1756,19 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                             // so each takes the pair of arrows that matches its direction
                             const fwd = prefs.verticalTabs ? 'ArrowDown' : 'ArrowRight'
                             const back = prefs.verticalTabs ? 'ArrowUp' : 'ArrowLeft'
-                            const i = tabs.findIndex(x => x.id === t.id)
+                            // navigate the on-screen order (which grouping/pinning reorders),
+                            // not the raw tabs array, so arrows land on the next visible tab
+                            const seq = tabOrder.filter(it => it.type === 'tab').map(it => it.tab)
+                            const i = seq.findIndex(x => x.id === t.id)
                             let next = -1
-                            if (e.key === fwd) next = (i + 1) % tabs.length
-                            else if (e.key === back) next = (i - 1 + tabs.length) % tabs.length
+                            if (e.key === fwd) next = (i + 1) % seq.length
+                            else if (e.key === back) next = (i - 1 + seq.length) % seq.length
                             else if (e.key === 'Home') next = 0
-                            else if (e.key === 'End') next = tabs.length - 1
-                            if (next < 0) return
+                            else if (e.key === 'End') next = seq.length - 1
+                            if (next < 0 || !seq[next]) return
                             e.preventDefault()
-                            selectTab(tabs[next].id)
-                            focusTab.current = tabs[next].id
+                            selectTab(seq[next].id)
+                            focusTab.current = seq[next].id
                         }}
                     >
                         {t.private && <span className="wf-tab-private" aria-hidden="true" title="Private">🕶</span>}
