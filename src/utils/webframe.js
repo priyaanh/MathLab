@@ -22,14 +22,16 @@
  * those prefs fall back to the default on the next read.
  */
 export const ENGINES = [
+    // Each engine carries a `bang`: a short keyword you fire inline with "!" to
+    // search that engine without changing your default — "!w pi" -> Wikipedia.
     // marginalia moved house: search.marginalia.nu now 302s here, and a redirect
     // inside the frame is a round trip for nothing.
-    { id: 'marginalia', name: 'Marginalia', q: (s) => `https://marginalia-search.com/search?query=${encodeURIComponent(s)}` },
-    { id: 'wikipedia', name: 'Wikipedia', q: (s) => `https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(s)}` },
+    { id: 'marginalia', name: 'Marginalia', bang: 'm', q: (s) => `https://marginalia-search.com/search?query=${encodeURIComponent(s)}` },
+    { id: 'wikipedia', name: 'Wikipedia', bang: 'w', q: (s) => `https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(s)}` },
     // two the rest of the web can't match on a maths site, and both allow framing
-    { id: 'mathworld', name: 'MathWorld', q: (s) => `https://mathworld.wolfram.com/search/?query=${encodeURIComponent(s)}` },
-    { id: 'oeis', name: 'OEIS (sequences)', q: (s) => `https://oeis.org/search?q=${encodeURIComponent(s)}` },
-    { id: 'wiby', name: 'Wiby', q: (s) => `https://wiby.me/?q=${encodeURIComponent(s)}` }
+    { id: 'mathworld', name: 'MathWorld', bang: 'mw', q: (s) => `https://mathworld.wolfram.com/search/?query=${encodeURIComponent(s)}` },
+    { id: 'oeis', name: 'OEIS (sequences)', bang: 'oeis', q: (s) => `https://oeis.org/search?q=${encodeURIComponent(s)}` },
+    { id: 'wiby', name: 'Wiby', bang: 'wiby', q: (s) => `https://wiby.me/?q=${encodeURIComponent(s)}` }
 ]
 
 /**
@@ -292,12 +294,41 @@ export const blocksFraming = (url) => {
 export const toUrl = (raw, engineId, engines = ENGINES) => {
     const text = String(raw ?? '').trim()
     if (!text) return null
+    const list = Array.isArray(engines) && engines.length ? engines : ENGINES
+    // A bang ("!w pi" or "pi !w") is an explicit choice of engine, so it wins
+    // over every other reading — before we'd ever treat the text as an address.
+    const bang = resolveBang(text, list)
+    if (bang) return bang.url
     if (/^https?:\/\//i.test(text)) return text
     if (/^javascript:/i.test(text)) return null // never hand the frame a script URL
     if (/^[^\s/]+\.[a-z]{2,}(:\d{1,5})?([/?#]|$)/i.test(text)) return `https://${text}`
-    const list = Array.isArray(engines) && engines.length ? engines : ENGINES
     const engine = list.find(e => e.id === engineId) || list[0]
     return engine.q(text)
+}
+
+/**
+ * A "bang" search: a short keyword prefixed (or suffixed) with "!" fires one
+ * search at a specific engine without touching the default — the convention
+ * DuckDuckGo made familiar. "!w pi" and "pi !w" both search Wikipedia.
+ *
+ * Returns { engine, query, url } or null. A "!" with no engine behind it (or no
+ * query) falls through to null, so typing "!important in css" stays a normal
+ * search rather than vanishing.
+ */
+export const resolveBang = (raw, engines = ENGINES) => {
+    const text = String(raw ?? '').trim()
+    if (!text || text.length > 2000) return null
+    const list = Array.isArray(engines) && engines.length ? engines : ENGINES
+    let key, query
+    let m = text.match(/^!(\S+)\s+(.+)$/)          // leading:  !w pi
+    if (m) { key = m[1]; query = m[2] }
+    else if ((m = text.match(/^(.+?)\s+!(\S+)$/))) { query = m[1]; key = m[2] } // trailing: pi !w
+    if (!key) return null
+    key = key.toLowerCase()
+    const engine = list.find(e => e.bang && e.bang === key)
+    query = String(query ?? '').trim()
+    if (!engine || !query) return null
+    return { engine, query, url: engine.q(query) }
 }
 
 /* ---- custom search engines ---------------------------------------------- */
@@ -332,11 +363,27 @@ export const sanitizeEngines = (raw) => {
     return out
 }
 
-/** A custom engine as a runnable {id,name,q}, matching the built-in shape. */
-const asEngine = (e) => ({ id: e.id, name: e.name, q: (s) => e.url.replace(/%s/gi, encodeURIComponent(String(s ?? ''))) })
+/** A custom engine as a runnable {id,name,url,q}, matching the built-in shape. */
+const asEngine = (e) => ({ id: e.id, name: e.name, url: e.url, q: (s) => e.url.replace(/%s/gi, encodeURIComponent(String(s ?? ''))) })
 
-/** The built-in engines followed by the reader's own, ready for toUrl/selects. */
-export const allEngines = (custom) => [...ENGINES, ...sanitizeEngines(custom).map(asEngine)]
+/** A bang keyword derived from an engine's name: letters/digits only, short. */
+export const bangFromName = (name) => String(name ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 12)
+
+/**
+ * The built-in engines followed by the reader's own, ready for toUrl/selects.
+ * Each custom engine gets a bang from its name; if that collides with a built-in
+ * or an earlier custom, it's suffixed so every bang in the list stays unique.
+ */
+export const allEngines = (custom) => {
+    const taken = new Set(ENGINES.map(e => e.bang))
+    const customs = sanitizeEngines(custom).map(asEngine).map((e, i) => {
+        let bang = bangFromName(e.name) || `e${i + 1}`
+        while (taken.has(bang)) bang = `${bang}${i + 1}`
+        taken.add(bang)
+        return { ...e, bang }
+    })
+    return [...ENGINES, ...customs]
+}
 
 /** A short tab label — the bare host, without the www. */
 export const tabLabel = (url) => {

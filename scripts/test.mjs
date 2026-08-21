@@ -27,7 +27,8 @@ import {
     clampWindow, sanitizePos, resizeBox, parseOpenSearch, mergeSuggestions, suggestUrl, KEEP_ON_SCREEN,
     rankPalette, scorePalette, sanitizeSavedSets, saveSet, removeSet, MAX_SAVED_SETS,
     sanitizeHostList, hostListed, toggleHost, MAX_POPUP_HOSTS, sameLocation, greeting,
-    packBackup, parseBackup, looksLikeMath, parsePercent, parseRadix
+    packBackup, parseBackup, looksLikeMath, parsePercent, parseRadix,
+    resolveBang, bangFromName
 } from '../src/utils/webframe.js'
 import { evaluateExpression } from '../src/utils/mathUtils.js'
 import { parseConversion } from '../src/utils/convert.js'
@@ -271,6 +272,24 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
     ok('webframe: engine choice is honoured', toUrl('pi', 'wikipedia').startsWith('https://en.wikipedia.org/w/index.php?search='))
     ok('webframe: an unknown engine falls back', toUrl('pi', 'nope') === ENGINES[0].q('pi'))
     ok('webframe: the first engine is the default one', ENGINES[0].id === DEFAULT_PREFS.engine)
+    /* bang shortcuts: "!w pi" / "pi !w" fire one engine inline */
+    {
+        const eng = allEngines([{ name: 'GitHub', url: 'https://github.com/search?q=%s' }])
+        ok('bang: a leading bang searches its engine', resolveBang('!w pi', eng).engine.id === 'wikipedia')
+        ok('bang: a trailing bang works too', resolveBang('pi !w', eng).engine.id === 'wikipedia')
+        ok('bang: the query drops the bang token', resolveBang('!w quantum pi', eng).query === 'quantum pi')
+        ok('bang: a custom engine gets a name-derived bang', resolveBang('!github react', eng).engine.name === 'GitHub')
+        ok('bang: an unknown bang is not a bang', resolveBang('!important in css', eng) === null)
+        ok('bang: a bang with no query is not a bang', resolveBang('!w', eng) === null && resolveBang('!w   ', eng) === null)
+        ok('bang: matching is case-insensitive', resolveBang('!W pi', eng).engine.id === 'wikipedia')
+        ok('bang: toUrl routes a bang past address detection',
+            toUrl('!w apple.com', 'oeis', eng) === ENGINES.find(e => e.id === 'wikipedia').q('apple.com'))
+        ok('bang: a trailing bang beats a bare host', toUrl('apple.com !w', 'oeis', eng).includes('index.php?search=apple.com'))
+        ok('bang: plain text is untouched', resolveBang('why is pi irrational', eng) === null)
+        ok('bang: name-derived bangs are letters/digits only', bangFromName('Duck Duck Go!') === 'duckduckgo')
+        ok('bang: a custom bang colliding with a built-in is made unique',
+            allEngines([{ name: 'Wiby', url: 'https://x.example/?q=%s' }]).filter(e => e.bang === 'wiby').length === 1)
+    }
     /*
      * The engine list is the one place a dead URL makes the whole viewer look
      * broken: a search just lands on a blank pane. These guard the shape of it —

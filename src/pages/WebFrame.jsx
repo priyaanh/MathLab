@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-    DEFAULT_PREFS, ENGINES, allEngines, MAX_BOOKMARKS, MAX_CLOSED, MAX_CUSTOM_ENGINES, MAX_RAIL, MAX_TABS, MIN_RAIL, clampRail,
+    DEFAULT_PREFS, ENGINES, allEngines, bangFromName, MAX_BOOKMARKS, MAX_CLOSED, MAX_CUSTOM_ENGINES, MAX_RAIL, MAX_TABS, MIN_RAIL, clampRail,
     embedUrl, groupHistory, hostOf, hueFor, isBlocked, moveItem, pruneRetiredDefaults,
     rankSuggestions, readableOn, recordVisit, sanitizeBookmarks, sanitizeHistory, sanitizePrefs,
     sanitizePos, sanitizeSession, sanitizeZooms, searchTermOf, setZoomFor, stepZoom, tabLabel,
@@ -1875,17 +1875,27 @@ const WebFrame = ({ onClose }) => {
                                                     )}
                                                 </select>
                                             </label>
+                                            <p className="hint">
+                                                Jump to any engine inline with a <strong>bang</strong>: start (or end) a query
+                                                with <code>!</code> and a keyword. <code>!w pi</code> searches Wikipedia without
+                                                changing your default. Built-in:{' '}
+                                                {ENGINES.map((e, i) => (
+                                                    <span key={e.id}><code>!{e.bang}</code>&nbsp;{e.name}{i < ENGINES.length - 1 ? ' · ' : ''}</span>
+                                                ))}
+                                            </p>
 
                                             <div className="wf-set-list">
                                                 <span className="wf-set-title">Your search engines</span>
                                                 <p className="hint">
                                                     Add any engine — put <code>%s</code> where the query goes, e.g.
-                                                    <code> https://duckduckgo.com/?q=%s</code>. Big engines like Google can&apos;t be
-                                                    embedded, so their results open by your &ldquo;sites that refuse embedding&rdquo; choice above.
+                                                    <code> https://duckduckgo.com/?q=%s</code>. Each gets its own bang from its name.
+                                                    Big engines like Google can&apos;t be embedded, so their results open by your
+                                                    &ldquo;sites that refuse embedding&rdquo; choice above.
                                                 </p>
                                                 {prefs.customEngines.map(e => (
                                                     <div key={e.id} className="wf-set-row">
                                                         <span className="wf-set-name">{e.name}</span>
+                                                        <code className="hint" title="Bang shortcut">!{engines.find(x => x.url === e.url)?.bang || bangFromName(e.name)}</code>
                                                         <span className="hint" style={{ flex: '2 1 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.url}</span>
                                                         <button type="button" className="wf-icon" onClick={() => patchPrefs({ customEngines: prefs.customEngines.filter(x => x.id !== e.id) })} aria-label={`Remove ${e.name}`} title="Remove engine">×</button>
                                                     </div>
