@@ -2055,6 +2055,27 @@ a.topic-card {
 .wf-shell.is-max { width: calc(100vw - 2rem); height: calc(100vh - 2rem); }
 .wf-shell.is-fs { width: 100vw; height: 100vh; border: none; border-radius: 0; }
 
+/* ---- bookmark tags ---- */
+.wf-bm-row { display: flex; flex-direction: column; gap: 4px; padding: 4px 0; }
+.wf-tag-filter { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 2px 0 6px; }
+.wf-tag-row { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; padding-left: 26px; }
+.wf-tag-chip {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 2px 7px; border-radius: 999px;
+    font-size: 0.72rem; line-height: 1.4;
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    color: var(--text);
+    border: 1px solid transparent;
+}
+.wf-tag-chip.is-filter { cursor: pointer; background: color-mix(in srgb, var(--text) 8%, transparent); }
+.wf-tag-chip.is-filter.is-on { background: var(--accent); color: var(--on-accent, #fff); }
+.wf-tag-chip button { border: 0; background: none; color: inherit; cursor: pointer; font-size: 0.9em; line-height: 1; padding: 0; }
+.wf-tag-add {
+    width: 5.5rem; padding: 2px 6px; font-size: 0.72rem;
+    border-radius: 999px; border: 1px dashed color-mix(in srgb, var(--text) 28%, transparent);
+    background: transparent; color: var(--text);
+}
+
 /* ---- PIN lock ---- */
 .wf-lock {
     position: absolute;

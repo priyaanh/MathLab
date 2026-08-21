@@ -28,6 +28,7 @@ import {
     rankPalette, scorePalette, sanitizeSavedSets, saveSet, removeSet, MAX_SAVED_SETS,
     sanitizeHostList, hostListed, toggleHost, MAX_POPUP_HOSTS, sameLocation, greeting,
     exportBookmarksHTML, parseBookmarksHTML, pruneHistory, HISTORY_DAY_OPTS, groupedTabOrder, GROUP_COLORS,
+    sanitizeTags, MAX_BOOKMARK_TAGS,
     packBackup, parseBackup, looksLikeMath, parsePercent, parseRadix,
     resolveBang, bangFromName
 } from '../src/utils/webframe.js'
@@ -1159,6 +1160,18 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
         ok('marks-io: query entities decode in the URL', parsed[0].url === 'https://example.com/?a=1&b=2')
         ok('marks-io: non-http links are dropped', !parsed.some(b => b.url.startsWith('ftp')))
         ok('marks-io: junk parses to an empty list', parseBookmarksHTML('not a bookmark file').length === 0)
+    }
+
+    /* bookmark tags */
+    {
+        ok('tags: normalised to lowercase dashed slugs', sanitizeTags(['Read Later', 'MATH']).join() === 'read-later,math')
+        ok('tags: duplicates and blanks are dropped', sanitizeTags(['a', 'a', '', '  ', 'b']).join() === 'a,b')
+        ok('tags: capped in number', sanitizeTags(Array.from({ length: 20 }, (_, i) => `t${i}`)).length === MAX_BOOKMARK_TAGS)
+        ok('tags: ride along on a bookmark, absent when empty', (() => {
+            const [a, b] = sanitizeBookmarks([{ url: 'https://a.test', tags: ['x', 'x'] }, { url: 'https://b.test' }])
+            return a.tags.join() === 'x' && !('tags' in b)
+        })())
+        ok('tags: a non-array tags field is ignored, not thrown on', !('tags' in sanitizeBookmarks([{ url: 'https://a.test', tags: 'nope' }])[0]))
     }
 
     /* tab groups: the pure render ordering */

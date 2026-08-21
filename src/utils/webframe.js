@@ -885,18 +885,37 @@ export const parseBackup = (text) => {
     return out
 }
 
+/** Up to 8 tidy tags per bookmark: lowercase, letters/digits/dashes, deduped. */
+export const MAX_BOOKMARK_TAGS = 8
+export const sanitizeTags = (raw) => {
+    const seen = new Set()
+    const out = []
+    for (const t of Array.isArray(raw) ? raw : []) {
+        const tag = String(t ?? '').trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 20)
+        if (tag && !seen.has(tag)) { seen.add(tag); out.push(tag) }
+        if (out.length >= MAX_BOOKMARK_TAGS) break
+    }
+    return out
+}
+
 /**
  * Bookmarks are kept under their own storage key and never expire, so a settings
  * reset or a corrupt prefs blob can't take them with it. Duplicates are dropped.
+ * Each may carry a short list of tags, so they can be filtered without folders.
  */
 export const sanitizeBookmarks = (raw) => {
     const seen = new Set()
     return (Array.isArray(raw) ? raw : [])
         .filter(b => b && typeof b === 'object' && /^https?:\/\/\S+$/i.test(String(b.url || '')))
-        .map(b => ({
-            url: String(b.url).trim(),
-            label: (typeof b.label === 'string' && b.label.trim() ? b.label.trim() : tabLabel(b.url)).slice(0, 40)
-        }))
+        .map(b => {
+            const out = {
+                url: String(b.url).trim(),
+                label: (typeof b.label === 'string' && b.label.trim() ? b.label.trim() : tabLabel(b.url)).slice(0, 40)
+            }
+            const tags = sanitizeTags(b.tags)
+            if (tags.length) out.tags = tags // omit the key entirely when there are none
+            return out
+        })
         .filter(b => (seen.has(b.url) ? false : seen.add(b.url)))
         .slice(0, MAX_BOOKMARKS)
 }

@@ -3,7 +3,7 @@ import {
     DEFAULT_PREFS, ENGINES, allEngines, bangFromName, MAX_BOOKMARKS, MAX_CLOSED, MAX_CUSTOM_ENGINES, MAX_RAIL, MAX_TABS, MIN_RAIL, clampRail,
     embedUrl, groupHistory, hostOf, hueFor, isBlocked, moveItem, pruneRetiredDefaults,
     rankSuggestions, readableOn, recordVisit, sanitizeBookmarks, sanitizeHistory, sanitizePrefs,
-    exportBookmarksHTML, parseBookmarksHTML, pruneHistory, HISTORY_DAY_OPTS, GROUP_COLORS, groupedTabOrder,
+    exportBookmarksHTML, parseBookmarksHTML, pruneHistory, HISTORY_DAY_OPTS, GROUP_COLORS, groupedTabOrder, MAX_BOOKMARK_TAGS,
     sanitizePos, sanitizeSession, sanitizeZooms, searchTermOf, setZoomFor, stepZoom, tabLabel,
     tabTitle, topSites, toUrl, waybackUrl, withPinnedFirst, zoomFor,
     clampWindow, resizeBox, mergeSuggestions, parseOpenSearch, suggestUrl, rankPalette,
@@ -226,6 +226,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
     const [railOpen, setRailOpen] = useState(true)
     const [marksIo, setMarksIo] = useState('')
     const [marksMsg, setMarksMsg] = useState('')
+    const [tagFilter, setTagFilter] = useState([]) // active tag chips in the Shortcuts pane
     const [draft, setDraft] = useState(null) // the new-shortcut form on the home screen
     const [history, setHistory] = useState(readHistory)
     const [closed, setClosed] = useState([])   // reopenable tabs, newest first
@@ -1512,6 +1513,22 @@ const WebFrame = ({ onClose, onOpenApp }) => {
         setMarksMsg(`Imported ${incoming.length}; ${before} kept, duplicates skipped.`)
     }
 
+    /* ---- bookmark tags ---- */
+    const addBookmarkTag = (url, tag) => setPrefs(p => sanitizePrefs({
+        ...p,
+        bookmarks: p.bookmarks.map(b => (b.url === url ? { ...b, tags: [...(b.tags || []), tag] } : b))
+    }))
+    const removeBookmarkTag = (url, tag) => setPrefs(p => sanitizePrefs({
+        ...p,
+        bookmarks: p.bookmarks.map(b => (b.url === url ? { ...b, tags: (b.tags || []).filter(t => t !== tag) } : b))
+    }))
+    const toggleTagFilter = (tag) => setTagFilter(f => (f.includes(tag) ? f.filter(t => t !== tag) : [...f, tag]))
+    // Every tag in use, and the bookmarks matching the active filter (any match).
+    const allTags = [...new Set(prefs.bookmarks.flatMap(b => b.tags || []))].sort()
+    const visibleBookmarks = tagFilter.length
+        ? prefs.bookmarks.filter(b => (b.tags || []).some(t => tagFilter.includes(t)))
+        : prefs.bookmarks
+
     // Save text to a file the reader can keep — a real download, since Lumen runs
     // in the page (not the artifact sandbox). Silently no-ops if the host blocks it.
     const downloadFile = (name, text, type = 'text/html;charset=utf-8') => {
@@ -2439,26 +2456,68 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                                                 rows={3}
                                             />
                                             {marksMsg && <span className="hint" role="status">{marksMsg}</span>}
-                                            {prefs.bookmarks.length === 0 && <span className="hint">None yet — use ☆ on a page, or the + tile on the home screen.</span>}
-                                            {prefs.bookmarks.map((b, i) => (
-                                                <div key={b.url} className="wf-set-row">
-                                                    <Favicon url={b.url} className="wf-bm-fav" />
-                                                    <input
-                                                        type="text"
-                                                        value={b.label}
-                                                        aria-label={`Name for ${b.url}`}
-                                                        onChange={(e) => setPrefs(p => ({
-                                                            ...p,
-                                                            bookmarks: p.bookmarks.map(x => (x.url === b.url ? { ...x, label: e.target.value } : x))
-                                                        }))}
-                                                        onBlur={() => setPrefs(p => sanitizePrefs(p))}
-                                                    />
-                                                    <button type="button" className="wf-icon" onClick={() => moveBookmark(b.url, -1)} disabled={i === 0} aria-label={`Move ${b.label} up`} title="Move up">↑</button>
-                                                    <button type="button" className="wf-icon" onClick={() => moveBookmark(b.url, 1)} disabled={i === prefs.bookmarks.length - 1} aria-label={`Move ${b.label} down`} title="Move down">↓</button>
-                                                    <button type="button" className="wf-icon" onClick={() => removeBookmark(b.url)} aria-label={`Remove ${b.label}`} title="Remove">×</button>
+                                            {allTags.length > 0 && (
+                                                <div className="wf-tag-filter" role="group" aria-label="Filter shortcuts by tag">
+                                                    {allTags.map(t => (
+                                                        <button
+                                                            key={t}
+                                                            type="button"
+                                                            className={`wf-tag-chip is-filter${tagFilter.includes(t) ? ' is-on' : ''}`}
+                                                            onClick={() => toggleTagFilter(t)}
+                                                            aria-pressed={tagFilter.includes(t)}
+                                                        >#{t}</button>
+                                                    ))}
+                                                    {tagFilter.length > 0 && <button type="button" className="btn ghost" onClick={() => setTagFilter([])}>Clear filter</button>}
                                                 </div>
-                                            ))}
-                                            <p className="hint">These are kept under their own key, so “Reset settings” never touches them.</p>
+                                            )}
+                                            {prefs.bookmarks.length === 0 && <span className="hint">None yet — use ☆ on a page, or the + tile on the home screen.</span>}
+                                            {prefs.bookmarks.length > 0 && visibleBookmarks.length === 0 && <span className="hint">No shortcut has all of those tags.</span>}
+                                            {visibleBookmarks.map((b) => {
+                                                const i = prefs.bookmarks.findIndex(x => x.url === b.url)
+                                                const canReorder = tagFilter.length === 0
+                                                return (
+                                                    <div key={b.url} className="wf-bm-row">
+                                                        <div className="wf-set-row">
+                                                            <Favicon url={b.url} className="wf-bm-fav" />
+                                                            <input
+                                                                type="text"
+                                                                value={b.label}
+                                                                aria-label={`Name for ${b.url}`}
+                                                                onChange={(e) => setPrefs(p => ({
+                                                                    ...p,
+                                                                    bookmarks: p.bookmarks.map(x => (x.url === b.url ? { ...x, label: e.target.value } : x))
+                                                                }))}
+                                                                onBlur={() => setPrefs(p => sanitizePrefs(p))}
+                                                            />
+                                                            {canReorder && <button type="button" className="wf-icon" onClick={() => moveBookmark(b.url, -1)} disabled={i === 0} aria-label={`Move ${b.label} up`} title="Move up">↑</button>}
+                                                            {canReorder && <button type="button" className="wf-icon" onClick={() => moveBookmark(b.url, 1)} disabled={i === prefs.bookmarks.length - 1} aria-label={`Move ${b.label} down`} title="Move down">↓</button>}
+                                                            <button type="button" className="wf-icon" onClick={() => removeBookmark(b.url)} aria-label={`Remove ${b.label}`} title="Remove">×</button>
+                                                        </div>
+                                                        <div className="wf-tag-row">
+                                                            {(b.tags || []).map(t => (
+                                                                <span key={t} className="wf-tag-chip">#{t}
+                                                                    <button type="button" onClick={() => removeBookmarkTag(b.url, t)} aria-label={`Remove tag ${t}`} title="Remove tag">×</button>
+                                                                </span>
+                                                            ))}
+                                                            {(b.tags || []).length < MAX_BOOKMARK_TAGS && (
+                                                                <input
+                                                                    type="text"
+                                                                    className="wf-tag-add"
+                                                                    placeholder="+ tag"
+                                                                    aria-label={`Add a tag to ${b.label}`}
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key !== 'Enter') return
+                                                                        e.preventDefault()
+                                                                        const v = e.target.value.trim()
+                                                                        if (v) { addBookmarkTag(b.url, v); e.target.value = '' }
+                                                                    }}
+                                                                />
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })}
+                                            <p className="hint">Tag a shortcut, then filter by tag above. These are kept under their own key, so “Reset settings” never touches them.</p>
                                         </div>
                                     )}
 
