@@ -2133,6 +2133,30 @@ a.topic-card {
 .wf-tab.is-private { border: 1px dashed color-mix(in srgb, var(--text) 32%, transparent); }
 .wf-tab-private { flex: 0 0 auto; font-size: 0.82em; opacity: 0.85; line-height: 1; }
 
+/* ---- accessibility: high contrast & readable font ---- */
+/* High contrast firms up every edge and focus ring so the chrome is legible
+   without leaning on subtle colour-mixes. */
+.wf-shell.contrast-high .wf-tab,
+.wf-shell.contrast-high .wf-icon,
+.wf-shell.contrast-high .wf-omni,
+.wf-shell.contrast-high .wf-bm,
+.wf-shell.contrast-high .btn { border: 1px solid var(--text); }
+.wf-shell.contrast-high .wf-tab.is-active { outline: 2px solid var(--text); outline-offset: -2px; }
+.wf-shell.contrast-high .wf-tab-label,
+.wf-shell.contrast-high .wf-omni,
+.wf-shell.contrast-high .wf-bm { font-weight: 600; }
+.wf-shell.contrast-high :focus-visible { outline: 3px solid var(--accent, #5b6cf0); outline-offset: 2px; }
+.wf-shell.contrast-high .hint { color: var(--text); opacity: 0.9; }
+/* A roomier, plain-shaped font for the viewer chrome (not the framed page,
+   which the sandbox keeps to itself). */
+.wf-shell.font-readable {
+    font-family: 'Atkinson Hyperlegible', 'Verdana', 'Tahoma', system-ui, sans-serif;
+    letter-spacing: 0.012em;
+    line-height: 1.5;
+}
+.wf-shell.font-readable .wf-tab-label,
+.wf-shell.font-readable .wf-url { letter-spacing: 0.015em; }
+
 /* ---- per-site notes ---- */
 /* A small dot on the note button when the current site already has one. */
 .wf-icon.has-dot { position: relative; }

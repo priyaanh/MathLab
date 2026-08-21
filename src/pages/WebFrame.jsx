@@ -1569,6 +1569,8 @@ const WebFrame = ({ onClose, onOpenApp }) => {
         maximized && 'is-max',
         isFullscreen && 'is-fs',
         prefs.density === 'compact' && 'is-compact',
+        prefs.contrast === 'high' && 'contrast-high',
+        prefs.dyslexiaFont && 'font-readable',
         prefs.verticalTabs && 'has-rail',
         prefs.verticalTabs && !railOpen && 'rail-closed'
     ].filter(Boolean).join(' ')
@@ -2132,6 +2134,17 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                                                     <option value="normal">Normal</option>
                                                     <option value="compact">Compact</option>
                                                 </select>
+                                            </label>
+                                            <label className="wf-set">
+                                                <span>Contrast</span>
+                                                <select value={prefs.contrast} onChange={(e) => patchPrefs({ contrast: e.target.value })}>
+                                                    <option value="normal">Normal</option>
+                                                    <option value="high">High</option>
+                                                </select>
+                                            </label>
+                                            <label className="wf-set is-check">
+                                                <input type="checkbox" checked={prefs.dyslexiaFont} onChange={(e) => patchPrefs({ dyslexiaFont: e.target.checked })} />
+                                                <span>Readable font (roomier, easier on the eyes)</span>
                                             </label>
                                             <label className="wf-set is-check">
                                                 <input type="checkbox" checked={prefs.verticalTabs} onChange={(e) => patchPrefs({ verticalTabs: e.target.checked })} />

@@ -418,6 +418,8 @@ export const DEFAULT_PREFS = {
     webSuggest: false,
     onBlocked: 'archive',
     confirmOpen: false,
+    contrast: 'normal',   // 'high' strengthens borders, text and focus rings
+    dyslexiaFont: false,  // a more legible, roomier font for the viewer chrome
     historyDays: 0, // 0 = keep forever; else auto-forget visits older than N days
     bookmarks: [
         { label: 'Wikipedia', url: 'https://en.wikipedia.org' },
@@ -1017,6 +1019,8 @@ export const sanitizePrefs = (raw) => {
         webSuggest: p.webSuggest === true,
         onBlocked: blockedChoice(p),
         confirmOpen: p.confirmOpen === true,
+        contrast: p.contrast === 'high' ? 'high' : 'normal',
+        dyslexiaFont: p.dyslexiaFont === true,
         historyDays: HISTORY_DAY_OPTS.includes(p.historyDays) ? p.historyDays : DEFAULT_PREFS.historyDays,
         bookmarks
     }
