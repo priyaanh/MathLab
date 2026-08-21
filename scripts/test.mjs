@@ -27,7 +27,7 @@ import {
     clampWindow, sanitizePos, resizeBox, parseOpenSearch, mergeSuggestions, suggestUrl, KEEP_ON_SCREEN,
     rankPalette, scorePalette, sanitizeSavedSets, saveSet, removeSet, MAX_SAVED_SETS,
     sanitizeHostList, hostListed, toggleHost, MAX_POPUP_HOSTS, sameLocation, greeting,
-    packBackup, parseBackup, looksLikeMath, parsePercent
+    packBackup, parseBackup, looksLikeMath, parsePercent, parseRadix
 } from '../src/utils/webframe.js'
 import { evaluateExpression } from '../src/utils/mathUtils.js'
 import { parseConversion } from '../src/utils/convert.js'
@@ -1059,6 +1059,24 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
         ok('convert: prose, sums, and bare text are not conversions',
             parseConversion('pythagorean theorem') === null && parseConversion('2+2') === null && parseConversion('') === null)
         ok('convert: an unknown unit is refused', parseConversion('5 foos in bars') === null)
+    }
+
+    /* address-bar number-base conversion */
+    {
+        ok('radix: decimal to hex is uppercased with a 0x prefix', parseRadix('255 in hex').result === '0xFF')
+        ok('radix: hex to decimal reads the 0x source', parseRadix('0xff in decimal').result === '255')
+        ok('radix: decimal to binary carries a 0b prefix', parseRadix('10 in binary').result === '0b1010')
+        ok('radix: binary source to decimal', parseRadix('0b1010 to decimal').result === '10')
+        ok('radix: octal both ways', parseRadix('64 as octal').result === '0o100' && parseRadix('0o100 in decimal').result === '64')
+        ok('radix: to/in/as all separate the sides',
+            !!parseRadix('10 to hex') && !!parseRadix('10 in hex') && !!parseRadix('10 as hex'))
+        ok('radix: full spellings work', !!parseRadix('12 in hexadecimal') && !!parseRadix('12 in decimal'))
+        ok('radix: the echo reads cleanly', parseRadix('255 in hex').expr === '255 in hex')
+        ok('radix: a bare number or plain sum is not a base conversion',
+            parseRadix('255') === null && parseRadix('2+2') === null && parseRadix('') === null)
+        ok('radix: negatives and non-integers are refused',
+            parseRadix('-5 in hex') === null && parseRadix('1.5 in binary') === null)
+        ok('radix: digits outside the source base are refused', parseRadix('0b1012 in decimal') === null)
     }
 
         ok('prefs: the clock defaults on and can be turned off',

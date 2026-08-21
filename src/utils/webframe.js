@@ -764,6 +764,31 @@ export const parsePercent = (raw) => {
     return null
 }
 
+/**
+ * Number-base conversion for the address bar: "255 in hex", "0xff in decimal",
+ * "10 in binary", "0b1010 to decimal", "64 as octal". The source base is read
+ * from its prefix (0x / 0b / 0o, else decimal) so it's never ambiguous; only
+ * whole non-negative numbers within safe-integer range are handled. Returns
+ * { expr, result } with the result as a prefixed string, or null.
+ */
+export const parseRadix = (raw) => {
+    const t = String(raw ?? '').trim().toLowerCase()
+    const m = t.match(/^(0x[0-9a-f]+|0b[01]+|0o[0-7]+|\d+)\s+(?:in|to|as)\s+(hex|hexadecimal|bin|binary|dec|decimal|oct|octal)$/)
+    if (!m) return null
+    const src = m[1]
+    const n = src.startsWith('0x') ? parseInt(src.slice(2), 16)
+        : src.startsWith('0b') ? parseInt(src.slice(2), 2)
+            : src.startsWith('0o') ? parseInt(src.slice(2), 8)
+                : parseInt(src, 10)
+    if (!Number.isFinite(n) || n < 0 || n > Number.MAX_SAFE_INTEGER) return null
+    const tgt = m[2]
+    const result = /^hex/.test(tgt) ? `0x${n.toString(16).toUpperCase()}`
+        : /^bin/.test(tgt) ? `0b${n.toString(2)}`
+            : /^oct/.test(tgt) ? `0o${n.toString(8)}`
+                : String(n)
+    return { expr: `${src} in ${tgt}`, result }
+}
+
 /* ---- backup & restore --------------------------------------------------- */
 
 export const BACKUP_VERSION = 1

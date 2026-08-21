@@ -8,7 +8,7 @@ import {
     clampWindow, resizeBox, mergeSuggestions, parseOpenSearch, suggestUrl, rankPalette,
     sanitizeSavedSets, saveSet, removeSet, MAX_SAVED_SETS,
     sanitizeHostList, hostListed, toggleHost, sameLocation, greeting,
-    packBackup, parseBackup, looksLikeMath, parsePercent
+    packBackup, parseBackup, looksLikeMath, parsePercent, parseRadix
 } from '../utils/webframe'
 import { evaluateExpression, formatResult } from '../utils/mathUtils'
 import { parseConversion } from '../utils/convert'
@@ -339,6 +339,8 @@ const WebFrame = ({ onClose }) => {
                 if (Number.isFinite(v)) return { kind: 'calc', url: `calc:${t}`, expr: t, result: formatResult(v) }
             } catch { /* not a sum after all — fall through */ }
         }
+        const radix = parseRadix(t)
+        if (radix) return { kind: 'calc', url: `radix:${t}`, expr: radix.expr, result: radix.result }
         const conv = parseConversion(t)
         if (conv) return { kind: 'convert', url: `convert:${t}`, expr: `${conv.value} ${conv.from}`, result: conv.text }
         return null
