@@ -2009,6 +2009,17 @@ a.topic-card {
     .g2048-tile.is-merged,
     .g2048-add,
     .g2048-msg { animation: none; transition: none; }
+    /* The viewer honours the same preference: no spinners whirling or panels
+       sliding for readers who asked the OS to keep motion down. */
+    .wf-tab-spin,
+    .wf-progress::after { animation: none; }
+    .wf-backdrop,
+    .wf-shell,
+    .wf-tab,
+    .wf-icon,
+    .wf-sugg,
+    .wf-panel,
+    .wf-modal { transition: none !important; }
 }
 
 /* ---- In-page web viewer ------------------------------------------------ */
