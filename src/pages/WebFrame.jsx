@@ -367,6 +367,10 @@ const WebFrame = ({ onClose, onOpenApp }) => {
     const zoom = zoomFor(zooms, current)
     const setZoom = (level) => {
         if (!current) return
+        // Split panes render at 100% (per-site zoom resizes the frame, which fights
+        // the half-width layout), so changing zoom here would only surprise you when
+        // the split closes. Refuse it while split, and say why.
+        if (splitActive) { say('Zoom is paused in split view — close the split to change it'); return }
         setZooms(z => setZoomFor(z, current, level))
         say(`${hostOf(current).replace(/^www\./, '')} at ${Math.round(level * 100)}%`)
     }

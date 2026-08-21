@@ -449,10 +449,13 @@ const KEY_SINCE = {
     'mathlab-frame-zoom': 3,
     'mathlab-frame-popup-hosts': 3,
     // v4 — the new-tab scratchpad note
-    'mathlab-frame-note': 4
+    'mathlab-frame-note': 4,
+    // v5 — the read-later queue and per-site notes
+    'mathlab-frame-readlater': 5,
+    'mathlab-frame-notes': 5
 }
 
-export const WORKSPACE_VERSION = 4
+export const WORKSPACE_VERSION = 5
 export const WORKSPACE_KEYS = Object.keys(KEY_SINCE)
 
 export const snapshotWorkspace = () => {
