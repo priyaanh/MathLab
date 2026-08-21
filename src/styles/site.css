@@ -2466,6 +2466,57 @@ a.topic-card {
 /* background tabs stay loaded — display:none keeps the document alive */
 .wf-frame.is-hidden { display: none; }
 
+/* ---- split view ---- */
+/* Two live panes side by side; the toolbar always drives the left one. */
+.wf-stage.is-split { display: flex; flex-direction: row; }
+.wf-stage.is-split .wf-frame.is-left,
+.wf-stage.is-split .wf-frame.is-right { flex: 1 1 0; width: auto; height: 100%; transform: none; }
+/* order, not DOM position, decides which pane is on the left */
+.wf-stage.is-split .wf-frame.is-left { order: 0; }
+.wf-stage.is-split .wf-frame.is-right { order: 1; border-left: 2px solid color-mix(in srgb, var(--text) 22%, transparent); }
+/* Overlays belong to the active (left) tab, so keep them off the right pane. */
+.wf-stage.is-split .wf-ntp,
+.wf-stage.is-split .wf-blocked { right: 50%; }
+.wf-split-bar {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 45%;
+    padding: 2px 4px 2px 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface) 88%, transparent);
+    border: 1px solid color-mix(in srgb, var(--text) 14%, transparent);
+    box-shadow: 0 2px 10px rgb(0 0 0 / 18%);
+    backdrop-filter: blur(6px);
+}
+.wf-split-title {
+    font-size: 0.82rem;
+    color: var(--text);
+    max-width: 12rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.wf-split-empty {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 50%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+    color: var(--muted, var(--text));
+    background: var(--surface);
+    border-left: 2px solid color-mix(in srgb, var(--text) 22%, transparent);
+}
+
 /* ---- new-tab page ---- */
 .wf-ntp {
     position: absolute;

@@ -216,6 +216,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
     const [dragId, setDragId] = useState(null)  // tab being dragged along the strip
     const [bmDrag, setBmDrag] = useState(null)  // shortcut URL being dragged to reorder
     const [mru, setMru] = useState([])          // tab ids, most-recently-active first
+    const [splitId, setSplitId] = useState(null) // tab shown in the right split pane, or null
     const [awake, setAwake] = useState(false)   // screen wake lock requested?
     const [toast, setToast] = useState('')      // transient one-line confirmation
     const [articles, setArticles] = useState([]) // opt-in Wikipedia suggestions
@@ -264,6 +265,13 @@ const WebFrame = ({ onClose, onOpenApp }) => {
     const active = tabs.find(t => t.id === activeId) || tabs[0]
     const current = urlOf(active)
 
+    // Split view: a second tab shown side-by-side on the right. The toolbar always
+    // drives the active (left) tab; the right pane is `splitId`. A tab can't split
+    // with itself, so an active/split collision just turns the split off.
+    const splitTab = splitId != null ? tabs.find(t => t.id === splitId) : null
+    const splitActive = !!splitTab && splitTab.id !== (active?.id)
+    const splitUrl = splitTab ? urlOf(splitTab) : null
+
     /*
      * Tab discarding. Every mounted iframe is a live site eating memory, so only
      * the active tab and the few most-recently-used ones keep their frame; the
@@ -275,7 +283,9 @@ const WebFrame = ({ onClose, onOpenApp }) => {
     const liveIds = (() => {
         if (!prefs.sleepTabs) return new Set(tabs.map(t => t.id))
         const order = [activeId, ...mru].filter((id, i, a) => a.indexOf(id) === i && tabs.some(t => t.id === id))
-        return new Set(order.slice(0, LIVE_TABS))
+        const live = new Set(order.slice(0, LIVE_TABS))
+        if (splitActive) live.add(splitId) // the split pane must stay mounted
+        return live
     })()
     liveIdsRef.current = liveIds   // so selectTab can tell if a tab needs remounting
     // Blocked only when there is no official embed to fall back on.
@@ -588,8 +598,33 @@ const WebFrame = ({ onClose, onOpenApp }) => {
         setActiveId(id)
         setInput(u || '')
     }
+
+    /* ---- split view ---- */
+    // Split the current tab with a partner on the right: the most recent other
+    // tab, else the next one along. Toggles off when already split.
+    const toggleSplit = () => {
+        if (splitActive) { setSplitId(null); say('Split view off'); return }
+        const partner = mru.find(id => id !== active.id && tabs.some(t => t.id === id))
+            ?? tabs.find(t => t.id !== active.id)?.id
+        if (partner == null) { say('Open another tab to split the view.'); return }
+        setSplitId(partner)
+        say('Split view — the toolbar drives the left pane')
+    }
+    // Swap which side the toolbar drives, keeping both pages on screen.
+    const swapSplit = () => {
+        if (!splitActive) return
+        const other = splitId
+        setSplitId(active.id)
+        setActiveId(other)
+        setInput(urlOf(tabs.find(t => t.id === other)) || '')
+    }
+    // A tab can never split with itself: if the active tab becomes the split tab,
+    // drop the split rather than show the same page twice.
+    useEffect(() => { if (splitId != null && splitId === activeId) setSplitId(null) }, [activeId, splitId])
+
     const closeTab = (id) => {
         if (tabs.length <= 1) { onClose?.(); return } // last tab closes the viewer, like Chrome
+        if (id === splitId) setSplitId(null) // closing the split pane ends the split
         const i = tabs.findIndex(t => t.id === id)
         const victim = tabs[i]
         const rest = tabs.filter(t => t.id !== id)
@@ -884,6 +919,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                 if (k === 'arrowleft' || (k === '[' && e.shiftKey === false)) { take(); back(); return }
                 if (k === 'arrowright' || k === ']') { take(); forward(); return }
                 if (k === 'y') { take(); setShowSettings(false); setShowHistory(h => !h); return }
+                if (k === '\\') { take(); toggleSplit(); return }
                 if (k === 'k') { take(); openPalette(); return }
                 // Zoom. '+' and '=' share a key, and which one arrives depends on
                 // the layout and whether Shift is down, so both mean "in".
@@ -1207,6 +1243,8 @@ const WebFrame = ({ onClose, onOpenApp }) => {
         if (current) act(active.pinned ? 'Unpin this tab' : 'Pin this tab', () => togglePin(active.id), ['pin'])
         if (current) act('Copy address', () => copyAddress(current), ['url', 'link'])
         if (current) act('Forget this site', () => forgetSite(current), ['clear', 'privacy', 'remove', 'history'])
+        if (tabs.length > 1) act(splitActive ? 'Close split view' : 'Split view', toggleSplit, ['split', 'side by side', 'compare'])
+        if (splitActive) act('Swap split sides', swapSplit, ['split', 'swap'])
         if (tabs.length > 1) act('Close this tab', () => closeTab(active.id), ['close'])
         act('Save open tabs as a set…', () => { setShowSettings(true); setSetPane('sets') }, ['session', 'workspace', 'group'])
 
@@ -1783,6 +1821,14 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                             aria-label="Open in a new browser tab"
                             title="Open in a new browser tab"
                         >↗</a>
+                        <button
+                            type="button"
+                            className={`wf-icon${splitActive ? ' is-on' : ''}`}
+                            onClick={toggleSplit}
+                            aria-label="Split view"
+                            aria-pressed={splitActive}
+                            title={`Split view (${MOD_LABEL}\\)`}
+                        >◫</button>
                         <button
                             type="button"
                             className={`wf-icon${showHistory ? ' is-on' : ''}`}
@@ -2577,7 +2623,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                         </div>
                     )}
 
-                    <div className={`wf-stage${resizing ? ' is-resizing' : ''}`}>
+                    <div className={`wf-stage${resizing ? ' is-resizing' : ''}${splitActive ? ' is-split' : ''}`}>
                         {tabs.map(t => {
                             const u = urlOf(t)
                             if (!u || isBlocked(u)) return null
@@ -2587,11 +2633,16 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                             // embeddable form of it where the site publishes one.
                             const src = embedUrl(u) || u
                             const frameKey = `${t.id}:${t.idx}:${t.nonce}:${src}`
-                            const z = zoomFor(zooms, u)
+                            const isLeft = t.id === active.id
+                            const isRight = splitActive && t.id === splitId
+                            const shown = isLeft || isRight
+                            // In split each pane owns half the width, so per-site zoom (which
+                            // resizes the frame) is set aside there and resumes in full view.
+                            const z = (splitActive && shown) ? 1 : zoomFor(zooms, u)
                             return (
                                 <iframe
                                     key={frameKey}
-                                    className={`wf-frame${t.id === active.id ? '' : ' is-hidden'}`}
+                                    className={`wf-frame${shown ? '' : ' is-hidden'}${splitActive && isLeft ? ' is-left' : ''}${isRight ? ' is-right' : ''}`}
                                     /*
                                      * Scaling the frame and giving it the inverse size is real
                                      * zoom, not magnification: the page is handed a wider
@@ -2630,6 +2681,24 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                                 />
                             )
                         })}
+
+                        {/* Split view: a floating strip over the right pane names it and
+                            offers ⇄ (drive that side) and ✕ (end the split). */}
+                        {splitActive && (
+                            <div className="wf-split-bar">
+                                <Favicon url={splitUrl} className="wf-bm-fav" />
+                                <span className="wf-split-title">{splitTab.private ? 'Private tab' : tabTitle(splitUrl)}</span>
+                                <button type="button" className="wf-icon" onClick={swapSplit} title="Drive this pane (swap sides)" aria-label="Swap split sides">⇄</button>
+                                <button type="button" className="wf-icon" onClick={() => { setSplitId(null); say('Split view off') }} title="Close split view" aria-label="Close split view">✕</button>
+                            </div>
+                        )}
+                        {splitActive && (!splitUrl || isBlocked(splitUrl)) && (
+                            <div className="wf-split-empty" role="status">
+                                {splitUrl
+                                    ? <>This page can’t be shown here. Use <b>⇄</b> to drive this pane, or close the split.</>
+                                    : <>This tab is empty. Use <b>⇄</b> to drive this pane and open a page.</>}
+                            </div>
+                        )}
 
                         {/*
                           * A page that refuses framing used to leave a blank pane under a
