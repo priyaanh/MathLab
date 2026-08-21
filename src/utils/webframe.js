@@ -897,6 +897,48 @@ export const sanitizeBookmarks = (raw) => {
         .slice(0, MAX_BOOKMARKS)
 }
 
+/* ---- bookmarks import / export (Netscape HTML) --------------------------- */
+
+const escHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+const unescHtml = (s) => String(s)
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+
+/**
+ * The bookmarks as a Netscape bookmark file — the `bookmarks.html` every browser
+ * imports and exports. So Lumen's list can leave for Chrome/Firefox/Safari and
+ * come back.
+ */
+export const exportBookmarksHTML = (bookmarks) => {
+    const items = sanitizeBookmarks(bookmarks)
+        .map(b => `    <DT><A HREF="${escHtml(b.url)}">${escHtml(b.label)}</A>`)
+        .join('\n')
+    return `<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
+<TITLE>Bookmarks</TITLE>
+<H1>Bookmarks</H1>
+<DL><p>
+${items}
+</DL><p>
+`
+}
+
+/**
+ * Pull every `<A HREF>` out of an exported bookmark file (folder structure is
+ * flattened — Lumen keeps a flat list). Runs the result through sanitize, so
+ * only https(s) links survive and the usual dedupe/cap/label rules apply.
+ */
+export const parseBookmarksHTML = (html) => {
+    const out = []
+    const re = /<a\s+[^>]*href\s*=\s*"([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi
+    let m
+    while ((m = re.exec(String(html ?? '')))) {
+        out.push({ url: unescHtml(m[1]).trim(), label: unescHtml(m[2].replace(/<[^>]*>/g, '')).trim() })
+    }
+    return sanitizeBookmarks(out)
+}
+
 /**
  * What should happen when a site refuses to be embedded — the question this
  * viewer keeps running into, so it gets one setting rather than a scatter of

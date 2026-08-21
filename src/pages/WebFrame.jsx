@@ -3,6 +3,7 @@ import {
     DEFAULT_PREFS, ENGINES, allEngines, bangFromName, MAX_BOOKMARKS, MAX_CLOSED, MAX_CUSTOM_ENGINES, MAX_RAIL, MAX_TABS, MIN_RAIL, clampRail,
     embedUrl, groupHistory, hostOf, hueFor, isBlocked, moveItem, pruneRetiredDefaults,
     rankSuggestions, readableOn, recordVisit, sanitizeBookmarks, sanitizeHistory, sanitizePrefs,
+    exportBookmarksHTML, parseBookmarksHTML,
     sanitizePos, sanitizeSession, sanitizeZooms, searchTermOf, setZoomFor, stepZoom, tabLabel,
     tabTitle, topSites, toUrl, waybackUrl, withPinnedFirst, zoomFor,
     clampWindow, resizeBox, mergeSuggestions, parseOpenSearch, suggestUrl, rankPalette,
@@ -1324,6 +1325,39 @@ const WebFrame = ({ onClose, onOpenApp }) => {
         setMarksMsg(`Imported ${incoming.length}; ${before} kept, duplicates skipped.`)
     }
 
+    // Save text to a file the reader can keep — a real download, since Lumen runs
+    // in the page (not the artifact sandbox). Silently no-ops if the host blocks it.
+    const downloadFile = (name, text, type = 'text/html;charset=utf-8') => {
+        try {
+            const url = URL.createObjectURL(new Blob([text], { type }))
+            const a = document.createElement('a')
+            a.href = url; a.download = name
+            document.body.appendChild(a); a.click(); a.remove()
+            setTimeout(() => URL.revokeObjectURL(url), 2000)
+        } catch { setMarksMsg('This browser would not start the download.') }
+    }
+    // The Netscape bookmarks.html every browser reads — for moving marks in/out.
+    const exportBookmarksFile = () => {
+        if (!prefs.bookmarks.length) { setMarksMsg('No bookmarks to export yet.'); return }
+        downloadFile('lumen-bookmarks.html', exportBookmarksHTML(prefs.bookmarks))
+        setMarksMsg(`Exported ${prefs.bookmarks.length} bookmark${prefs.bookmarks.length === 1 ? '' : 's'} as an HTML file.`)
+    }
+    const importBookmarksFile = (file) => {
+        if (!file) return
+        const reader = new FileReader()
+        reader.onload = () => {
+            const before = prefs.bookmarks.length
+            const merged = sanitizeBookmarks([...prefs.bookmarks, ...parseBookmarksHTML(reader.result)])
+            patchPrefs({ bookmarks: merged })
+            const added = merged.length - before
+            setMarksMsg(added > 0
+                ? `Imported ${added} new bookmark${added === 1 ? '' : 's'} from ${file.name}.`
+                : 'No new bookmarks in that file (already saved, or the list is full).')
+        }
+        reader.onerror = () => setMarksMsg('Could not read that file.')
+        reader.readAsText(file)
+    }
+
     /* ---- full backup & restore ---- */
     const exportAll = () => {
         const text = JSON.stringify(packBackup({ prefs, bookmarks: prefs.bookmarks, savedSets, popupHosts, zooms }), null, 2)
@@ -2055,6 +2089,19 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                                                 <button type="button" className="btn ghost" onClick={bookmarkAllTabs}>Add all open tabs</button>
                                                 <button type="button" className="btn ghost" onClick={exportBookmarks}>Copy as backup</button>
                                                 <button type="button" className="btn ghost" onClick={importBookmarks} disabled={!marksIo.trim()}>Import from box</button>
+                                            </div>
+                                            <div className="wf-set-actions">
+                                                <button type="button" className="btn ghost" onClick={exportBookmarksFile}>Export .html</button>
+                                                <label className="btn ghost" style={{ cursor: 'pointer' }}>
+                                                    Import .html
+                                                    <input
+                                                        type="file"
+                                                        accept=".html,.htm,text/html"
+                                                        style={{ display: 'none' }}
+                                                        onChange={(e) => { importBookmarksFile(e.target.files?.[0]); e.target.value = '' }}
+                                                    />
+                                                </label>
+                                                <span className="hint" style={{ flex: '1 1 100%' }}>Standard bookmarks file — swap with Chrome, Firefox or Safari.</span>
                                             </div>
                                             <textarea
                                                 className="wf-marks-io"

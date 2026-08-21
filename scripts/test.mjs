@@ -27,6 +27,7 @@ import {
     clampWindow, sanitizePos, resizeBox, parseOpenSearch, mergeSuggestions, suggestUrl, KEEP_ON_SCREEN,
     rankPalette, scorePalette, sanitizeSavedSets, saveSet, removeSet, MAX_SAVED_SETS,
     sanitizeHostList, hostListed, toggleHost, MAX_POPUP_HOSTS, sameLocation, greeting,
+    exportBookmarksHTML, parseBookmarksHTML,
     packBackup, parseBackup, looksLikeMath, parsePercent, parseRadix,
     resolveBang, bangFromName
 } from '../src/utils/webframe.js'
@@ -1140,6 +1141,24 @@ const near = (a, b, tol = 1e-6) => Number.isFinite(a) && Math.abs(a - b) <= tol
         ok('plot: "graph" is a synonym', parsePlot('graph x^2 - 3').expr === 'x^2 - 3')
         ok('plot: an expression without x is not a plot', parsePlot('plot 5') === null)
         ok('plot: prose after plot is refused', parsePlot('plot my day') === null)
+    }
+
+    /* bookmarks import / export (Netscape HTML) */
+    {
+        const bms = [{ url: 'https://en.wikipedia.org/wiki/Pi', label: 'Pi & "stuff" <math>' }, { url: 'https://oeis.org', label: 'OEIS' }]
+        const html = exportBookmarksHTML(bms)
+        ok('marks-io: export is a Netscape bookmark file', html.includes('<!DOCTYPE NETSCAPE-Bookmark-file-1>') && html.includes('<DL><p>'))
+        ok('marks-io: special characters are HTML-escaped', html.includes('Pi &amp; &quot;stuff&quot; &lt;math&gt;'))
+        const round = parseBookmarksHTML(html)
+        ok('marks-io: a round trip preserves url and label', round.length === 2 && round[0].url === bms[0].url && round[0].label === bms[0].label)
+        const chrome = '<!DOCTYPE NETSCAPE-Bookmark-file-1><DL><p><DT><H3>Bar</H3><DL><p>' +
+            '<DT><A HREF="https://example.com/?a=1&amp;b=2" ADD_DATE="1700000000">Ex &amp; Co</A>' +
+            '<DT><A HREF="ftp://skip.me">skip</A><DT><A HREF="https://x.test">X</A></DL><p></DL><p>'
+        const parsed = parseBookmarksHTML(chrome)
+        ok('marks-io: folders flatten and attributes are ignored', parsed.length === 2)
+        ok('marks-io: query entities decode in the URL', parsed[0].url === 'https://example.com/?a=1&b=2')
+        ok('marks-io: non-http links are dropped', !parsed.some(b => b.url.startsWith('ftp')))
+        ok('marks-io: junk parses to an empty list', parseBookmarksHTML('not a bookmark file').length === 0)
     }
 
         ok('prefs: the clock defaults on and can be turned off',
