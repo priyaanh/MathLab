@@ -208,6 +208,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
     const [size, setSize] = useState(readSize)
     const [pos, setPos] = useState(readPos)
     const [maximized, setMaximized] = useState(false)
+    const [mini, setMini] = useState(false) // picture-in-picture: shrink to a corner, page below stays usable
     const [isFullscreen, setIsFullscreen] = useState(false)
     const [resizing, setResizing] = useState(false)
     const [showSettings, setShowSettings] = useState(false)
@@ -1292,6 +1293,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
         act('New tab', () => openTab(), ['open', 'create'])
         act('New private tab', () => openTab(null, { private: true }), ['incognito', 'private', 'no history'])
         if (tabs.length > 1) act('Show all tabs', () => setShowOverview(true), ['overview', 'grid', 'expose'])
+        act(mini ? 'Restore full window' : 'Mini player', () => setMini(m => !m), ['pip', 'picture in picture', 'minimize', 'corner'])
         if (closed.length) act('Reopen closed tab', reopenClosed, ['restore', 'undo'])
         act('History', () => setShowHistory(true), ['recent', 'visited'])
         act('Settings', () => setShowSettings(true), ['preferences', 'options'])
@@ -1555,7 +1557,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
         ? topSites(history, { exclude: prefs.bookmarks.map(b => b.url), limit: 8 })
         : []
 
-    const sizeStyle = (maximized || isFullscreen)
+    const sizeStyle = (maximized || isFullscreen || mini)
         ? null
         : (pos
             // once moved it leaves the backdrop's flex centring and is placed exactly;
@@ -1570,7 +1572,8 @@ const WebFrame = ({ onClose, onOpenApp }) => {
 
     const shellClass = [
         'wf-shell',
-        maximized && 'is-max',
+        maximized && !mini && 'is-max',
+        mini && 'is-mini',
         isFullscreen && 'is-fs',
         prefs.density === 'compact' && 'is-compact',
         prefs.contrast === 'high' && 'contrast-high',
@@ -1781,11 +1784,11 @@ const WebFrame = ({ onClose, onOpenApp }) => {
 
     return (
         <div
-            className="wf-backdrop"
+            className={`wf-backdrop${mini ? ' is-mini' : ''}`}
             role="dialog"
-            aria-modal="true"
+            aria-modal={mini ? undefined : 'true'}
             aria-label="Web viewer"
-            onPointerDown={(e) => { if (e.target === e.currentTarget) onClose?.() }}
+            onPointerDown={(e) => { if (!mini && e.target === e.currentTarget) onClose?.() }}
         >
             <div
                 ref={shellRef}
@@ -2007,6 +2010,14 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                             >{awake ? '☀' : '☾'}</button>
                         )}
                         <button type="button" className={`wf-icon${showSettings ? ' is-on' : ''}`} onClick={() => { setShowHistory(false); setShowSettings(s => !s) }} aria-label="Settings" aria-expanded={showSettings} title="Settings">⚙</button>
+                        <button
+                            type="button"
+                            className={`wf-icon${mini ? ' is-on' : ''}`}
+                            onClick={() => setMini(m => !m)}
+                            aria-label="Mini player"
+                            aria-pressed={mini}
+                            title={mini ? 'Restore the full window' : 'Mini player — shrink to a corner and use the page behind it'}
+                        >{mini ? '◱' : '◲'}</button>
                         <button
                             type="button"
                             className="wf-icon"

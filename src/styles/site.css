@@ -2055,6 +2055,28 @@ a.topic-card {
 .wf-shell.is-max { width: calc(100vw - 2rem); height: calc(100vh - 2rem); }
 .wf-shell.is-fs { width: 100vw; height: 100vh; border: none; border-radius: 0; }
 
+/* ---- picture-in-picture / mini player ---- */
+/* The backdrop stops dimming and stops catching clicks, so the MathLab page
+   underneath stays usable; only the little window itself takes pointer events. */
+.wf-backdrop.is-mini {
+    background: none;
+    backdrop-filter: none;
+    padding: 0;
+    pointer-events: none;
+}
+.wf-backdrop.is-mini .wf-shell { pointer-events: auto; }
+.wf-shell.is-mini {
+    position: absolute;
+    right: 16px;
+    bottom: 16px;
+    width: min(420px, 42vw);
+    height: min(300px, 46vh);
+    margin: 0;
+    border-radius: 14px;
+    resize: both; /* let the reader stretch the mini window */
+    box-shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.55);
+}
+
 /* ---- vertical tab rail ---- */
 .wf-rail {
     position: relative;
