@@ -39,6 +39,7 @@ const MAX_NOTE = 10000
 const POPUP_HOSTS_KEY = 'mathlab-frame-popup-hosts'
 const POS_KEY = 'mathlab-frame-pos'
 const READ_KEY = 'mathlab-frame-readlater'
+const NOTES_KEY = 'mathlab-frame-notes'
 
 /** The eight grips around the window, and the cursor each one wears. */
 const GRIPS = [
@@ -144,6 +145,16 @@ const readPopupHosts = () => {
 const readReadingList = () => {
     try { return sanitizeBookmarks(JSON.parse(localStorage.getItem(READ_KEY) || 'null')) } catch { return [] }
 }
+// Per-site notes: a plain map of host -> text, trimmed of empties on read.
+const readSiteNotes = () => {
+    try {
+        const raw = JSON.parse(localStorage.getItem(NOTES_KEY) || 'null')
+        if (!raw || typeof raw !== 'object') return {}
+        const out = {}
+        for (const [k, v] of Object.entries(raw)) if (typeof v === 'string' && v.trim()) out[k] = v.slice(0, 4000)
+        return out
+    } catch { return {} }
+}
 
 // Each tab keeps its own history — a cross-origin frame's real history is unreadable.
 let nextTabId = 1
@@ -232,6 +243,8 @@ const WebFrame = ({ onClose, onOpenApp }) => {
     const [savedName, setSavedName] = useState('')  // name being typed in the Tab-sets pane
     const [popupHosts, setPopupHosts] = useState(readPopupHosts)
     const [readingList, setReadingList] = useState(readReadingList)
+    const [siteNotes, setSiteNotes] = useState(readSiteNotes)
+    const [notesOpen, setNotesOpen] = useState(false)
     const [clock, setClock] = useState(() => Date.now())  // ticks only on the new-tab page
     const [note, setNote] = useState(readNote)            // new-tab scratchpad
     const [backupIo, setBackupIo] = useState('')
@@ -826,6 +839,10 @@ const WebFrame = ({ onClose, onOpenApp }) => {
         try { localStorage.setItem(READ_KEY, JSON.stringify(readingList)) } catch { /* ignore */ }
     }, [readingList])
 
+    useEffect(() => {
+        try { localStorage.setItem(NOTES_KEY, JSON.stringify(siteNotes)) } catch { /* ignore */ }
+    }, [siteNotes])
+
     /*
      * A frame that never fires load — blocked, hung, offline — would otherwise
      * leave the bar animating forever. Give up after a while and just stop
@@ -1276,6 +1293,7 @@ const WebFrame = ({ onClose, onOpenApp }) => {
         act('Settings', () => setShowSettings(true), ['preferences', 'options'])
         if (current && !isBookmarked) act('Bookmark this page', bookmarkCurrent, ['save', 'star', 'shortcut'])
         if (current && !inReadingList(current)) act('Add to reading list', () => addToReadingList(current), ['read later', 'queue', 'save'])
+        if (noteHost) act(currentNote ? 'Edit note for this site' : 'Add a note for this site', () => setNotesOpen(true), ['note', 'annotate', 'memo'])
         if (readingList.length) act('Read later list', () => setShowHistory(true), ['reading list', 'queue'])
         if (current) act(active.pinned ? 'Unpin this tab' : 'Pin this tab', () => togglePin(active.id), ['pin'])
         if (active && !active.pinned) {
@@ -1421,6 +1439,15 @@ const WebFrame = ({ onClose, onOpenApp }) => {
         say(`Saved ${tabLabel(url)} to read later`)
     }
     const removeFromReadingList = (url) => setReadingList(list => list.filter(r => r.url !== url))
+
+    /* ---- per-site notes ---- */
+    const noteHost = hostOf(current)
+    const currentNote = (noteHost && siteNotes[noteHost]) || ''
+    const setSiteNote = (host, text) => setSiteNotes(prev => {
+        const next = { ...prev }
+        if (text.trim()) next[host] = text.slice(0, 4000); else delete next[host]
+        return next
+    })
     // Opening consumes the item — that's what makes this a queue, not a second
     // bookmarks list: you read it, it leaves.
     const openFromReadingList = (url) => { removeFromReadingList(url); setShowHistory(false); go(url) }
@@ -1922,6 +1949,15 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                         >↗</a>
                         <button
                             type="button"
+                            className={`wf-icon${notesOpen ? ' is-on' : ''}${currentNote ? ' has-dot' : ''}`}
+                            onClick={() => setNotesOpen(o => !o)}
+                            disabled={!noteHost}
+                            aria-label="Note for this site"
+                            aria-expanded={notesOpen}
+                            title={noteHost ? `Note for ${noteHost}${currentNote ? ' (has a note)' : ''}` : 'Note for this site'}
+                        >🗒</button>
+                        <button
+                            type="button"
                             className={`wf-icon${splitActive ? ' is-on' : ''}`}
                             onClick={toggleSplit}
                             aria-label="Split view"
@@ -1976,6 +2012,25 @@ const WebFrame = ({ onClose, onOpenApp }) => {
                         <button type="button" className="wf-icon" onClick={toggleFullscreen} aria-label="Fullscreen" title="Fullscreen">⛶</button>
                         <button type="button" className="wf-icon wf-close" onClick={() => onClose?.()} aria-label="Close" title={`Close (Esc, or ${prefs.closeKey} to close instantly)`}>×</button>
                     </form>
+
+                    {notesOpen && noteHost && (
+                        <div className="wf-notes" role="dialog" aria-label={`Note for ${noteHost}`}>
+                            <div className="wf-notes-head">
+                                <span>Note for <b>{noteHost}</b></span>
+                                <button type="button" className="wf-icon" onClick={() => setNotesOpen(false)} aria-label="Close note" title="Close">×</button>
+                            </div>
+                            <textarea
+                                className="wf-notes-area"
+                                value={currentNote}
+                                onChange={(e) => setSiteNote(noteHost, e.target.value)}
+                                placeholder={`Jot something about ${noteHost} — kept on this device, per site.`}
+                                aria-label={`Note text for ${noteHost}`}
+                                rows={6}
+                                autoFocus
+                            />
+                            <span className="hint">Saved automatically. Clear the text to delete the note.</span>
+                        </div>
+                    )}
 
                     {!prefs.verticalTabs && <div className="wf-toprail" {...titleDragProps}>{tabList}</div>}
 

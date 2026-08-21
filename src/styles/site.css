@@ -2133,6 +2133,46 @@ a.topic-card {
 .wf-tab.is-private { border: 1px dashed color-mix(in srgb, var(--text) 32%, transparent); }
 .wf-tab-private { flex: 0 0 auto; font-size: 0.82em; opacity: 0.85; line-height: 1; }
 
+/* ---- per-site notes ---- */
+/* A small dot on the note button when the current site already has one. */
+.wf-icon.has-dot { position: relative; }
+.wf-icon.has-dot::after {
+    content: '';
+    position: absolute;
+    top: 3px; right: 3px;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent, #5b6cf0);
+}
+.wf-notes {
+    position: absolute;
+    z-index: 20;
+    top: 100%;
+    right: 8px;
+    width: min(360px, 90%);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 4px;
+    padding: 12px;
+    background: var(--surface);
+    border: 1px solid color-mix(in srgb, var(--text) 16%, transparent);
+    border-radius: 12px;
+    box-shadow: 0 12px 34px rgb(0 0 0 / 26%);
+}
+.wf-notes-head { display: flex; align-items: center; justify-content: space-between; font-size: 0.85rem; color: var(--text); }
+.wf-notes-area {
+    width: 100%;
+    resize: vertical;
+    min-height: 6rem;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--text) 20%, transparent);
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+}
+
 /* ---- tab groups ---- */
 /* A grouped tab wears its group's colour on the leading edge and a faint wash. */
 .wf-tab.is-grouped {
